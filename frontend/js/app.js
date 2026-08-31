@@ -1,6 +1,6 @@
 // NetraAI Tele-Ophthalmology Fullstack Frontend Logic
 // Set your live Render URL here after deploying:
-const LIVE_BACKEND_URL = "https://netraai-backend.onrender.com";
+const LIVE_BACKEND_URL = "https://netraai-backend-pxb2.onrender.com";
 const API_BASE = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.port === "5000")
     ? (window.location.port === "5000" ? "/api" : "http://127.0.0.1:5000/api")
     : `${LIVE_BACKEND_URL}/api`;
