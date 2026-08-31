@@ -1,0 +1,4 @@
+{
+  "summary": "Remove skimage import in test_colab_seg.py",
+  "updatedAt": "2026-08-31T10:29:23.441434200Z"
+}

@@ -1,0 +1,4 @@
+{
+  "summary": "Fix user dict vs object attribute access in auth_service.py",
+  "updatedAt": "2026-08-31T05:04:34.406379800Z"
+}
