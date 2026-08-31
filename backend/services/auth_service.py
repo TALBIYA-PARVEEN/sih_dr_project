@@ -275,3 +275,131 @@ Smart India Hackathon 2026."""
         else:
             print(f"[DEV-FALLBACK] SMTP not configured. Doctor Approval for {to_email}")
             return True
+
+    @staticmethod
+    def send_patient_welcome_report_email(to_email, patient_name, temp_password, doctor_name, severity_name, doctor_notes="", pdf_filename=""):
+        """Sends patient diagnostic report notification along with login credentials to view past scans & consult doctor."""
+        mail_server = current_app.config.get("MAIL_SERVER", "smtp.gmail.com")
+        mail_port = int(current_app.config.get("MAIL_PORT", 587))
+        mail_user = current_app.config.get("MAIL_USERNAME", "").strip()
+        mail_pass = current_app.config.get("MAIL_PASSWORD", "").strip()
+
+        if temp_password:
+            subject = f"Your Diabetic Retinopathy Diagnostic Report & Login Credentials • NetraAI"
+            credentials_box = f"""
+                <div style="background-color: #eef2ff; border: 1px solid #c7d2fe; border-radius: 14px; padding: 18px; margin: 20px 0;">
+                    <div style="font-size: 12px; font-weight: bold; color: #3730a3; text-transform: uppercase;">Your Patient Portal Login Credentials:</div>
+                    <p style="font-size: 13px; color: #4338ca; margin: 6px 0 12px 0;">Use these credentials to view your full retina scans, download PDF reports, and chat directly with your ophthalmologist from home.</p>
+                    
+                    <div style="background: #ffffff; border: 1px solid #e0e7ff; border-radius: 10px; padding: 12px; font-family: monospace; font-size: 13px; color: #1e1b4b;">
+                        <div><b>Email/Username:</b> {to_email}</div>
+                        <div style="margin-top: 4px;"><b>Temporary Password:</b> <span style="background: #e0e7ff; padding: 2px 8px; border-radius: 6px; font-weight: bold; color: #312e81;">{temp_password}</span></div>
+                    </div>
+                </div>
+            """
+            credentials_text = f"Your Patient Portal Login Credentials:\nEmail/Username: {to_email}\nPassword: {temp_password}"
+        else:
+            subject = f"Your New Diabetic Retinopathy Diagnostic Report • NetraAI"
+            credentials_box = f"""
+                <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 14px; padding: 18px; margin: 20px 0;">
+                    <div style="font-size: 12px; font-weight: bold; color: #166534; text-transform: uppercase;">Scan Added to Your Existing Patient Portal:</div>
+                    <p style="font-size: 13px; color: #15803d; margin: 6px 0 12px 0;">This new retinal screening and clinical examination has been linked to your existing NetraAI patient account.</p>
+                    
+                    <div style="background: #ffffff; border: 1px solid #dcfce7; border-radius: 10px; padding: 12px; font-size: 13px; color: #14532d;">
+                        <div><b>Login Email:</b> {to_email}</div>
+                        <div style="margin-top: 4px;"><b>Password:</b> Log in using your existing account password (or reset anytime via Email OTP).</div>
+                    </div>
+                </div>
+            """
+            credentials_text = f"Scan Added to Your Existing Patient Portal Account ({to_email}). Log in using your existing password to view your updated records."
+
+        html_body = f"""
+        <!DOCTYPE html>
+        <html>
+        <body style="font-family: Arial, sans-serif; background-color: #f8fafc; padding: 20px; color: #1e293b;">
+            <div style="max-width: 540px; margin: auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 20px; padding: 32px; box-shadow: 0 6px 20px rgba(0,0,0,0.06);">
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <div style="width: 56px; height: 56px; background-color: #e0e7ff; color: #4338ca; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 26px; line-height: 56px; margin-bottom: 12px;">
+                        👁️
+                    </div>
+                    <h2 style="color: #312e81; margin: 0; font-size: 22px;">Retinal Screening Diagnostic Report</h2>
+                    <p style="color: #64748b; font-size: 13px; margin-top: 4px;">National Tele-Ophthalmology Healthcare Network</p>
+                </div>
+                
+                <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 16px 0;">
+                
+                <p style="font-size: 14px; color: #334155;">Hello <b>{patient_name}</b>,</p>
+                
+                <p style="font-size: 14px; color: #334155; line-height: 1.6;">
+                    Your retinal fundus examination conducted by <b>{doctor_name}</b> has been completed and processed through our AI diagnostic workstation.
+                </p>
+
+                <!-- Diagnosis Summary Box -->
+                <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 14px; padding: 18px; margin: 20px 0;">
+                    <div style="font-size: 11px; font-weight: bold; color: #64748b; text-transform: uppercase; letter-spacing: 1px;">Diagnosis Result</div>
+                    <div style="font-size: 17px; font-weight: bold; color: #1e293b; margin-top: 4px;">{severity_name}</div>
+                    
+                    {f'<div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #e2e8f0; font-size: 13px; color: #475569;"><b>Doctor Clinical Notes:</b> {doctor_notes}</div>' if doctor_notes else ''}
+                </div>
+
+                <!-- Credentials / Account Link Box -->
+                {credentials_box}
+
+                <div style="text-align: center; margin: 28px 0;">
+                    <a href="http://127.0.0.1:5000" style="background-color: #4338ca; color: #ffffff; padding: 12px 28px; text-decoration: none; border-radius: 10px; font-weight: bold; font-size: 14px; display: inline-block;">
+                        Open Patient Portal & View Scan History
+                    </a>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 20px 0;">
+                <p style="font-size: 11px; color: #94a3b8; text-align: center; margin: 0;">
+                    Smart India Hackathon (SIH 2026) • Rural Healthcare AI Tele-Screening Network • Confidential Patient Communication
+                </p>
+            </div>
+        </body>
+        </html>
+        """
+
+        text_body = f"""NetraAI Retinal Diagnostic Report
+
+Hello {patient_name},
+
+Your retinal fundus examination by {doctor_name} has been completed.
+Diagnosis: {severity_name}
+Doctor Notes: {doctor_notes}
+
+{credentials_text}
+
+Login at: http://127.0.0.1:5000
+Smart India Hackathon 2026."""
+
+        if mail_user and mail_pass:
+            try:
+                from email.utils import formatdate, make_msgid
+                msg = MIMEMultipart("alternative")
+                msg["From"] = f"NetraAI Patient Services <{mail_user}>"
+                msg["To"] = to_email
+                msg["Reply-To"] = mail_user
+                msg["Subject"] = subject
+                msg["Date"] = formatdate(localtime=True)
+                msg["Message-ID"] = make_msgid(domain="teleophta.org")
+                msg["X-Mailer"] = "NetraAI-SIH2026-Platform"
+
+                msg.attach(MIMEText(text_body, "plain", "utf-8"))
+                msg.attach(MIMEText(html_body, "html", "utf-8"))
+
+                with smtplib.SMTP(mail_server, mail_port, timeout=15) as server:
+                    server.ehlo()
+                    server.starttls()
+                    server.ehlo()
+                    server.login(mail_user, mail_pass)
+                    server.sendmail(mail_user, [to_email], msg.as_string())
+
+                print(f"[EMAIL-SENT] Successfully delivered Patient Welcome & Report Email to {to_email}")
+                return True
+            except Exception as e:
+                print(f"[EMAIL-SMTP-ERROR] Failed to send Patient Welcome Email to {to_email}: {e}")
+                return False
+        else:
+            print(f"[DEV-FALLBACK] SMTP not configured. Patient Credentials for {to_email}: {temp_password}")
+            return True

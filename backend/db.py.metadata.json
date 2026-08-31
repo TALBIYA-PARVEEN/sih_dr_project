@@ -1,4 +1,0 @@
-{
-  "summary": "Ensure password_hash is always present when seeding users in db.py",
-  "updatedAt": "2026-08-31T08:19:33.200880600Z"
-}

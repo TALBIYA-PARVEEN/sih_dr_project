@@ -1,5 +1,6 @@
 import os
 import uuid
+import random
 import cv2
 import numpy as np
 from datetime import datetime, timedelta
@@ -30,14 +31,18 @@ def serialize_doc(doc):
 def assign_least_loaded_doctor():
     """
     Finds all active, approved doctors in the network.
-    Assigns the doctor who currently has the minimum assigned active screenings.
-    Ensures equal patient division as doctor registrations increase.
+    Calculates active patient workload and pending screening review queues for each doctor.
+    Assigns the new patient to the doctor with the minimum current load for equal division.
     """
-    approved_doctors = list(mongo.doctors.find({"approval_status": "approved", "active_status": True}))
+    approved_doctors = list(mongo.doctors.find({
+        "approval_status": "approved",
+        "active_status": {"$ne": False}
+    }))
+    
     if not approved_doctors:
         return {
             "doctor_id": None,
-            "doctor_name": "Pending Specialist Assignment",
+            "doctor_name": "District Specialist Pool",
             "specialization": "Clinical Vitreo-Retina Pool",
             "license_number": "N/A",
             "hospital_name": "District Tele-Ophthalmology Network"
@@ -50,19 +55,26 @@ def assign_least_loaded_doctor():
     for doc in approved_doctors:
         doc_user_id = doc.get("user_id") or doc.get("id")
         doc_id = doc.get("id")
+
+        # Check if the doctor's user account is active (not blacklisted)
+        user_acct = mongo.users.find_one({"id": doc_user_id})
+        if user_acct and user_acct.get("status") == "blacklisted":
+            continue
+
         pat_count = mongo.patients.count_documents({
             "$or": [
                 {"assigned_doctor_id": doc_id},
                 {"assigned_doctor_id": doc_user_id}
             ]
         })
-        screening_count = mongo.screenings.count_documents({
+        pending_screening_count = mongo.screenings.count_documents({
             "$or": [
                 {"assigned_doctor_id": doc_id},
                 {"assigned_doctor_id": doc_user_id}
-            ]
+            ],
+            "review_status": "Pending Review"
         })
-        total_load = (pat_count * 2) + screening_count
+        total_load = (pat_count * 2) + (pending_screening_count * 3)
         if total_load < min_load:
             min_load = total_load
             selected_doc = doc
@@ -172,11 +184,71 @@ def create_app():
         if not username or not email or not password or not full_name:
             return jsonify({"error": "Username, email, password, and full name are required."}), 400
 
-        if mongo.users.find_one({"$or": [{"username": username}, {"email": email}]}):
-            return jsonify({"error": "User with this username or email already exists."}), 409
-
+        existing_user = mongo.users.find_one({"$or": [{"username": username}, {"email": email}]})
         otp_code = AuthService.generate_otp()
         password_hash = generate_password_hash(password)
+
+        if existing_user:
+            # User is re-registering or updating credentials: renew details & generate fresh OTP
+            user_id = existing_user["id"]
+            mongo.users.update_one(
+                {"id": user_id},
+                {"$set": {
+                    "username": username,
+                    "email": email,
+                    "password_hash": password_hash,
+                    "full_name": full_name,
+                    "role": role,
+                    "otp_code": otp_code,
+                    "otp_expiry": (datetime.utcnow() + timedelta(minutes=15)).isoformat()
+                }}
+            )
+
+            if role == "patient":
+                mongo.patients.update_one(
+                    {"user_id": user_id},
+                    {"$set": {
+                        "full_name": full_name,
+                        "age": age,
+                        "gender": gender,
+                        "phone": phone,
+                        "diabetes_type": diabetes_type,
+                        "diabetes_duration_years": diabetes_duration
+                    }},
+                    upsert=True
+                )
+            elif role == "doctor":
+                mongo.doctors.update_one(
+                    {"user_id": user_id},
+                    {"$set": {
+                        "full_name": full_name,
+                        "specialization": specialization or "Senior Vitreo-Retina Specialist",
+                        "license_number": license_number or existing_user.get("license_number", "MCI-VERIFIED"),
+                        "hospital_name": hospital_name or "District Eye Hospital",
+                        "phone": phone,
+                        "approval_status": "pending_approval",
+                        "active_status": False
+                    }},
+                    upsert=True
+                )
+
+            updated_user = mongo.users.find_one({"id": user_id})
+            email_sent = AuthService.send_otp_email(email, otp_code, purpose="Registration Verification")
+            user_obj = type("UserObj", (), updated_user)()
+            token = AuthService.generate_jwt(user_obj)
+
+            reg_message = f"Account updated. Verification code sent to {email}."
+            if role == "doctor":
+                reg_message += " Note: Doctor accounts require Master Admin approval after email verification."
+
+            return jsonify({
+                "status": "success",
+                "message": reg_message,
+                "token": token,
+                "user": serialize_doc(updated_user),
+                "otp_sent": email_sent,
+                "dev_otp": otp_code
+            }), 200
 
         user_doc = UserModel.create(
             username=username,
@@ -245,7 +317,8 @@ def create_app():
             "message": reg_message,
             "token": token,
             "user": serialize_doc(user_doc),
-            "otp_sent": email_sent
+            "otp_sent": email_sent,
+            "dev_otp": otp_code
         }), 201
 
     @app.route("/api/auth/profile/<user_id>", methods=["PUT"])
@@ -306,8 +379,9 @@ def create_app():
         email_sent = AuthService.send_otp_email(email, otp_code, purpose="Account Verification / Login")
         return jsonify({
             "status": "success",
-            "message": f"Verification code sent to {email}. Please check your inbox.",
-            "otp_sent": email_sent
+            "message": f"Verification code sent to {email}. Please check your inbox / spam folder.",
+            "otp_sent": email_sent,
+            "dev_otp": otp_code
         })
 
     @app.route("/api/auth/verify-otp", methods=["POST"])
@@ -348,6 +422,89 @@ def create_app():
             "message": "Email verified successfully.",
             "token": token,
             "user": serialize_doc(updated_user)
+        })
+
+    @app.route("/api/auth/reset-password", methods=["POST"])
+    def reset_password():
+        data = request.get_json() or {}
+        email = data.get("email", "").strip().lower()
+        otp = str(data.get("otp", "")).strip()
+        new_password = data.get("new_password", "").strip()
+
+        if not email or not otp or not new_password:
+            return jsonify({"error": "Email, verification code, and new password are required."}), 400
+
+        if len(new_password) < 6:
+            return jsonify({"error": "Password must be at least 6 characters long."}), 400
+
+        user = mongo.users.find_one({"email": email})
+        if not user:
+            return jsonify({"error": "No account found with this email address."}), 404
+
+        stored_otp = str(user.get("otp_code", "")).strip()
+        if not stored_otp or stored_otp != otp:
+            return jsonify({"error": "Invalid verification code entered. Please check your email."}), 400
+
+        expiry_str = user.get("otp_expiry")
+        if expiry_str:
+            try:
+                expiry_dt = datetime.fromisoformat(expiry_str)
+                if datetime.utcnow() > expiry_dt:
+                    return jsonify({"error": "Verification code has expired. Please request a new code."}), 400
+            except Exception:
+                pass
+
+        new_password_hash = generate_password_hash(new_password)
+        mongo.users.update_one(
+            {"email": email},
+            {"$set": {
+                "password_hash": new_password_hash,
+                "is_email_verified": True,
+                "otp_code": None,
+                "otp_expiry": None
+            }}
+        )
+
+        updated_user = mongo.users.find_one({"email": email})
+        user_obj = type("UserObj", (), updated_user)()
+        token = AuthService.generate_jwt(user_obj)
+
+        return jsonify({
+            "status": "success",
+            "message": "Password updated successfully! You can now access your account with your new password.",
+            "token": token,
+            "user": serialize_doc(updated_user)
+        })
+
+    @app.route("/api/auth/change-password", methods=["POST"])
+    def change_password():
+        data = request.get_json() or {}
+        user_id = data.get("user_id", "").strip()
+        current_password = data.get("current_password", "").strip()
+        new_password = data.get("new_password", "").strip()
+
+        if not user_id or not current_password or not new_password:
+            return jsonify({"error": "User ID, current password, and new password are required."}), 400
+
+        if len(new_password) < 6:
+            return jsonify({"error": "New password must be at least 6 characters long."}), 400
+
+        user = mongo.users.find_one({"id": user_id})
+        if not user:
+            return jsonify({"error": "User account not found."}), 404
+
+        if not check_password_hash(user.get("password_hash", ""), current_password):
+            return jsonify({"error": "Incorrect current password entered."}), 401
+
+        new_password_hash = generate_password_hash(new_password)
+        mongo.users.update_one(
+            {"id": user_id},
+            {"$set": {"password_hash": new_password_hash}}
+        )
+
+        return jsonify({
+            "status": "success",
+            "message": "Password changed successfully."
         })
 
     @app.route("/api/auth/login", methods=["POST"])
@@ -610,6 +767,258 @@ def create_app():
         }), 201
 
     # --------------------------------------------------------------------------
+    # 3B. Doctor-Initiated Patient Screening & Automated Account Setup
+    # --------------------------------------------------------------------------
+    @app.route("/api/doctor/screen", methods=["POST"])
+    def doctor_screen_patient():
+        if "file" not in request.files:
+            return jsonify({"error": "No retinal image provided."}), 400
+
+        file = request.files["file"]
+        if file.filename == "" or not allowed_file(file.filename):
+            return jsonify({"error": "Invalid file format. Allowed: PNG, JPG, JPEG, TIFF, BMP."}), 400
+
+        doctor_user_id = request.form.get("doctor_user_id")
+        doctor_profile = mongo.doctors.find_one({"$or": [{"user_id": doctor_user_id}, {"id": doctor_user_id}]}) or {}
+        doctor_name = doctor_profile.get("full_name", "Examining Ophthalmologist")
+        doctor_spec = doctor_profile.get("specialization", "Senior Vitreo-Retina Specialist")
+        doctor_lic = doctor_profile.get("license_number", "MCI-VERIFIED")
+        doctor_hosp = doctor_profile.get("hospital_name", "District Eye Hospital")
+
+        patient_name = request.form.get("patient_name", "Anonymous Patient").strip()
+        patient_email = request.form.get("patient_email", "").strip().lower()
+        patient_phone = request.form.get("patient_phone", "+91 9876543210").strip()
+        patient_age = request.form.get("patient_age", type=int) or 50
+        patient_gender = request.form.get("patient_gender", "Female")
+        diabetes_type = request.form.get("diabetes_type", "Type 2")
+        diabetes_duration = request.form.get("diabetes_duration_years", type=int) or 5
+        doctor_notes = request.form.get("doctor_notes", "Clinical examination and fundus analysis completed.").strip()
+        clinical_status = request.form.get("clinical_status", "Confirmed").strip()
+
+        session_id = str(uuid.uuid4())
+        safe_filename = f"{session_id}_orig_{secure_filename(file.filename)}"
+        original_path = os.path.join(app.config["UPLOAD_FOLDER"], safe_filename)
+        file.save(original_path)
+
+        # 1. Look up or auto-provision Patient account
+        patient_user_id = None
+        temp_password = None
+        is_new_patient = False
+
+        if patient_email:
+            existing_user = mongo.users.find_one({"email": patient_email})
+
+            if existing_user:
+                patient_user_id = existing_user["id"]
+                is_new_patient = False
+                temp_password = None  # Existing patient preserves their own password!
+
+                # Update patient profile demographics and assigned doctor without altering user credentials
+                mongo.patients.update_one(
+                    {"user_id": patient_user_id},
+                    {"$set": {
+                        "full_name": patient_name,
+                        "age": patient_age,
+                        "gender": patient_gender,
+                        "phone": patient_phone,
+                        "diabetes_type": diabetes_type,
+                        "diabetes_duration_years": diabetes_duration,
+                        "assigned_doctor_id": doctor_user_id
+                    }},
+                    upsert=True
+                )
+            else:
+                # New Patient: Auto-generate temporary password and provision account
+                temp_password = f"Netra@{random.randint(1000, 9999)}"
+                new_pw_hash = generate_password_hash(temp_password)
+                username_suggest = patient_email.split("@")[0].replace(".", "_") + f"_{random.randint(10, 99)}"
+                new_user = UserModel.create(
+                    username=username_suggest,
+                    email=patient_email,
+                    password_hash=new_pw_hash,
+                    full_name=patient_name,
+                    role="patient",
+                    is_email_verified=True
+                )
+                mongo.users.insert_one(new_user)
+                patient_user_id = new_user["id"]
+
+                pat_doc = PatientModel.create(
+                    user_id=patient_user_id,
+                    full_name=patient_name,
+                    age=patient_age,
+                    gender=patient_gender,
+                    phone=patient_phone,
+                    diabetes_type=diabetes_type,
+                    diabetes_duration_years=diabetes_duration,
+                    assigned_doctor_id=doctor_user_id
+                )
+                mongo.patients.insert_one(pat_doc)
+                is_new_patient = True
+
+        img_bgr = cv2.imread(original_path)
+        if img_bgr is None:
+            return jsonify({"error": "Failed to read retinal image file."}), 400
+        img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
+
+        # 2. Image Quality Assessment
+        iqa_result = iqa_service.evaluate_quality(img_rgb, filename=file.filename)
+
+        # 3. Preprocessing
+        prep_res = preprocessor.preprocess(img_rgb)
+        cropped_rgb = prep_res.get("cropped_rgb", img_rgb)
+        enhanced_rgb = prep_res["enhanced_rgb"]
+
+        processed_path = os.path.join(app.config["PROCESSED_FOLDER"], f"{session_id}_prep.png")
+        cv2.imwrite(processed_path, cv2.cvtColor(enhanced_rgb, cv2.COLOR_RGB2BGR))
+
+        # 4. Dual AI Prediction
+        pred_res = model_service.predict(cropped_rgb, filename=file.filename)
+
+        # 5. Biomarkers & Heatmap
+        bio_res = biomarker_service.analyze_structures(cropped_rgb)
+
+        vessels_path = os.path.join(app.config["PROCESSED_FOLDER"], f"{session_id}_vessels.png")
+        cv2.imwrite(vessels_path, bio_res["vessels_mask"])
+
+        lesions_path = os.path.join(app.config["PROCESSED_FOLDER"], f"{session_id}_lesions.png")
+        cv2.imwrite(lesions_path, cv2.cvtColor(bio_res["annotated_image"], cv2.COLOR_RGB2BGR))
+
+        cam_overlay = gradcam_service.generate_heatmap(cropped_rgb, red_mask=bio_res["red_mask"], yellow_mask=bio_res["yellow_mask"])
+        gradcam_path = os.path.join(app.config["PROCESSED_FOLDER"], f"{session_id}_gradcam.png")
+        cv2.imwrite(gradcam_path, cv2.cvtColor(cam_overlay, cv2.COLOR_RGB2BGR))
+
+        # 6. Create Screening Session Document
+        session_doc = {
+            "id": session_id,
+            "patient_id": patient_user_id or str(uuid.uuid4()),
+            "patient_user_id": patient_user_id,
+            "patient_name": patient_name,
+            "patient_age": patient_age,
+            "patient_gender": patient_gender,
+            "patient_phone": patient_phone,
+            "diabetes_info": f"{diabetes_type} ({diabetes_duration} yrs)",
+            "assigned_doctor_id": doctor_user_id,
+            "assigned_doctor_name": doctor_name,
+            "doctor_credentials": {
+                "specialization": doctor_spec,
+                "license_number": doctor_lic,
+                "hospital_name": doctor_hosp
+            },
+            "original_filename": file.filename,
+            "image_path": original_path,
+            "processed_image_path": processed_path,
+            "gradcam_image_path": gradcam_path,
+            "vessels_image_path": vessels_path,
+            "lesions_image_path": lesions_path,
+            "quality_assessment": iqa_result,
+            "is_gradable": iqa_result["is_gradable"],
+            "created_at": datetime.utcnow().isoformat(),
+            "review_status": "Pending Review",
+            "clinician_review": {
+                "status": "Pending Review",
+                "notes": doctor_notes if doctor_notes else None,
+                "reviewed_by": None,
+                "reviewed_at": None
+            },
+            "prediction": pred_res,
+            "biomarkers": {
+                "red_dots_count": bio_res["red_count"],
+                "yellow_dots_count": bio_res["yellow_count"],
+                "white_dots_count": bio_res["white_count"],
+                "vessel_density_pct": bio_res["vessel_density_pct"],
+                "optic_disc_coord": f"({bio_res['optic_disc_center']['x']}, {bio_res['optic_disc_center']['y']})"
+            },
+            "images": {
+                "original": f"/api/files/{session_id}/original",
+                "processed": f"/api/files/{session_id}/processed",
+                "gradcam": f"/api/files/{session_id}/gradcam",
+                "lesions": f"/api/files/{session_id}/lesions",
+                "vessels": f"/api/files/{session_id}/vessels"
+            }
+        }
+        mongo.screenings.insert_one(session_doc)
+
+        # 5. Insert Diagnostic Report (Starts Pending Review until Doctor signs off in Queue)
+        report_doc = {
+            "id": str(uuid.uuid4()),
+            "screening_id": session_id,
+            "patient_id": session_doc.get("patient_id"),
+            "patient_user_id": patient_user_id,
+            "patient_name": patient_name,
+            "patient_age": patient_age,
+            "patient_gender": patient_gender,
+            "patient_phone": patient_phone,
+            "diabetes_info": session_doc["diabetes_info"],
+            "doctor_id": doctor_profile.get("id") or doctor_user_id,
+            "doctor_user_id": doctor_user_id,
+            "doctor_name": doctor_name,
+            "doctor_specialization": doctor_spec,
+            "doctor_license_number": doctor_lic,
+            "doctor_hospital": doctor_hosp,
+            "final_severity_grade": pred_res["severity_level"],
+            "final_severity_name": pred_res["severity_name"],
+            "confidence_pct": round(pred_res["confidence"] * 100, 1),
+            "is_referable": pred_res["is_referable"],
+            "triage_action": pred_res["triage_action"],
+            "quality_status": iqa_result["quality_label"],
+            "clinical_status": "Pending Review",
+            "doctor_notes": doctor_notes if doctor_notes else "Pending clinical validation by examining ophthalmologist.",
+            "reviewed_by": None,
+            "pdf_report_url": f"/api/report/{session_id}/pdf",
+            "signed_at": None,
+            "created_at": datetime.utcnow().isoformat()
+        }
+        mongo.reports.insert_one(report_doc)
+
+        # 6. Generate Diagnostic PDF
+        try:
+            report_service.generate_pdf_report(session_doc)
+        except Exception as e:
+            print(f"[PDF-ERR] {e}")
+
+        # 7. Deliver Welcome Email & Report Credentials to Patient
+        email_sent = False
+        if patient_email:
+            try:
+                email_sent = AuthService.send_patient_welcome_report_email(
+                    to_email=patient_email,
+                    patient_name=patient_name,
+                    temp_password=temp_password,
+                    doctor_name=doctor_name,
+                    severity_name=pred_res["severity_name"],
+                    doctor_notes=doctor_notes,
+                    pdf_filename=f"DR_Report_{session_id}.pdf"
+                )
+            except Exception as e:
+                print(f"[EMAIL-PATIENT-WELCOME-ERR] {e}")
+
+        # 8. Add In-App Conversation Thread
+        if patient_user_id and doctor_user_id:
+            mongo.messages.insert_one({
+                "id": str(uuid.uuid4()),
+                "sender_id": doctor_user_id,
+                "sender_name": doctor_name,
+                "sender_role": "doctor",
+                "recipient_id": patient_user_id,
+                "screening_id": session_id,
+                "content": f"Hello {patient_name}, your retinal fundus screening has been completed. Diagnosis: {pred_res['severity_name']}. Clinical Advice: {doctor_notes}",
+                "is_read": False,
+                "created_at": datetime.utcnow().isoformat()
+            })
+
+        return jsonify({
+            "status": "success",
+            "session_id": session_id,
+            "is_new_patient": is_new_patient,
+            "temp_password": temp_password,
+            "patient_user_id": patient_user_id,
+            "email_sent": email_sent,
+            "message": f"Screening completed for {patient_name}. Diagnostic report signed & dispatched.",
+            "data": serialize_doc(session_doc)
+        }), 201
+
+    # --------------------------------------------------------------------------
     # 4. Reports & Patient History Queries
     # --------------------------------------------------------------------------
     @app.route("/api/patient/history/<patient_id>", methods=["GET"])
@@ -682,12 +1091,19 @@ def create_app():
     # --------------------------------------------------------------------------
     @app.route("/api/doctor/queue/<doctor_id>", methods=["GET"])
     def get_doctor_queue(doctor_id):
-        query = {
-            "$and": [
-                {"$or": [{"assigned_doctor_id": doctor_id}, {"assigned_doctor_id": None}]},
-                {"patient_user_id": {"$ne": doctor_id}}
-            ]
+        pending_filter = {
+            "review_status": {"$in": ["Pending Review", "Pending", "pending_review", None, ""]}
         }
+        if doctor_id == "all" or not doctor_id:
+            query = pending_filter
+        else:
+            query = {
+                "$and": [
+                    {"$or": [{"assigned_doctor_id": doctor_id}, {"assigned_doctor_id": None}, {"assigned_doctor_id": "all"}]},
+                    {"patient_user_id": {"$ne": doctor_id}},
+                    pending_filter
+                ]
+            }
         queue = mongo.screenings.find(query, sort=[("created_at", -1)])
         screenings = [serialize_doc(s) for s in queue]
         return jsonify({"total": len(screenings), "screenings": screenings})
@@ -794,6 +1210,66 @@ def create_app():
             ]
         }, sort=[("created_at", 1)])
         return jsonify({"messages": [serialize_doc(m) for m in messages]})
+
+    @app.route("/api/doctor/chat/patients/<doctor_id>", methods=["GET"])
+    def get_doctor_chat_patients(doctor_id):
+        patients_cursor = mongo.patients.find()
+        patients_map = {}
+        for p in patients_cursor:
+            pid = p.get("user_id") or p.get("id")
+            if pid and pid != doctor_id:
+                u = mongo.users.find_one({"id": pid})
+                patients_map[pid] = {
+                    "id": pid,
+                    "user_id": pid,
+                    "patient_id": p.get("id"),
+                    "full_name": p.get("full_name") or (u.get("full_name") if u else "Patient"),
+                    "email": u.get("email") if u else "",
+                    "age": p.get("age", 50),
+                    "gender": p.get("gender", "Female"),
+                    "phone": p.get("phone", ""),
+                    "diabetes_type": p.get("diabetes_type", "Type 2"),
+                    "last_message": "No messages yet.",
+                    "last_message_time": "",
+                    "unread_count": 0
+                }
+
+        screenings = mongo.screenings.find({"assigned_doctor_id": doctor_id})
+        for s in screenings:
+            pid = s.get("patient_user_id") or s.get("patient_id")
+            if pid and pid != doctor_id and pid not in patients_map:
+                patients_map[pid] = {
+                    "id": pid,
+                    "user_id": pid,
+                    "full_name": s.get("patient_name", "Patient"),
+                    "email": "",
+                    "age": s.get("patient_age", 50),
+                    "gender": s.get("patient_gender", "Female"),
+                    "phone": s.get("patient_phone", ""),
+                    "diabetes_type": "Type 2",
+                    "last_message": "No messages yet.",
+                    "last_message_time": "",
+                    "unread_count": 0
+                }
+
+        patient_list = list(patients_map.values())
+        for pat in patient_list:
+            pid = pat["user_id"]
+            last_msg = mongo.messages.find_one(
+                {
+                    "$or": [
+                        {"sender_id": doctor_id, "recipient_id": pid},
+                        {"sender_id": pid, "recipient_id": doctor_id}
+                    ]
+                },
+                sort=[("created_at", -1)]
+            )
+            if last_msg:
+                pat["last_message"] = last_msg.get("content", "")
+                pat["last_message_time"] = last_msg.get("created_at", "")
+
+        patient_list.sort(key=lambda x: str(x.get("last_message_time") or ""), reverse=True)
+        return jsonify({"status": "success", "patients": patient_list})
 
     # --------------------------------------------------------------------------
     # 7. Admin Dashboard & Simulink (District Telemedicine Operations)

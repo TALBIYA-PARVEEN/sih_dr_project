@@ -245,7 +245,7 @@
                 <div>
                     <div class="flex items-center justify-between">
                         <label class="text-xs font-bold text-slate-600 uppercase">Password</label>
-                        <button type="button" onclick="showForgotPasswordModal()" class="text-xs text-indigo-600 hover:underline">Use OTP Login</button>
+                        <button type="button" onclick="openResetPasswordModal()" class="text-xs text-indigo-600 font-semibold hover:underline">Change / Reset Password with OTP</button>
                     </div>
                     <div class="relative mt-1">
                         <i class="fa-solid fa-key absolute left-3.5 top-3 text-slate-400 text-sm"></i>
@@ -436,6 +436,63 @@
         </div>
 
         <!-- =============================================================== -->
+        <!-- 3B. RESET / CHANGE PASSWORD MODAL (EMAIL OTP VERIFIED) -->
+        <!-- =============================================================== -->
+        <div id="modalResetPassword" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-white max-w-md w-full p-6 rounded-3xl shadow-2xl border space-y-4">
+                <div class="flex items-center justify-between border-b pb-3">
+                    <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-key text-indigo-600"></i>
+                        <span>Reset / Change Password</span>
+                    </h3>
+                    <button onclick="closeResetPasswordModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+
+                <div class="p-3 bg-indigo-50 border border-indigo-200 rounded-2xl text-xs text-indigo-900 leading-relaxed">
+                    <i class="fa-solid fa-shield-halved text-indigo-600 mr-1"></i>
+                    Enter your registered email address. We will dispatch a 6-digit OTP code to verify your identity and update your password.
+                </div>
+
+                <form onsubmit="handleResetPasswordSubmit(event)" class="space-y-3.5">
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 uppercase">Registered Email</label>
+                        <div class="flex space-x-2 mt-1">
+                            <input type="email" id="resetEmailInput" required placeholder="patient@gmail.com" class="flex-1 px-3.5 py-2.5 bg-slate-50 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
+                            <button type="button" id="btnSendResetOtp" onclick="sendResetPasswordOtp()" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow transition flex items-center space-x-1">
+                                <span>Send OTP</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="resetOtpContainer" class="space-y-3">
+                        <div>
+                            <div class="flex items-center justify-between">
+                                <label class="text-xs font-bold text-slate-600 uppercase">6-Digit Email OTP</label>
+                                <span class="text-[10px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">Check Inbox / Spam</span>
+                            </div>
+                            <input type="text" id="resetOtpInput" maxlength="6" placeholder="••••••" class="w-full mt-1 px-3.5 py-2.5 bg-slate-50 text-center font-mono text-xl tracking-widest border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
+                        </div>
+
+                        <div>
+                            <label class="text-xs font-bold text-slate-600 uppercase">New Password</label>
+                            <input type="password" id="resetNewPassword" minlength="6" placeholder="At least 6 characters" class="w-full mt-1 px-3.5 py-2.5 bg-slate-50 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
+                        </div>
+
+                        <div>
+                            <label class="text-xs font-bold text-slate-600 uppercase">Confirm New Password</label>
+                            <input type="password" id="resetConfirmPassword" minlength="6" placeholder="Re-enter new password" class="w-full mt-1 px-3.5 py-2.5 bg-slate-50 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
+                        </div>
+
+                        <button type="submit" id="btnSubmitResetPassword" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md transition flex items-center justify-center space-x-2 text-xs">
+                            <i class="fa-solid fa-lock-open"></i>
+                            <span>Update Password & Log In</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- =============================================================== -->
         <!-- 4. EDIT PROFILE MODAL (ROLE-AWARE) -->
         <!-- =============================================================== -->
         <div id="modalEditProfile" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -618,6 +675,10 @@
                     <button onclick="openEditProfileModal()" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 border border-slate-200">
                         <i class="fa-solid fa-user-pen"></i>
                         <span>Edit Profile</span>
+                    </button>
+                    <button onclick="openChangePasswordModal()" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 border border-slate-200">
+                        <i class="fa-solid fa-key text-indigo-600"></i>
+                        <span>Change Password</span>
                     </button>
                     <button onclick="switchPatientTab('screening')" id="tabPatientScreening" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-sm transition">
                         <i class="fa-solid fa-upload mr-1"></i> New Screening
@@ -899,6 +960,9 @@
                     <button onclick="switchDoctorTab('workstation')" id="tabDoctorWorkstation" class="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-sm transition">
                         <i class="fa-solid fa-list-check mr-1"></i> Patient Queue
                     </button>
+                    <button onclick="switchDoctorTab('screening')" id="tabDoctorScreening" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center space-x-1.5">
+                        <i class="fa-solid fa-camera-retro mr-1"></i> New Patient Scan
+                    </button>
                     <button onclick="switchDoctorTab('chat')" id="tabDoctorChat" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition flex items-center space-x-1">
                         <i class="fa-solid fa-comments mr-1"></i> Messages
                     </button>
@@ -933,8 +997,8 @@
                             </div>
                             <div class="text-right flex items-center space-x-2">
                                 <span id="docAIStatusBadge" class="px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800">Moderate NPDR</span>
-                                <button onclick="switchDoctorTab('chat')" class="px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-lg border border-emerald-200">
-                                    <i class="fa-solid fa-message"></i> Chat
+                                <button type="button" onclick="openDoctorChatForCurrentPatient()" class="px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-lg border border-emerald-200">
+                                    <i class="fa-solid fa-message mr-1"></i> Chat with Patient
                                 </button>
                             </div>
                         </div>
@@ -983,8 +1047,9 @@
                                 <button onclick="downloadPDFReport()" class="px-3 py-2 bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg border">
                                     <i class="fa-solid fa-file-pdf mr-1"></i> Preview PDF
                                 </button>
-                                <button onclick="submitDoctorSignOff()" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow transition">
-                                    <i class="fa-solid fa-check-double mr-1"></i> Submit Sign-off & Notify Patient
+                                <button onclick="submitDoctorSignOff()" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow transition flex items-center space-x-1.5">
+                                    <i class="fa-solid fa-file-signature"></i>
+                                    <span>Submit Clinical Validation & Sign-off</span>
                                 </button>
                             </div>
                         </div>
@@ -992,29 +1057,260 @@
                 </div>
             </div>
 
-            <!-- TAB B: IN-DASHBOARD DOCTOR MESSAGING -->
-            <div id="doctorTabChatContent" class="hidden bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-4">
-                <div class="flex items-center justify-between border-b pb-4">
-                    <div>
-                        <h3 class="font-bold text-slate-800 text-sm">Patient Tele-Consultation Channel</h3>
-                        <p class="text-xs text-slate-500">Communicate directly with patients regarding their fundus screening</p>
+            <!-- TAB B: DOCTOR CLINICAL SCREENING & PATIENT ACCOUNT ISSUANCE -->
+            <div id="doctorTabScreeningContent" class="hidden space-y-6">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Left: Clinical Patient Demographics & Image Upload -->
+                    <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 space-y-4">
+                        <div class="flex items-center justify-between border-b pb-3">
+                            <h3 class="font-bold text-slate-800 text-sm flex items-center">
+                                <i class="fa-solid fa-user-doctor text-emerald-600 mr-2"></i> Clinical Patient Screening
+                            </h3>
+                            <span class="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">Doctor Station</span>
+                        </div>
+
+                        <form id="formDoctorScreening" onsubmit="handleDoctorScreeningSubmit(event)" class="space-y-3 text-xs">
+                            <div>
+                                <label class="font-bold text-slate-700 uppercase tracking-wider text-[10px]">Patient Full Name *</label>
+                                <input type="text" id="docScanPatientName" required placeholder="e.g. Ramesh Kumar" class="w-full mt-1 px-3 py-2 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="font-bold text-slate-700 uppercase tracking-wider text-[10px]">Patient Email *</label>
+                                    <input type="email" id="docScanPatientEmail" required placeholder="patient@gmail.com" class="w-full mt-1 px-3 py-2 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+                                </div>
+                                <div>
+                                    <label class="font-bold text-slate-700 uppercase tracking-wider text-[10px]">Patient Phone</label>
+                                    <input type="tel" id="docScanPatientPhone" placeholder="+91 9876543210" class="w-full mt-1 px-3 py-2 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="font-bold text-slate-700 uppercase tracking-wider text-[10px]">Age</label>
+                                    <input type="number" id="docScanPatientAge" value="48" min="1" max="120" class="w-full mt-1 px-3 py-2 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+                                </div>
+                                <div>
+                                    <label class="font-bold text-slate-700 uppercase tracking-wider text-[10px]">Gender</label>
+                                    <select id="docScanPatientGender" class="w-full mt-1 px-3 py-2 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+                                        <option value="Female">Female</option>
+                                        <option value="Male">Male</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="font-bold text-slate-700 uppercase tracking-wider text-[10px]">Diabetes Type</label>
+                                    <select id="docScanDiabetesType" class="w-full mt-1 px-3 py-2 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+                                        <option value="Type 2">Type 2 Diabetes</option>
+                                        <option value="Type 1">Type 1 Diabetes</option>
+                                        <option value="Gestational">Gestational</option>
+                                        <option value="Pre-diabetic">Pre-diabetic</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="font-bold text-slate-700 uppercase tracking-wider text-[10px]">Duration (Yrs)</label>
+                                    <input type="number" id="docScanDiabetesDuration" value="5" min="0" max="60" class="w-full mt-1 px-3 py-2 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+                                </div>
+                            </div>
+
+                            <!-- Fundus Upload Dropzone -->
+                            <div class="pt-1">
+                                <label class="font-bold text-slate-700 uppercase tracking-wider text-[10px]">Retinal Fundus Scan *</label>
+                                <div id="docDropZone" class="border-2 border-dashed border-slate-300 hover:border-emerald-500 rounded-2xl p-4 text-center cursor-pointer transition bg-slate-50 flex flex-col items-center justify-center mt-1">
+                                    <input type="file" id="docFileInput" accept="image/*" class="hidden">
+                                    <i class="fa-solid fa-file-medical text-2xl text-emerald-500 mb-1"></i>
+                                    <p class="text-xs font-semibold text-slate-700">Click or drag retinal image</p>
+                                    <p class="text-[10px] text-slate-400">PNG, JPG, TIFF (Max 16MB)</p>
+                                </div>
+                                <div id="docPreviewContainer" class="hidden space-y-2 mt-2">
+                                    <div class="relative rounded-xl overflow-hidden border border-slate-200 aspect-square max-h-36 mx-auto bg-black">
+                                        <img id="docImgPreview" src="" alt="Fundus Preview" class="w-full h-full object-contain">
+                                    </div>
+                                    <p id="docFileNamePreview" class="text-[10px] text-center text-slate-500 truncate font-mono"></p>
+                                </div>
+                            </div>
+
+                            <!-- Doctor Notes -->
+                            <div>
+                                <label class="font-bold text-slate-700 uppercase tracking-wider text-[10px]">Doctor Clinical Notes & Advice</label>
+                                <textarea id="docScanNotes" rows="2" placeholder="e.g. Regular HbA1c monitoring recommended. Repeat fundus examination in 6 months." class="w-full mt-1 p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500"></textarea>
+                            </div>
+
+                            <button type="submit" id="btnDocScreenSubmit" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg transition flex items-center justify-center space-x-2 text-xs">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                                <span>Analyze Scan, Register Patient & Add to Queue</span>
+                            </button>
+                        </form>
                     </div>
-                    <button onclick="switchDoctorTab('workstation')" class="text-xs text-emerald-600 hover:underline">
-                        &larr; Back to Patient Queue
-                    </button>
-                </div>
 
-                <div id="doctorChatMessagesStream" class="h-64 overflow-y-auto space-y-3 p-3 bg-slate-50 rounded-2xl border border-slate-200">
-                    <div class="text-xs text-slate-400 text-center py-10">Select a patient from the queue or reply to ongoing queries.</div>
-                </div>
+                    <!-- Right: Diagnostic Output & Clinical Review Confirmation -->
+                    <div class="lg:col-span-2 space-y-6">
+                        <div id="docScreeningPlaceholder" class="bg-white p-12 rounded-3xl border border-slate-200 text-center text-slate-400 space-y-3">
+                            <div class="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-2xl">
+                                <i class="fa-solid fa-microscope"></i>
+                            </div>
+                            <h4 class="text-base font-bold text-slate-700">Ophthalmologist Clinical Screening Station</h4>
+                            <p class="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
+                                Upload a retinal fundus image on the left. NetraAI will execute automated Image Quality Assessment, 
+                                CNN/YOLO ICDR grading, 4-channel lesion segmentation, and add the scan to your Review Queue. 
+                                The patient will automatically receive their login credentials via email, and you can complete the final sign-off in your queue.
+                            </p>
+                        </div>
 
-                <form onsubmit="handleDoctorSendMessage(event)" class="flex items-center space-x-2 pt-2">
-                    <input type="text" id="inputDoctorMessage" required placeholder="Type clinical instructions or reply to patient..." class="flex-1 px-4 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none">
-                    <button type="submit" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow transition flex items-center space-x-1">
-                        <i class="fa-solid fa-paper-plane"></i>
-                        <span>Send</span>
-                    </button>
-                </form>
+                        <!-- Results Card (Hidden until submitted) -->
+                        <div id="docScreeningResultsCard" class="hidden bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-5">
+                            <div class="flex items-center justify-between border-b pb-4">
+                                <div>
+                                    <span class="text-[10px] bg-amber-100 text-amber-800 font-bold px-2.5 py-0.5 rounded-full"><i class="fa-solid fa-clock mr-1"></i> In Review Queue (Pending Sign-off)</span>
+                                    <h3 class="text-lg font-bold text-slate-800 mt-1" id="docResPatientHeader">Patient Diagnosis Summary</h3>
+                                    <p class="text-xs text-slate-400" id="docResMeta">Assigned to Dr. Manushi • Awaiting Sign-off in Queue</p>
+                                </div>
+                                <div class="text-right flex items-center space-x-2">
+                                    <a id="docResDownloadPdfBtn" href="#" target="_blank" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow transition inline-flex items-center space-x-1.5">
+                                        <i class="fa-solid fa-file-pdf"></i>
+                                        <span>Download PDF</span>
+                                    </a>
+                                    <button onclick="switchDoctorTab('workstation')" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow transition inline-flex items-center space-x-1.5">
+                                        <i class="fa-solid fa-list-check"></i>
+                                        <span>View in Patient Queue</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Patient Email Credentials Notification Banner -->
+                            <div id="docPatientCredentialsBanner" class="p-3.5 bg-indigo-50 border border-indigo-200 rounded-2xl flex items-center justify-between gap-3 text-xs">
+                                <div class="flex items-center space-x-2 text-indigo-900">
+                                    <i class="fa-solid fa-envelope-circle-check text-indigo-600 text-base"></i>
+                                    <span id="docPatientEmailNotificationText">Login credentials and diagnostic report successfully emailed to patient.</span>
+                                </div>
+                                <span id="docPatientTempPwBadge" class="bg-indigo-200 text-indigo-900 font-mono font-bold px-2.5 py-1 rounded-lg text-[11px]"></span>
+                            </div>
+
+                            <!-- Severity & Metrics Grid -->
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                                    <div class="text-[10px] font-bold text-slate-400 uppercase">CNN/ICDR Severity</div>
+                                    <div class="text-base font-extrabold text-slate-800 mt-1" id="docResSeverityName">Moderate NPDR (Grade 2)</div>
+                                    <div class="text-xs text-slate-500 mt-0.5" id="docResConfidence">Confidence: 94.8%</div>
+                                </div>
+                                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                                    <div class="text-[10px] font-bold text-slate-400 uppercase">Image Quality Check</div>
+                                    <div class="text-base font-extrabold text-emerald-600 mt-1" id="docResQualityLabel">Gradable (Clean FOV)</div>
+                                    <div class="text-xs text-slate-500 mt-0.5" id="docResQualityScore">IQA Score: 92.5/100</div>
+                                </div>
+                                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                                    <div class="text-[10px] font-bold text-slate-400 uppercase">Clinical Sign-Off</div>
+                                    <div class="text-base font-extrabold text-emerald-700 mt-1">Confirmed by Doctor</div>
+                                    <div class="text-xs text-slate-500 mt-0.5">Tele-Consultation Active</div>
+                                </div>
+                            </div>
+
+                            <!-- 4-Channel Imaging Cards -->
+                            <div>
+                                <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">4-Channel Biomarker Imaging</h4>
+                                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                    <div class="text-center">
+                                        <img id="docResOrigImg" class="w-full aspect-square object-cover rounded-xl border bg-black mb-1">
+                                        <span class="text-[10px] font-semibold text-slate-600">Original Fundus</span>
+                                    </div>
+                                    <div class="text-center">
+                                        <img id="docResVesselImg" class="w-full aspect-square object-cover rounded-xl border bg-black mb-1">
+                                        <span class="text-[10px] font-semibold text-slate-600">Vessel Tree</span>
+                                    </div>
+                                    <div class="text-center">
+                                        <img id="docResLesionImg" class="w-full aspect-square object-cover rounded-xl border bg-black mb-1">
+                                        <span class="text-[10px] font-semibold text-slate-600">Lesion Overlay</span>
+                                    </div>
+                                    <div class="text-center">
+                                        <img id="docResGradcamImg" class="w-full aspect-square object-cover rounded-xl border bg-black mb-1">
+                                        <span class="text-[10px] font-semibold text-slate-600">Grad-CAM Heatmap</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Doctor Written Impressions Summary -->
+                            <div class="bg-emerald-50/70 p-4 rounded-2xl border border-emerald-200 text-xs space-y-1">
+                                <div class="font-bold text-emerald-900 flex items-center space-x-1.5">
+                                    <i class="fa-solid fa-file-signature text-emerald-700"></i>
+                                    <span>Doctor Review & Clinical Advice Attached:</span>
+                                </div>
+                                <p id="docResDoctorNotes" class="text-emerald-800 italic">No notes recorded.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB C: PATIENT-SPECIFIC TELE-CONSULTATION MESSAGING -->
+            <div id="doctorTabChatContent" class="hidden bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="grid grid-cols-1 md:grid-cols-3 min-h-[560px]">
+                    <!-- Left Column: Patient Directory & Conversation Threads -->
+                    <div class="border-r border-slate-200 p-4 space-y-3 bg-slate-50/50">
+                        <div class="flex items-center justify-between">
+                            <h3 class="font-bold text-slate-800 text-sm flex items-center">
+                                <i class="fa-solid fa-comments text-emerald-600 mr-2"></i> Patient Chats
+                            </h3>
+                            <span id="docChatPatientCount" class="text-[11px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">0</span>
+                        </div>
+
+                        <!-- Search Bar -->
+                        <div class="relative">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                            <input type="text" id="docChatSearchInput" oninput="filterDoctorChatPatients()" placeholder="Search patient by name..." class="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500">
+                        </div>
+
+                        <!-- Patient List Stream -->
+                        <div id="docChatPatientList" class="space-y-1.5 max-h-[440px] overflow-y-auto pr-1">
+                            <div class="text-xs text-slate-400 text-center py-8">Loading patients...</div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Active Patient Chat Conversation -->
+                    <div class="md:col-span-2 flex flex-col justify-between p-5 space-y-4">
+                        <!-- Chat Header -->
+                        <div class="flex items-center justify-between border-b pb-3">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-sm">
+                                    <i class="fa-solid fa-user"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-slate-800 text-sm" id="docActiveChatPatientName">Select a Patient</h4>
+                                    <p class="text-xs text-slate-400" id="docActiveChatPatientMeta">Choose a patient from the left panel to begin consultation</p>
+                                </div>
+                            </div>
+                            <button onclick="switchDoctorTab('workstation')" class="text-xs text-emerald-600 hover:underline flex items-center space-x-1">
+                                <i class="fa-solid fa-arrow-left text-[10px]"></i>
+                                <span>Back to Queue</span>
+                            </button>
+                        </div>
+
+                        <!-- Message Bubbles Container -->
+                        <div id="doctorChatMessagesStream" class="flex-1 min-h-[300px] max-h-[360px] overflow-y-auto space-y-3 p-3 bg-slate-50 rounded-2xl border border-slate-200">
+                            <div class="text-xs text-slate-400 text-center py-16">Select a patient on the left to review messages and send clinical advice.</div>
+                        </div>
+
+                        <!-- Quick Clinical Recommendation Chips -->
+                        <div class="flex items-center space-x-1.5 overflow-x-auto pb-1 text-[11px]">
+                            <span class="text-slate-400 font-semibold flex-shrink-0 text-[10px]">Quick Advice:</span>
+                            <button type="button" onclick="insertQuickAdvice('Routine annual retina screening recommended in 12 months.')" class="px-2 py-0.5 bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 rounded-lg text-slate-600 transition flex-shrink-0 border">📅 Annual Check</button>
+                            <button type="button" onclick="insertQuickAdvice('Please visit the clinic for a dilated eye exam and OCT scan.')" class="px-2 py-0.5 bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 rounded-lg text-slate-600 transition flex-shrink-0 border">🏥 Visit Clinic</button>
+                            <button type="button" onclick="insertQuickAdvice('Strict glycemic and HbA1c control advised to prevent diabetic microvascular changes.')" class="px-2 py-0.5 bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 rounded-lg text-slate-600 transition flex-shrink-0 border">💉 HbA1c Control</button>
+                        </div>
+
+                        <!-- Message Input Form -->
+                        <form onsubmit="handleDoctorSendMessage(event)" class="flex items-center space-x-2">
+                            <input type="text" id="inputDoctorMessage" required placeholder="Type clinical instructions or reply to this patient..." class="flex-1 px-4 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none">
+                            <button type="submit" id="btnDoctorSendMessage" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow transition flex items-center space-x-1">
+                                <i class="fa-solid fa-paper-plane"></i>
+                                <span>Send</span>
+                            </button>
+                        </form>
+                    </div>
+                </div>
             </div>
         </section>
 
