@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🏥 NetraAI: Automated Diabetic Retinopathy Tele-Screening Network
 
 **Smart India Hackathon (SIH 2026) Prototype**  
@@ -89,3 +90,6 @@ You can open the frontend in **either** of these simple ways:
 ### 3. 🏛️ District Admin Portal
 * Real-time district dashboard (Total Screened, Referral Rate %, Pending Doctor Reviews, Doctor Workload).
 * **Simulink Telemedicine Simulator**: Adjust annual patient targets (100,000+), rural PHCs count, and uplink bandwidth (2 Mbps) to simulate daily doctor hours saved and queuing throughput in real-time.
+=======
+# sih_dr_project
+>>>>>>> 3aace076820f15a2f166b8814adbe6dc44596c59
