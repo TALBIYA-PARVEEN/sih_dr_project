@@ -574,6 +574,96 @@
         </div>
 
         <!-- =============================================================== -->
+        <!-- 4B. LIVE RETINAL CAMERA CAPTURE MODAL -->
+        <!-- =============================================================== -->
+        <div id="modalCameraCapture" class="hidden fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+            <div class="bg-slate-900 border border-slate-700 max-w-xl w-full p-5 rounded-3xl shadow-2xl space-y-4 text-white">
+                <!-- Header -->
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <div class="flex items-center space-x-2.5">
+                        <div class="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                            <i class="fa-solid fa-camera text-sm"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-sm text-white" id="cameraModalTitle">Live Retinal Camera Capture</h3>
+                            <p class="text-[11px] text-slate-400">Position the eye / smartphone adapter lens inside the circle</p>
+                        </div>
+                    </div>
+                    <button type="button" onclick="closeCameraModal()" class="text-slate-400 hover:text-white text-lg">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <!-- Video Viewfinder with Eye Reticle -->
+                <div class="relative rounded-2xl overflow-hidden bg-black aspect-[4/3] sm:aspect-video flex items-center justify-center border border-slate-800 shadow-inner">
+                    <!-- Live Video Element -->
+                    <video id="cameraVideo" autoplay playsinline muted class="w-full h-full object-cover"></video>
+
+                    <!-- Hidden Processing Canvas -->
+                    <canvas id="cameraCanvas" class="hidden"></canvas>
+
+                    <!-- Target Reticle Overlay (Shown when streaming) -->
+                    <div id="cameraReticleOverlay" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                        <div class="w-48 h-48 sm:w-56 sm:h-56 rounded-full border-2 border-emerald-400/80 border-dashed animate-pulse-subtle flex items-center justify-center shadow-lg">
+                            <div class="w-3 h-3 rounded-full bg-emerald-400/40"></div>
+                        </div>
+                        <span class="mt-2 text-[10px] font-semibold bg-black/60 px-3 py-1 rounded-full text-emerald-300 backdrop-blur-xs">
+                            <i class="fa-regular fa-eye mr-1"></i> Align eye / fundus lens in center
+                        </span>
+                    </div>
+
+                    <!-- Frozen Snapshot Preview (Shown after snap) -->
+                    <div id="cameraSnapshotContainer" class="hidden absolute inset-0 bg-black flex items-center justify-center">
+                        <img id="cameraSnapshotImg" src="" alt="Captured Retina" class="w-full h-full object-contain">
+                    </div>
+
+                    <!-- Camera Error Notice -->
+                    <div id="cameraErrorBox" class="hidden absolute inset-0 bg-slate-900 p-6 flex flex-col items-center justify-center text-center space-y-2 text-xs">
+                        <i class="fa-solid fa-camera-slash text-3xl text-rose-500 mb-1"></i>
+                        <h4 class="font-bold text-slate-200">Camera Access Required</h4>
+                        <p class="text-slate-400 max-w-xs" id="cameraErrorMsg">Please allow camera permissions in your browser to capture retinal photos.</p>
+                        <button type="button" onclick="startCameraStream()" class="mt-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold">
+                            <i class="fa-solid fa-arrows-rotate mr-1"></i> Retry Camera
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Controls Toolbar -->
+                <div class="flex items-center justify-between pt-1">
+                    <!-- Switch Camera Facing Mode -->
+                    <button type="button" id="btnSwitchCamera" onclick="switchCameraFacingMode()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold transition flex items-center space-x-1.5 border border-slate-700">
+                        <i class="fa-solid fa-camera-rotate"></i>
+                        <span class="hidden sm:inline">Flip Camera</span>
+                    </button>
+
+                    <!-- Capture Shutter Button (Before snap) -->
+                    <div id="cameraLiveControls" class="flex items-center space-x-3">
+                        <button type="button" onclick="captureCameraSnapshot()" class="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs shadow-lg transition flex items-center space-x-2">
+                            <i class="fa-solid fa-circle-dot text-base animate-pulse"></i>
+                            <span>Capture Retinal Photo</span>
+                        </button>
+                    </div>
+
+                    <!-- Review Controls (After snap) -->
+                    <div id="cameraReviewControls" class="hidden flex items-center space-x-2">
+                        <button type="button" onclick="retakeCameraPhoto()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold transition border border-slate-700 flex items-center space-x-1">
+                            <i class="fa-solid fa-rotate-left"></i>
+                            <span>Retake</span>
+                        </button>
+                        <button type="button" onclick="confirmCameraSnapshot()" class="px-5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-lg transition flex items-center space-x-1.5">
+                            <i class="fa-solid fa-check"></i>
+                            <span>Use This Photo</span>
+                        </button>
+                    </div>
+
+                    <button type="button" onclick="closeCameraModal()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-xl text-xs font-semibold transition">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- =============================================================== -->
         <!-- 5. MODELS & TECHNOLOGY PAGE -->
         <!-- =============================================================== -->
         <section id="pageModels" class="hidden space-y-6">
@@ -703,19 +793,31 @@
                     <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 space-y-4">
                         <div class="flex items-center justify-between">
                             <h3 class="font-bold text-slate-800 text-sm flex items-center">
-                                <i class="fa-solid fa-cloud-arrow-up text-indigo-600 mr-2"></i> Upload Retinal Image
+                                <i class="fa-solid fa-eye text-indigo-600 mr-2"></i> Retinal Image Input
                             </h3>
                             <span class="text-[11px] text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
                                 Profile Attached
                             </span>
                         </div>
 
+                        <!-- Input Mode Selector: Upload File vs Live Camera -->
+                        <div class="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-xl text-xs font-semibold">
+                            <button type="button" onclick="document.getElementById('fileInput').click()" class="py-2 rounded-lg bg-white shadow-xs text-indigo-700 font-bold flex items-center justify-center space-x-1.5 transition hover:bg-indigo-50">
+                                <i class="fa-solid fa-folder-open"></i>
+                                <span>Upload File</span>
+                            </button>
+                            <button type="button" onclick="openCameraModal('patient')" class="py-2 rounded-lg text-slate-700 hover:text-indigo-700 hover:bg-white flex items-center justify-center space-x-1.5 transition">
+                                <i class="fa-solid fa-camera text-indigo-600"></i>
+                                <span>Live Camera</span>
+                            </button>
+                        </div>
+
                         <!-- Drop Zone -->
-                        <div id="dropZone" class="border-2 border-dashed border-slate-300 hover:border-indigo-500 rounded-2xl p-6 text-center cursor-pointer transition bg-slate-50 flex flex-col items-center justify-center min-h-[160px]">
+                        <div id="dropZone" class="border-2 border-dashed border-slate-300 hover:border-indigo-500 rounded-2xl p-5 text-center cursor-pointer transition bg-slate-50 flex flex-col items-center justify-center min-h-[140px]">
                             <input type="file" id="fileInput" accept="image/*" class="hidden">
-                            <i class="fa-solid fa-file-medical text-3xl text-indigo-400 mb-2"></i>
+                            <i class="fa-solid fa-file-medical text-2xl text-indigo-400 mb-1.5"></i>
                             <p class="text-xs font-medium text-slate-700">Click or drag retinal fundus photo</p>
-                            <p class="text-[10px] text-slate-400 mt-1">PNG, JPG, JPEG, TIFF (Max 16MB)</p>
+                            <p class="text-[10px] text-slate-400 mt-0.5">PNG, JPG, JPEG, TIFF (Max 16MB)</p>
                         </div>
 
                         <!-- Live Image Preview -->
@@ -1117,10 +1219,23 @@
                                 </div>
                             </div>
 
-                            <!-- Fundus Upload Dropzone -->
-                            <div class="pt-1">
+                            <!-- Fundus Upload Mode Selector & Dropzone -->
+                            <div class="pt-1 space-y-2">
                                 <label class="font-bold text-slate-700 uppercase tracking-wider text-[10px]">Retinal Fundus Scan *</label>
-                                <div id="docDropZone" class="border-2 border-dashed border-slate-300 hover:border-emerald-500 rounded-2xl p-4 text-center cursor-pointer transition bg-slate-50 flex flex-col items-center justify-center mt-1">
+
+                                <!-- Input Mode Selector: Upload File vs Live Camera -->
+                                <div class="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-xl text-xs font-semibold">
+                                    <button type="button" onclick="document.getElementById('docFileInput').click()" class="py-2 rounded-lg bg-white shadow-xs text-emerald-700 font-bold flex items-center justify-center space-x-1.5 transition hover:bg-emerald-50">
+                                        <i class="fa-solid fa-folder-open"></i>
+                                        <span>Upload File</span>
+                                    </button>
+                                    <button type="button" onclick="openCameraModal('doctor')" class="py-2 rounded-lg text-slate-700 hover:text-emerald-700 hover:bg-white flex items-center justify-center space-x-1.5 transition">
+                                        <i class="fa-solid fa-camera text-emerald-600"></i>
+                                        <span>Live Camera</span>
+                                    </button>
+                                </div>
+
+                                <div id="docDropZone" class="border-2 border-dashed border-slate-300 hover:border-emerald-500 rounded-2xl p-4 text-center cursor-pointer transition bg-slate-50 flex flex-col items-center justify-center">
                                     <input type="file" id="docFileInput" accept="image/*" class="hidden">
                                     <i class="fa-solid fa-file-medical text-2xl text-emerald-500 mb-1"></i>
                                     <p class="text-xs font-semibold text-slate-700">Click or drag retinal image</p>

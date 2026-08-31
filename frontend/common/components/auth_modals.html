@@ -159,3 +159,79 @@
         </form>
     </div>
 </div>
+
+<!-- 4. LIVE RETINAL CAMERA CAPTURE MODAL -->
+<div id="modalCameraCapture" class="hidden fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 max-w-xl w-full p-5 rounded-3xl shadow-2xl space-y-4 text-white">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div class="flex items-center space-x-2.5">
+                <div class="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                    <i class="fa-solid fa-camera text-sm"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-sm text-white" id="cameraModalTitle">Live Retinal Camera Capture</h3>
+                    <p class="text-[11px] text-slate-400">Position the eye / smartphone adapter lens inside the circle</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeCameraModal()" class="text-slate-400 hover:text-white text-lg">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <div class="relative rounded-2xl overflow-hidden bg-black aspect-[4/3] sm:aspect-video flex items-center justify-center border border-slate-800 shadow-inner">
+            <video id="cameraVideo" autoplay playsinline muted class="w-full h-full object-cover"></video>
+            <canvas id="cameraCanvas" class="hidden"></canvas>
+
+            <div id="cameraReticleOverlay" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <div class="w-48 h-48 sm:w-56 sm:h-56 rounded-full border-2 border-emerald-400/80 border-dashed animate-pulse-subtle flex items-center justify-center shadow-lg">
+                    <div class="w-3 h-3 rounded-full bg-emerald-400/40"></div>
+                </div>
+                <span class="mt-2 text-[10px] font-semibold bg-black/60 px-3 py-1 rounded-full text-emerald-300 backdrop-blur-xs">
+                    <i class="fa-regular fa-eye mr-1"></i> Align eye / fundus lens in center
+                </span>
+            </div>
+
+            <div id="cameraSnapshotContainer" class="hidden absolute inset-0 bg-black flex items-center justify-center">
+                <img id="cameraSnapshotImg" src="" alt="Captured Retina" class="w-full h-full object-contain">
+            </div>
+
+            <div id="cameraErrorBox" class="hidden absolute inset-0 bg-slate-900 p-6 flex flex-col items-center justify-center text-center space-y-2 text-xs">
+                <i class="fa-solid fa-camera-slash text-3xl text-rose-500 mb-1"></i>
+                <h4 class="font-bold text-slate-200">Camera Access Required</h4>
+                <p class="text-slate-400 max-w-xs" id="cameraErrorMsg">Please allow camera permissions in your browser to capture retinal photos.</p>
+                <button type="button" onclick="startCameraStream()" class="mt-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold">
+                    <i class="fa-solid fa-arrows-rotate mr-1"></i> Retry Camera
+                </button>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-between pt-1">
+            <button type="button" id="btnSwitchCamera" onclick="switchCameraFacingMode()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold transition flex items-center space-x-1.5 border border-slate-700">
+                <i class="fa-solid fa-camera-rotate"></i>
+                <span class="hidden sm:inline">Flip Camera</span>
+            </button>
+
+            <div id="cameraLiveControls" class="flex items-center space-x-3">
+                <button type="button" onclick="captureCameraSnapshot()" class="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs shadow-lg transition flex items-center space-x-2">
+                    <i class="fa-solid fa-circle-dot text-base animate-pulse"></i>
+                    <span>Capture Retinal Photo</span>
+                </button>
+            </div>
+
+            <div id="cameraReviewControls" class="hidden flex items-center space-x-2">
+                <button type="button" onclick="retakeCameraPhoto()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold transition border border-slate-700 flex items-center space-x-1">
+                    <i class="fa-solid fa-rotate-left"></i>
+                    <span>Retake</span>
+                </button>
+                <button type="button" onclick="confirmCameraSnapshot()" class="px-5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-lg transition flex items-center space-x-1.5">
+                    <i class="fa-solid fa-check"></i>
+                    <span>Use This Photo</span>
+                </button>
+            </div>
+
+            <button type="button" onclick="closeCameraModal()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-xl text-xs font-semibold transition">
+                Cancel
+            </button>
+        </div>
+    </div>
+</div>

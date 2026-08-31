@@ -1,5 +1,9 @@
 // NetraAI Tele-Ophthalmology Fullstack Frontend Logic
-const API_BASE = window.location.origin.includes("5000") ? "/api" : "http://localhost:5000/api";
+// Set your live Render URL here after deploying:
+const LIVE_BACKEND_URL = "https://netraai-backend.onrender.com";
+const API_BASE = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.port === "5000")
+    ? (window.location.port === "5000" ? "/api" : "http://127.0.0.1:5000/api")
+    : `${LIVE_BACKEND_URL}/api`;
 
 // Reactive State
 let currentUser = JSON.parse(localStorage.getItem("netra_user") || "null");
@@ -767,6 +771,188 @@ function handleDoctorFileSelect(file) {
         if (container) container.classList.remove("hidden");
     };
     reader.readAsDataURL(file);
+}
+
+// -----------------------------------------------------------------------------
+// Live Retinal Camera Capture & Hardware Device Permissions
+// -----------------------------------------------------------------------------
+let cameraStream = null;
+let currentCameraFacingMode = "environment";
+let activeCameraContext = "patient";
+let capturedCameraBlob = null;
+
+async function openCameraModal(context = "patient") {
+    activeCameraContext = context;
+    const modal = document.getElementById("modalCameraCapture");
+    if (!modal) return;
+    modal.classList.remove("hidden");
+
+    const titleEl = document.getElementById("cameraModalTitle");
+    if (titleEl) {
+        titleEl.innerText = (context === "doctor") 
+            ? "Doctor Station: Live Retinal Camera Capture" 
+            : "Patient Screening: Live Retinal Camera Capture";
+    }
+
+    retakeCameraPhoto();
+    await startCameraStream();
+}
+
+async function startCameraStream() {
+    const errorBox = document.getElementById("cameraErrorBox");
+    const video = document.getElementById("cameraVideo");
+    if (errorBox) errorBox.classList.add("hidden");
+
+    stopCameraStream();
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        showCameraError("Your browser or device does not support direct camera capture. Please use file upload instead.");
+        return;
+    }
+
+    const constraints = {
+        video: {
+            facingMode: currentCameraFacingMode,
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
+        },
+        audio: false
+    };
+
+    try {
+        cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+        if (video) {
+            video.srcObject = cameraStream;
+            video.play();
+        }
+    } catch (err) {
+        console.warn("Camera constraint error with facingMode, falling back to default camera:", err);
+        try {
+            cameraStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+            if (video) {
+                video.srcObject = cameraStream;
+                video.play();
+            }
+        } catch (fallbackErr) {
+            console.error("Camera access denied or unavailable:", fallbackErr);
+            showCameraError("Camera permission was denied or no camera device was detected. Please grant permission in browser settings.");
+        }
+    }
+}
+
+function showCameraError(msg) {
+    const errorBox = document.getElementById("cameraErrorBox");
+    const errorMsg = document.getElementById("cameraErrorMsg");
+    if (errorMsg) errorMsg.innerText = msg;
+    if (errorBox) errorBox.classList.remove("hidden");
+    showToast(msg, "warning");
+}
+
+function switchCameraFacingMode() {
+    currentCameraFacingMode = (currentCameraFacingMode === "environment") ? "user" : "environment";
+    startCameraStream();
+    showToast(`Switched camera to ${currentCameraFacingMode === "environment" ? "Rear / Fundus Lens" : "Front / User"} mode`, "info");
+}
+
+function captureCameraSnapshot() {
+    const video = document.getElementById("cameraVideo");
+    const canvas = document.getElementById("cameraCanvas");
+    if (!video || !canvas) return;
+
+    const width = video.videoWidth || 1280;
+    const height = video.videoHeight || 720;
+    canvas.width = width;
+    canvas.height = height;
+
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(video, 0, 0, width, height);
+
+    canvas.toBlob((blob) => {
+        if (!blob) {
+            showToast("Failed to process camera frame. Please try again.", "error");
+            return;
+        }
+        capturedCameraBlob = blob;
+        const snapshotImg = document.getElementById("cameraSnapshotImg");
+        if (snapshotImg) {
+            snapshotImg.src = URL.createObjectURL(blob);
+        }
+
+        const reticle = document.getElementById("cameraReticleOverlay");
+        const snapCont = document.getElementById("cameraSnapshotContainer");
+        const liveCtrls = document.getElementById("cameraLiveControls");
+        const revCtrls = document.getElementById("cameraReviewControls");
+
+        if (reticle) reticle.classList.add("hidden");
+        if (snapCont) snapCont.classList.remove("hidden");
+        if (liveCtrls) liveCtrls.classList.add("hidden");
+        if (revCtrls) revCtrls.classList.remove("hidden");
+    }, "image/png", 0.95);
+}
+
+function retakeCameraPhoto() {
+    capturedCameraBlob = null;
+    const reticle = document.getElementById("cameraReticleOverlay");
+    const snapCont = document.getElementById("cameraSnapshotContainer");
+    const liveCtrls = document.getElementById("cameraLiveControls");
+    const revCtrls = document.getElementById("cameraReviewControls");
+
+    if (reticle) reticle.classList.remove("hidden");
+    if (snapCont) snapCont.classList.add("hidden");
+    if (liveCtrls) liveCtrls.classList.remove("hidden");
+    if (revCtrls) revCtrls.classList.add("hidden");
+}
+
+function confirmCameraSnapshot() {
+    if (!capturedCameraBlob) {
+        showToast("No camera photo captured yet.", "warning");
+        return;
+    }
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const filename = `camera_retina_scan_${timestamp}.png`;
+    const capturedFile = new File([capturedCameraBlob], filename, { type: "image/png" });
+
+    if (activeCameraContext === "doctor") {
+        selectedDoctorFile = capturedFile;
+        const preview = document.getElementById("docImgPreview");
+        const nameEl = document.getElementById("docFileNamePreview");
+        const container = document.getElementById("docPreviewContainer");
+
+        if (preview) preview.src = URL.createObjectURL(capturedCameraBlob);
+        if (nameEl) nameEl.innerHTML = `<i class="fa-solid fa-camera mr-1 text-emerald-600"></i> ${filename} (${(capturedCameraBlob.size / 1024).toFixed(1)} KB)`;
+        if (container) container.classList.remove("hidden");
+
+        showToast("Retinal photo captured via camera & ready for screening!", "success");
+    } else {
+        selectedFile = capturedFile;
+        const preview = document.getElementById("imgPreview");
+        const nameEl = document.getElementById("fileNamePreview");
+        const container = document.getElementById("previewContainer");
+
+        if (preview) preview.src = URL.createObjectURL(capturedCameraBlob);
+        if (nameEl) nameEl.innerHTML = `<i class="fa-solid fa-camera mr-1 text-indigo-600"></i> ${filename} (${(capturedCameraBlob.size / 1024).toFixed(1)} KB)`;
+        if (container) container.classList.remove("hidden");
+
+        showToast("Retinal photo captured via camera & ready for screening!", "success");
+    }
+
+    closeCameraModal();
+}
+
+function stopCameraStream() {
+    if (cameraStream) {
+        cameraStream.getTracks().forEach((track) => track.stop());
+        cameraStream = null;
+    }
+    const video = document.getElementById("cameraVideo");
+    if (video) video.srcObject = null;
+}
+
+function closeCameraModal() {
+    stopCameraStream();
+    const modal = document.getElementById("modalCameraCapture");
+    if (modal) modal.classList.add("hidden");
 }
 
 async function runPatientScreening() {

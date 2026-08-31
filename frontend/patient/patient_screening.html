@@ -5,18 +5,30 @@
         <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 space-y-4">
             <div class="flex items-center justify-between">
                 <h3 class="font-bold text-slate-800 text-sm flex items-center">
-                    <i class="fa-solid fa-cloud-arrow-up text-indigo-600 mr-2"></i> Upload Retinal Image
+                    <i class="fa-solid fa-eye text-indigo-600 mr-2"></i> Retinal Image Input
                 </h3>
                 <span class="text-[11px] text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
                     Profile Attached
                 </span>
             </div>
 
+            <!-- Input Mode Selector: Upload File vs Live Camera -->
+            <div class="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-xl text-xs font-semibold">
+                <button type="button" onclick="document.getElementById('patientFileInput').click()" class="py-2 rounded-lg bg-white shadow-xs text-indigo-700 font-bold flex items-center justify-center space-x-1.5 transition hover:bg-indigo-50">
+                    <i class="fa-solid fa-folder-open"></i>
+                    <span>Upload File</span>
+                </button>
+                <button type="button" onclick="openCameraModal('patient')" class="py-2 rounded-lg text-slate-700 hover:text-indigo-700 hover:bg-white flex items-center justify-center space-x-1.5 transition">
+                    <i class="fa-solid fa-camera text-indigo-600"></i>
+                    <span>Live Camera</span>
+                </button>
+            </div>
+
             <form id="formPatientScreening" onsubmit="handlePatientScreeningSubmit(event)" class="space-y-4">
                 <!-- Dropzone -->
-                <div id="patientDropZone" class="border-2 border-dashed border-slate-300 hover:border-indigo-500 rounded-2xl p-6 text-center cursor-pointer transition bg-slate-50 flex flex-col items-center justify-center">
+                <div id="patientDropZone" class="border-2 border-dashed border-slate-300 hover:border-indigo-500 rounded-2xl p-5 text-center cursor-pointer transition bg-slate-50 flex flex-col items-center justify-center min-h-[140px]">
                     <input type="file" id="patientFileInput" accept="image/*" class="hidden">
-                    <i class="fa-solid fa-cloud-arrow-up text-3xl text-indigo-500 mb-2"></i>
+                    <i class="fa-solid fa-file-medical text-2xl text-indigo-400 mb-1.5"></i>
                     <p class="text-xs font-semibold text-slate-700">Click to upload or drag & drop</p>
                     <p class="text-[10px] text-slate-400">PNG, JPG, TIFF (Max 16MB)</p>
                 </div>
