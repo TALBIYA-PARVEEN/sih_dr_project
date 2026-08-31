@@ -1,0 +1,161 @@
+<!-- 1. OTP VERIFICATION MODAL -->
+<div id="modalOtp" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white max-w-sm w-full p-6 rounded-3xl shadow-2xl border space-y-4 text-center">
+        <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-xl">
+            <i class="fa-solid fa-envelope-circle-check"></i>
+        </div>
+        <h3 class="text-lg font-bold text-slate-800">Verify Email Code</h3>
+        <p class="text-xs text-slate-500" id="otpModalSubtext">We have sent a 6-digit verification code to your email.</p>
+        <div class="p-2 bg-amber-50 rounded-xl border border-amber-200 text-[11px] text-amber-800">
+            <i class="fa-solid fa-circle-info mr-1"></i> Check your <b>Inbox</b> or <b>Spam / Updates</b> folder.
+        </div>
+
+        <div class="flex justify-center space-x-2 py-2">
+            <input type="text" id="otpInputCode" maxlength="6" placeholder="••••••" onkeyup="if(event.key==='Enter') handleVerifyOtp()" class="text-center font-mono text-2xl tracking-widest w-48 py-2 border-2 border-indigo-400 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        </div>
+
+        <button onclick="handleVerifyOtp()" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow transition">
+            Verify & Activate
+        </button>
+        <div class="flex items-center justify-between text-xs pt-1 px-1">
+            <button onclick="resendOtpCode()" id="btnResendOtp" class="text-indigo-600 font-bold hover:underline">
+                <i class="fa-solid fa-rotate-right mr-1"></i> Resend Code
+            </button>
+            <button onclick="closeOtpModal()" class="text-slate-400 hover:text-slate-600">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- 2. RESET / CHANGE PASSWORD MODAL (EMAIL OTP VERIFIED) -->
+<div id="modalResetPassword" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white max-w-md w-full p-6 rounded-3xl shadow-2xl border space-y-4">
+        <div class="flex items-center justify-between border-b pb-3">
+            <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                <i class="fa-solid fa-key text-indigo-600"></i>
+                <span>Reset / Change Password</span>
+            </h3>
+            <button onclick="closeResetPasswordModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <div class="p-3 bg-indigo-50 border border-indigo-200 rounded-2xl text-xs text-indigo-900 leading-relaxed">
+            <i class="fa-solid fa-shield-halved text-indigo-600 mr-1"></i>
+            Enter your registered email address. We will dispatch a 6-digit OTP code to verify your identity and update your password.
+        </div>
+
+        <form onsubmit="handleResetPasswordSubmit(event)" class="space-y-3.5">
+            <div>
+                <label class="text-xs font-bold text-slate-600 uppercase">Registered Email</label>
+                <div class="flex space-x-2 mt-1">
+                    <input type="email" id="resetEmailInput" required placeholder="patient@gmail.com" class="flex-1 px-3.5 py-2.5 bg-slate-50 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
+                    <button type="button" id="btnSendResetOtp" onclick="sendResetPasswordOtp()" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow transition flex items-center space-x-1">
+                        <span>Send OTP</span>
+                    </button>
+                </div>
+            </div>
+
+            <div id="resetOtpContainer" class="space-y-3">
+                <div>
+                    <div class="flex items-center justify-between">
+                        <label class="text-xs font-bold text-slate-600 uppercase">6-Digit Email OTP</label>
+                        <span class="text-[10px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">Check Inbox / Spam</span>
+                    </div>
+                    <input type="text" id="resetOtpInput" maxlength="6" placeholder="••••••" class="w-full mt-1 px-3.5 py-2.5 bg-slate-50 text-center font-mono text-xl tracking-widest border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+
+                <div>
+                    <label class="text-xs font-bold text-slate-600 uppercase">New Password</label>
+                    <input type="password" id="resetNewPassword" minlength="6" placeholder="At least 6 characters" class="w-full mt-1 px-3.5 py-2.5 bg-slate-50 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+
+                <div>
+                    <label class="text-xs font-bold text-slate-600 uppercase">Confirm New Password</label>
+                    <input type="password" id="resetConfirmPassword" minlength="6" placeholder="Re-enter new password" class="w-full mt-1 px-3.5 py-2.5 bg-slate-50 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+
+                <button type="submit" id="btnSubmitResetPassword" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md transition flex items-center justify-center space-x-2 text-xs">
+                    <i class="fa-solid fa-lock-open"></i>
+                    <span>Update Password & Log In</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 3. EDIT PROFILE MODAL (ROLE-AWARE) -->
+<div id="modalEditProfile" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white max-w-md w-full p-6 rounded-3xl shadow-2xl border space-y-4">
+        <div class="flex items-center justify-between border-b pb-3">
+            <h3 class="text-base font-bold text-slate-800 flex items-center gap-2" id="editProfileModalTitle">
+                <i class="fa-solid fa-user-pen text-indigo-600"></i>
+                <span>Edit Profile</span>
+            </h3>
+            <button onclick="closeEditProfileModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <form onsubmit="handleSaveProfile(event)" class="space-y-3 text-xs">
+            <div>
+                <label class="font-bold text-slate-600 uppercase">Full Name</label>
+                <input type="text" id="editProfileName" required class="w-full mt-1 px-3 py-2 border rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+
+            <!-- Patient specific edit fields -->
+            <div id="editPatientFields" class="space-y-3">
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="font-bold text-slate-600 uppercase">Age</label>
+                        <input type="number" id="editProfileAge" class="w-full mt-1 px-3 py-2 border rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="font-bold text-slate-600 uppercase">Gender</label>
+                        <select id="editProfileGender" class="w-full mt-1 px-3 py-2 border rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="Female">Female</option>
+                            <option value="Male">Male</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="font-bold text-slate-600 uppercase">Diabetes Type</label>
+                        <select id="editProfileDiabetesType" class="w-full mt-1 px-3 py-2 border rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="Type 2">Type 2 Diabetes</option>
+                            <option value="Type 1">Type 1 Diabetes</option>
+                            <option value="Gestational">Gestational</option>
+                            <option value="Pre-diabetic">Pre-diabetic</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="font-bold text-slate-600 uppercase">Duration (Years)</label>
+                        <input type="number" id="editProfileDiabetesDuration" class="w-full mt-1 px-3 py-2 border rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Doctor specific edit fields -->
+            <div id="editDoctorFields" class="hidden space-y-3">
+                <div>
+                    <label class="font-bold text-slate-600 uppercase">Specialization</label>
+                    <input type="text" id="editProfileSpecialization" class="w-full mt-1 px-3 py-2 border rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+                <div>
+                    <label class="font-bold text-slate-600 uppercase">Medical License Reg No</label>
+                    <input type="text" id="editProfileLicense" class="w-full mt-1 px-3 py-2 border rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+                <div>
+                    <label class="font-bold text-slate-600 uppercase">Hospital Affiliation</label>
+                    <input type="text" id="editProfileHospital" class="w-full mt-1 px-3 py-2 border rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+            </div>
+
+            <div>
+                <label class="font-bold text-slate-600 uppercase">Contact Phone</label>
+                <input type="tel" id="editProfilePhone" class="w-full mt-1 px-3 py-2 border rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+
+            <div class="pt-2 flex gap-2">
+                <button type="button" onclick="closeEditProfileModal()" class="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl">Cancel</button>
+                <button type="submit" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>

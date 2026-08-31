@@ -1,0 +1,18 @@
+<!-- TAB 5: AUDIT LOGS & COMPLIANCE STREAM -->
+<div id="adminTabContentAudit" class="hidden bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+    <div class="flex items-center justify-between border-b pb-4">
+        <div>
+            <h3 class="font-bold text-slate-800 text-sm flex items-center">
+                <i class="fa-solid fa-shield-halved text-purple-600 mr-2"></i> Real-time Telemedicine Audit Logs & Compliance Feed
+            </h3>
+            <p class="text-xs text-slate-500">Traceable clinical validations, AI inferences, logins, and doctor approvals.</p>
+        </div>
+        <button onclick="loadAdminDashboard()" class="text-xs text-purple-600 hover:underline">
+            <i class="fa-solid fa-arrows-rotate mr-1"></i> Refresh Logs
+        </button>
+    </div>
+
+    <div id="admAuditLogsStream" class="space-y-2 max-h-[500px] overflow-y-auto pr-1">
+        <div class="text-xs text-slate-400 text-center py-8">Loading audit logs...</div>
+    </div>
+</div>

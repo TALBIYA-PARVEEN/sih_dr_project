@@ -1,0 +1,76 @@
+<!-- TAB 4: SIMULINK TELEMEDICINE QUEUING MODEL -->
+<div id="adminTabContentSimulink" class="hidden bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-5">
+    <div class="flex items-center justify-between border-b pb-4">
+        <div>
+            <h3 class="font-bold text-slate-800 text-sm flex items-center">
+                <i class="fa-solid fa-network-wired text-purple-600 mr-2"></i> Simulink Discrete-Event Telemedicine Queuing Simulation
+            </h3>
+            <p class="text-xs text-slate-500">M/M/c Multi-server Queuing Model across 25 rural PHCs with Edge AI triage filtering.</p>
+        </div>
+        <button id="btnRunSimulink" onclick="handleSimulinkRun()" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold shadow transition flex items-center space-x-1.5">
+            <i class="fa-solid fa-play"></i>
+            <span>Run Telemedicine Simulation</span>
+        </button>
+    </div>
+
+    <!-- Parameter summary -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-200">
+            <span class="text-slate-400 font-semibold uppercase text-[10px]">Annual Population</span>
+            <div class="text-base font-bold text-slate-800 mt-1">100,000 / Year</div>
+            <div class="text-[10px] text-slate-500">300 screening days</div>
+        </div>
+        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-200">
+            <span class="text-slate-400 font-semibold uppercase text-[10px]">Connected PHCs</span>
+            <div class="text-base font-bold text-indigo-600 mt-1">25 Rural Clinics</div>
+            <div class="text-[10px] text-slate-500">Distributed capture</div>
+        </div>
+        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-200">
+            <span class="text-slate-400 font-semibold uppercase text-[10px]">Rural Bandwidth</span>
+            <div class="text-base font-bold text-amber-600 mt-1">2.0 Mbps (2G/3G)</div>
+            <div class="text-[10px] text-slate-500">Constrained uplink</div>
+        </div>
+        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-200">
+            <span class="text-slate-400 font-semibold uppercase text-[10px]">Edge Filter Rate</span>
+            <div class="text-base font-bold text-emerald-600 mt-1">74.0% Filtered</div>
+            <div class="text-[10px] text-slate-500">Normal / Mild DR</div>
+        </div>
+    </div>
+
+    <!-- Simulation Results (Hidden until run) -->
+    <div id="simulinkResultsBox" class="hidden space-y-4">
+        <div class="p-4 bg-purple-50 rounded-2xl border border-purple-200 space-y-3">
+            <h4 class="font-bold text-purple-900 text-xs flex items-center">
+                <i class="fa-solid fa-chart-simple mr-1.5"></i> Simulation Results & Operational Efficiency:
+            </h4>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                <div class="bg-white p-3 rounded-xl border border-purple-100">
+                    <span class="text-slate-400 text-[10px]">Daily Screenings:</span>
+                    <div class="font-bold text-slate-800 text-sm mt-0.5" id="simTotalDaily">333 / day</div>
+                </div>
+                <div class="bg-white p-3 rounded-xl border border-purple-100">
+                    <span class="text-slate-400 text-[10px]">Normal Scans Filtered:</span>
+                    <div class="font-bold text-emerald-600 text-sm mt-0.5" id="simNormalFiltered">246 (74%)</div>
+                </div>
+                <div class="bg-white p-3 rounded-xl border border-purple-100">
+                    <span class="text-slate-400 text-[10px]">Referred to Cloud:</span>
+                    <div class="font-bold text-rose-600 text-sm mt-0.5" id="simSentToCloud">87 scans/day</div>
+                </div>
+                <div class="bg-white p-3 rounded-xl border border-purple-100">
+                    <span class="text-slate-400 text-[10px]">Workload Saved:</span>
+                    <div class="font-bold text-purple-700 text-sm mt-0.5" id="simWorkloadReduction">73.9%</div>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs pt-1">
+                <div class="bg-white p-3 rounded-xl border border-purple-100 flex items-center justify-between">
+                    <span class="text-slate-600">Doctors Needed (Manual Baseline):</span>
+                    <span class="font-bold text-rose-600 text-base" id="simDocsNeededManual">7 Doctors</span>
+                </div>
+                <div class="bg-white p-3 rounded-xl border border-purple-100 flex items-center justify-between">
+                    <span class="text-slate-600">Doctors Needed (With NetraAI):</span>
+                    <span class="font-bold text-emerald-600 text-base" id="simDocsNeededNetra">1 Doctor</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

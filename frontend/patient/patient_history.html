@@ -1,0 +1,32 @@
+<!-- TAB B: PAST DIAGNOSIS REPORTS HISTORY -->
+<div id="patientTabHistoryContent" class="hidden bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-4">
+    <div class="flex items-center justify-between border-b pb-4">
+        <div>
+            <h3 class="font-bold text-slate-800 text-base">My Screening History & Diagnostic Reports</h3>
+            <p class="text-xs text-slate-500">All your previous fundus image screenings stored securely on MongoDB Atlas.</p>
+        </div>
+        <button onclick="loadPatientHistory()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold">
+            <i class="fa-solid fa-arrows-rotate mr-1"></i> Refresh History
+        </button>
+    </div>
+
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs">
+            <thead class="bg-slate-100 text-slate-600 uppercase font-semibold">
+                <tr>
+                    <th class="p-3">Date & Time</th>
+                    <th class="p-3">CNN Severity Diagnosis</th>
+                    <th class="p-3">Image Quality</th>
+                    <th class="p-3">Assigned Doctor</th>
+                    <th class="p-3">Doctor Status</th>
+                    <th class="p-3">Action</th>
+                </tr>
+            </thead>
+            <tbody id="patientHistoryTableBody" class="divide-y divide-slate-200">
+                <tr>
+                    <td colspan="6" class="text-center py-8 text-slate-400">Loading your past diagnostic reports...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>

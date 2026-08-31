@@ -1,0 +1,36 @@
+/* NetraAI Component Styles */
+
+/* Dropzone Hover Effects */
+.dropzone-active {
+    border-color: #4f46e5 !important;
+    background-color: #eef2ff !important;
+}
+
+/* Status Badges */
+.badge-pending {
+    background-color: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+}
+
+.badge-validated {
+    background-color: #d1fae5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+}
+
+.badge-referral {
+    background-color: #ffe4e6;
+    color: #9f1239;
+    border: 1px solid #fecdd3;
+}
+
+/* Card Transitions */
+.card-hover-lift {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+}

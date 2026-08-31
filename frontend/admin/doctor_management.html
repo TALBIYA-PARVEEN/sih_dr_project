@@ -1,0 +1,32 @@
+<!-- TAB 2: DOCTOR STAFF MANAGEMENT & CREDENTIAL VERIFICATION -->
+<div id="adminTabContentDoctors" class="hidden bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+    <div class="flex items-center justify-between border-b pb-4">
+        <div>
+            <h3 class="font-bold text-slate-800 text-sm flex items-center">
+                <i class="fa-solid fa-user-doctor text-emerald-600 mr-2"></i> Clinician Credential Verification & Network Staff
+            </h3>
+            <p class="text-xs text-slate-500">Approve new ophthalmologists and supervise hospital network assignments.</p>
+        </div>
+        <button onclick="loadAdminDashboard()" class="text-xs text-purple-600 hover:underline">
+            <i class="fa-solid fa-arrows-rotate mr-1"></i> Refresh Table
+        </button>
+    </div>
+
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs">
+            <thead class="bg-slate-100 text-slate-600 uppercase font-semibold">
+                <tr>
+                    <th class="p-3">Clinician Name & Email</th>
+                    <th class="p-3">Specialization</th>
+                    <th class="p-3">Medical License Reg</th>
+                    <th class="p-3">Hospital / PHC</th>
+                    <th class="p-3">Status</th>
+                    <th class="p-3">Action</th>
+                </tr>
+            </thead>
+            <tbody id="admDoctorTableBody" class="divide-y divide-slate-200">
+                <tr><td colspan="6" class="text-center py-8 text-slate-400">Loading ophthalmologist directory...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>

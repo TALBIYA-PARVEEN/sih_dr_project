@@ -1,0 +1,67 @@
+<!-- TAB C: PATIENT-SPECIFIC TELE-CONSULTATION MESSAGING -->
+<div id="doctorTabChatContent" class="hidden bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+    <div class="grid grid-cols-1 md:grid-cols-3 min-h-[560px]">
+        <!-- Left Column: Patient Directory & Conversation Threads -->
+        <div class="border-r border-slate-200 p-4 space-y-3 bg-slate-50/50">
+            <div class="flex items-center justify-between">
+                <h3 class="font-bold text-slate-800 text-sm flex items-center">
+                    <i class="fa-solid fa-comments text-emerald-600 mr-2"></i> Patient Chats
+                </h3>
+                <span id="docChatPatientCount" class="text-[11px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">0</span>
+            </div>
+
+            <!-- Search Bar -->
+            <div class="relative">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                <input type="text" id="docChatSearchInput" oninput="filterDoctorChatPatients()" placeholder="Search patient by name..." class="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500">
+            </div>
+
+            <!-- Patient List Stream -->
+            <div id="docChatPatientList" class="space-y-1.5 max-h-[440px] overflow-y-auto pr-1">
+                <div class="text-xs text-slate-400 text-center py-8">Loading patients...</div>
+            </div>
+        </div>
+
+        <!-- Right Column: Active Patient Chat Conversation -->
+        <div class="md:col-span-2 flex flex-col justify-between p-5 space-y-4">
+            <!-- Chat Header -->
+            <div class="flex items-center justify-between border-b pb-3">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-sm">
+                        <i class="fa-solid fa-user"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-800 text-sm" id="docActiveChatPatientName">Select a Patient</h4>
+                        <p class="text-xs text-slate-400" id="docActiveChatPatientMeta">Choose a patient from the left panel to begin consultation</p>
+                    </div>
+                </div>
+                <button onclick="switchDoctorTab('workstation')" class="text-xs text-emerald-600 hover:underline flex items-center space-x-1">
+                    <i class="fa-solid fa-arrow-left text-[10px]"></i>
+                    <span>Back to Queue</span>
+                </button>
+            </div>
+
+            <!-- Message Bubbles Container -->
+            <div id="doctorChatMessagesStream" class="flex-1 min-h-[300px] max-h-[360px] overflow-y-auto space-y-3 p-3 bg-slate-50 rounded-2xl border border-slate-200">
+                <div class="text-xs text-slate-400 text-center py-16">Select a patient on the left to review messages and send clinical advice.</div>
+            </div>
+
+            <!-- Quick Clinical Recommendation Chips -->
+            <div class="flex items-center space-x-1.5 overflow-x-auto pb-1 text-[11px]">
+                <span class="text-slate-400 font-semibold flex-shrink-0 text-[10px]">Quick Advice:</span>
+                <button type="button" onclick="insertQuickAdvice('Routine annual retina screening recommended in 12 months.')" class="px-2 py-0.5 bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 rounded-lg text-slate-600 transition flex-shrink-0 border">📅 Annual Check</button>
+                <button type="button" onclick="insertQuickAdvice('Please visit the clinic for a dilated eye exam and OCT scan.')" class="px-2 py-0.5 bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 rounded-lg text-slate-600 transition flex-shrink-0 border">🏥 Visit Clinic</button>
+                <button type="button" onclick="insertQuickAdvice('Strict glycemic and HbA1c control advised to prevent diabetic microvascular changes.')" class="px-2 py-0.5 bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 rounded-lg text-slate-600 transition flex-shrink-0 border">💉 HbA1c Control</button>
+            </div>
+
+            <!-- Message Input Form -->
+            <form onsubmit="handleDoctorSendMessage(event)" class="flex items-center space-x-2">
+                <input type="text" id="inputDoctorMessage" required placeholder="Type clinical instructions or reply to this patient..." class="flex-1 px-4 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none">
+                <button type="submit" id="btnDoctorSendMessage" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow transition flex items-center space-x-1">
+                    <i class="fa-solid fa-paper-plane"></i>
+                    <span>Send</span>
+                </button>
+            </form>
+        </div>
+    </div>
+</div>

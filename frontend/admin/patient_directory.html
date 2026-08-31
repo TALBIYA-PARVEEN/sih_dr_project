@@ -1,0 +1,32 @@
+<!-- TAB 3: DISTRICT PATIENT DIRECTORY -->
+<div id="adminTabContentPatients" class="hidden bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+    <div class="flex items-center justify-between border-b pb-4">
+        <div>
+            <h3 class="font-bold text-slate-800 text-sm flex items-center">
+                <i class="fa-solid fa-users text-indigo-600 mr-2"></i> District Patient Database
+            </h3>
+            <p class="text-xs text-slate-500">Live patient directory across all connected PHCs and screening clinics.</p>
+        </div>
+        <button onclick="loadAdminDashboard()" class="text-xs text-purple-600 hover:underline">
+            <i class="fa-solid fa-arrows-rotate mr-1"></i> Refresh Directory
+        </button>
+    </div>
+
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs">
+            <thead class="bg-slate-100 text-slate-600 uppercase font-semibold">
+                <tr>
+                    <th class="p-3">Patient Name</th>
+                    <th class="p-3">Age & Gender</th>
+                    <th class="p-3">Contact (Email/Phone)</th>
+                    <th class="p-3">Diabetes Profile</th>
+                    <th class="p-3">Assigned Doctor</th>
+                    <th class="p-3">Status</th>
+                </tr>
+            </thead>
+            <tbody id="admPatientTableBody" class="divide-y divide-slate-200">
+                <tr><td colspan="6" class="text-center py-8 text-slate-400">Loading patient database...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>

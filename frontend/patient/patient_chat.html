@@ -1,0 +1,29 @@
+<!-- TAB C: IN-DASHBOARD PATIENT MESSAGING WITH ASSIGNED DOCTOR -->
+<div id="patientTabChatContent" class="hidden bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-4">
+    <div class="flex items-center justify-between border-b pb-4">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">
+                <i class="fa-solid fa-user-doctor"></i>
+            </div>
+            <div>
+                <h3 class="font-bold text-slate-800 text-sm" id="patientAssignedDoctorName">Assigned Ophthalmologist (Dr. Rashika)</h3>
+                <p class="text-xs text-slate-500">Direct Tele-Consultation & Clinical Directives</p>
+            </div>
+        </div>
+        <button onclick="switchPatientTab('screening')" class="text-xs text-indigo-600 hover:underline">
+            &larr; Back to Screening
+        </button>
+    </div>
+
+    <div id="patientChatMessagesStream" class="h-64 overflow-y-auto space-y-3 p-3 bg-slate-50 rounded-2xl border border-slate-200">
+        <div class="text-xs text-slate-400 text-center py-10">No messages yet. Send a message to your assigned ophthalmologist below.</div>
+    </div>
+
+    <form onsubmit="handlePatientSendMessage(event)" class="flex items-center space-x-2 pt-2">
+        <input type="text" id="inputPatientMessage" required placeholder="Type your question or clinical query to your doctor..." class="flex-1 px-4 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
+        <button type="submit" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow transition flex items-center space-x-1">
+            <i class="fa-solid fa-paper-plane"></i>
+            <span>Send</span>
+        </button>
+    </form>
+</div>

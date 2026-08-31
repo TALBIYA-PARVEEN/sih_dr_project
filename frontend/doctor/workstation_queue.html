@@ -1,0 +1,85 @@
+<!-- TAB A: DOCTOR WORKSTATION & CLINICAL REVIEW QUEUE -->
+<div id="doctorTabWorkstationContent" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Left: Review Queue List -->
+    <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 space-y-4">
+        <h3 class="font-bold text-slate-800 text-sm flex items-center justify-between border-b pb-3">
+            <span><i class="fa-solid fa-list-check text-emerald-600 mr-2"></i> Review Queue</span>
+            <span id="doctorQueueCount" class="text-xs bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">0</span>
+        </h3>
+        <div id="doctorQueueList" class="space-y-2 max-h-[520px] overflow-y-auto pr-1"></div>
+    </div>
+
+    <!-- Right: 4-Channel Diagnostics & Validation Sign-Off Card -->
+    <div class="lg:col-span-2 bg-white p-6 rounded-3xl shadow-sm border border-slate-200 space-y-5">
+        <div id="doctorStationEmpty" class="text-center py-16 text-slate-400">
+            <i class="fa-solid fa-microscope text-4xl mb-3"></i>
+            <p class="text-sm font-medium">Select a patient from the queue to inspect scans and sign off.</p>
+        </div>
+
+        <div id="doctorStationContent" class="hidden space-y-5">
+            <div class="flex items-center justify-between border-b pb-3">
+                <div>
+                    <h3 class="text-lg font-bold text-slate-800" id="docPatientName">Patient: Ramesh Kumar</h3>
+                    <div class="text-xs text-slate-400" id="docPatientMeta">Age: 54 • Gender: Male</div>
+                </div>
+                <div class="text-right flex items-center space-x-2">
+                    <span id="docAIStatusBadge" class="px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800">Moderate NPDR</span>
+                    <button type="button" onclick="openDoctorChatForCurrentPatient()" class="px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-lg border border-emerald-200">
+                        <i class="fa-solid fa-message mr-1"></i> Chat with Patient
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div class="text-center">
+                    <img id="docScanOrig" class="w-full aspect-square object-cover rounded-xl border bg-black mb-1">
+                    <span class="text-[11px] font-semibold text-slate-600">Original</span>
+                </div>
+                <div class="text-center">
+                    <img id="docScanVessels" class="w-full aspect-square object-cover rounded-xl border bg-black mb-1">
+                    <span class="text-[11px] font-semibold text-slate-600">Vessels</span>
+                </div>
+                <div class="text-center">
+                    <img id="docScanLesions" class="w-full aspect-square object-cover rounded-xl border bg-black mb-1">
+                    <span class="text-[11px] font-semibold text-slate-600">YOLO Lesions</span>
+                </div>
+                <div class="text-center">
+                    <img id="docScanGradcam" class="w-full aspect-square object-cover rounded-xl border bg-black mb-1">
+                    <span class="text-[11px] font-semibold text-slate-600">Grad-CAM</span>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+                <h4 class="font-bold text-slate-800 text-sm flex items-center">
+                    <i class="fa-solid fa-signature text-emerald-600 mr-2"></i> Clinical Validation & Sign-off
+                </h4>
+
+                <div>
+                    <label class="text-xs font-semibold text-slate-600">Clinical Status</label>
+                    <select id="docSelectStatus" class="w-full text-sm mt-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none">
+                        <option value="Confirmed">✅ Confirmed (Approve AI Diagnosis)</option>
+                        <option value="Refer to Specialist">🚨 Refer to Specialist (Priority Retina Review)</option>
+                        <option value="Needs Recapture">📸 Needs Recapture (Poor Focus / Artifacts)</option>
+                        <option value="Not Referable">🟢 Not Referable (Normal / Mild - Discharge)</option>
+                        <option value="Overruled">⚠️ Overruled (Clinician Override)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="text-xs font-semibold text-slate-600">Clinician Notes & Directives</label>
+                    <textarea id="docInputNotes" rows="2" placeholder="e.g. Verified macular hard exudates. Priority referral issued." class="w-full text-sm mt-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"></textarea>
+                </div>
+
+                <div class="flex items-center justify-between pt-2">
+                    <button onclick="downloadPDFReport()" class="px-3 py-2 bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg border">
+                        <i class="fa-solid fa-file-pdf mr-1"></i> Preview PDF
+                    </button>
+                    <button onclick="submitDoctorSignOff()" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow transition flex items-center space-x-1.5">
+                        <i class="fa-solid fa-file-signature"></i>
+                        <span>Submit Clinical Validation & Sign-off</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

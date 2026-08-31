@@ -1,0 +1,35 @@
+/* NetraAI Tele-Consultation Chat Styles */
+
+.chat-bubble-me {
+    background-color: #059669;
+    color: #ffffff;
+    border-top-left-radius: 1rem;
+    border-top-right-radius: 1rem;
+    border-bottom-left-radius: 1rem;
+    border-bottom-right-radius: 0.25rem;
+}
+
+.chat-bubble-patient-me {
+    background-color: #4f46e5;
+    color: #ffffff;
+    border-top-left-radius: 1rem;
+    border-top-right-radius: 1rem;
+    border-bottom-left-radius: 1rem;
+    border-bottom-right-radius: 0.25rem;
+}
+
+.chat-bubble-them {
+    background-color: #ffffff;
+    color: #1e293b;
+    border: 1px solid #e2e8f0;
+    border-top-left-radius: 1rem;
+    border-top-right-radius: 1rem;
+    border-bottom-right-radius: 1rem;
+    border-bottom-left-radius: 0.25rem;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.patient-chat-item-active {
+    background-color: #ecfdf5 !important;
+    border-color: #10b981 !important;
+}

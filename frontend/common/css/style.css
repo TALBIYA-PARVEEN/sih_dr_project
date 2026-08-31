@@ -1,0 +1,35 @@
+/* Custom styles for NetraAI Tele-Ophthalmology */
+
+.role-btn.active {
+    background-color: #4f46e5 !important;
+    color: #ffffff !important;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Diagnostic Imaging Transitions */
+.aspect-square img {
+    transition: transform 0.2s ease-in-out;
+}
+
+.aspect-square img:hover {
+    transform: scale(1.04);
+}
