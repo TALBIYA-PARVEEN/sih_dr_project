@@ -168,21 +168,13 @@ async function handleRegister(e) {
             localStorage.setItem("netra_user", JSON.stringify(currentUser));
             localStorage.setItem("netra_token", authToken);
 
-            const otpVal = data.dev_otp || (data.user ? data.user.otp_code : "") || "";
-            let subtext = `Verification code dispatched to <b>${payload.email}</b>.`;
-            if (otpVal) {
-                subtext += `
-                <div class="mt-2.5 p-3 bg-indigo-50 border border-indigo-200 rounded-2xl text-center">
-                    <div class="text-[10px] font-bold text-indigo-700 uppercase tracking-wider">Your 6-Digit OTP Code:</div>
-                    <div class="text-2xl font-mono font-extrabold text-indigo-950 tracking-widest my-1">${otpVal}</div>
-                    <div class="text-[10px] text-emerald-700 font-bold flex items-center justify-center gap-1">
-                        <i class="fa-solid fa-circle-check"></i> Code Auto-Filled • Click Verify & Activate Below
-                    </div>
-                </div>`;
-                if (otpInp) otpInp.value = otpVal;
-            }
+            let subtext = `We sent a 6-digit verification code to <b>${payload.email}</b>.<br><span class="text-indigo-600 font-bold text-xs block mt-1.5"><i class="fa-solid fa-envelope mr-1"></i> Please check your Email Inbox / Spam and enter the code below:</span>`;
             if (subtextEl) subtextEl.innerHTML = subtext;
-            if (otpInp) otpInp.focus();
+            if (otpInp) {
+                otpInp.value = "";
+                otpInp.placeholder = "Enter 6-digit code";
+                otpInp.focus();
+            }
             showToast(data.message || `Verification code sent to ${payload.email}`, "success");
         } else {
             showToast(data.error || "Registration failed.", "error");
