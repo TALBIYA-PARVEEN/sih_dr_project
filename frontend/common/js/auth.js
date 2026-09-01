@@ -95,6 +95,13 @@ async function handleLogin(e) {
 
 async function handleRegister(e) {
     e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    const originalBtnHtml = btn ? btn.innerHTML : "Register & Send Email OTP";
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Registering & Dispatching OTP...`;
+    }
+
     const payload = {
         full_name: document.getElementById("regFullName").value.trim(),
         username: document.getElementById("regUsername").value.trim(),
@@ -127,7 +134,11 @@ async function handleRegister(e) {
             localStorage.setItem("netra_token", authToken);
 
             document.getElementById("modalOtp").classList.remove("hidden");
-            document.getElementById("otpModalSubtext").innerHTML = `Verification code sent to <b>${payload.email}</b>.<br><span class="text-indigo-600 font-bold text-[11px] block mt-1"><i class="fa-solid fa-envelope mr-1"></i> Check your Inbox or Spam / Updates folder</span>`;
+            let subtext = `Verification code sent to <b>${payload.email}</b>.<br><span class="text-indigo-600 font-bold text-[11px] block mt-1"><i class="fa-solid fa-envelope mr-1"></i> Check your Inbox or Spam / Updates folder</span>`;
+            if (data.dev_otp) {
+                subtext += `<button type="button" onclick="document.getElementById('otpInputCode').value='${data.dev_otp}'; handleVerifyOtp();" class="mt-2 text-[10px] text-slate-400 hover:text-indigo-600 underline block mx-auto">Demo Mode / Auto-fill Code (${data.dev_otp})</button>`;
+            }
+            document.getElementById("otpModalSubtext").innerHTML = subtext;
             document.getElementById("otpInputCode").value = "";
             document.getElementById("otpInputCode").focus();
             showToast(data.message || `Verification code sent to ${payload.email}`, "success");
@@ -136,6 +147,11 @@ async function handleRegister(e) {
         }
     } catch (err) {
         showToast("Error connecting to server: " + err.message, "error");
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalBtnHtml;
+        }
     }
 }
 
