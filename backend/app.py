@@ -354,8 +354,17 @@ def create_app():
             return jsonify({"error": "User not found with this email address."}), 404
 
         stored_otp = str(user.get("otp_code", "")).strip()
-        if not stored_otp or (stored_otp != otp and otp not in ["123456", "000000"]):
-            return jsonify({"error": "Invalid verification code entered. Please check your email or enter backup code 123456."}), 400
+        if not stored_otp or stored_otp != otp:
+            return jsonify({"error": "Invalid verification code. Please enter the 6-digit code sent to your email."}), 400
+
+        expiry_str = user.get("otp_expiry")
+        if expiry_str:
+            try:
+                expiry_dt = datetime.fromisoformat(expiry_str)
+                if datetime.utcnow() > expiry_dt:
+                    return jsonify({"error": "Verification code has expired. Please click 'Resend Code' to get a new code."}), 400
+            except Exception:
+                pass
 
         mongo.users.update_one(
             {"email": email},
@@ -401,15 +410,15 @@ def create_app():
             return jsonify({"error": "No account found with this email address."}), 404
 
         stored_otp = str(user.get("otp_code", "")).strip()
-        if not stored_otp or (stored_otp != otp and otp not in ["123456", "000000"]):
-            return jsonify({"error": "Invalid verification code entered. Please check your email or enter backup code 123456."}), 400
+        if not stored_otp or stored_otp != otp:
+            return jsonify({"error": "Invalid verification code. Please enter the 6-digit code sent to your email."}), 400
 
         expiry_str = user.get("otp_expiry")
         if expiry_str:
             try:
                 expiry_dt = datetime.fromisoformat(expiry_str)
                 if datetime.utcnow() > expiry_dt:
-                    return jsonify({"error": "Verification code has expired. Please request a new code."}), 400
+                    return jsonify({"error": "Verification code has expired. Please click 'Resend Code' to get a new code."}), 400
             except Exception:
                 pass
 
