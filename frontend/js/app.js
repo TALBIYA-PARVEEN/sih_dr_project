@@ -222,9 +222,14 @@ function setRegisterRole(role) {
     }
 }
 
+function getFormVal(id, fallback = "") {
+    const el = document.getElementById(id);
+    return el ? el.value.trim() : fallback;
+}
+
 async function handleRegister(e) {
-    e.preventDefault();
-    const btn = e.target.querySelector('button[type="submit"]');
+    if (e && e.preventDefault) e.preventDefault();
+    const btn = (e && e.target && e.target.querySelector) ? e.target.querySelector('button[type="submit"]') : document.querySelector('#formRegister button[type="submit"]');
     const originalBtnHtml = btn ? btn.innerHTML : "Register & Send Email OTP";
     if (btn) {
         btn.disabled = true;
@@ -232,20 +237,38 @@ async function handleRegister(e) {
     }
 
     const payload = {
-        full_name: document.getElementById("regFullName").value.trim(),
-        username: document.getElementById("regUsername").value.trim(),
-        age: parseInt(document.getElementById("regAge").value) || 50,
-        gender: document.getElementById("regGender").value,
-        email: document.getElementById("regEmail").value.trim(),
-        password: document.getElementById("regPassword").value.trim(),
-        phone: document.getElementById("regPhone").value.trim(),
-        role: regRole,
-        diabetes_type: document.getElementById("regDiabetesType") ? document.getElementById("regDiabetesType").value : "Type 2",
-        diabetes_duration_years: document.getElementById("regDiabetesDuration") ? parseInt(document.getElementById("regDiabetesDuration").value) || 5 : 5,
-        specialization: document.getElementById("regSpecialization") ? document.getElementById("regSpecialization").value.trim() : "",
-        license_number: document.getElementById("regLicense") ? document.getElementById("regLicense").value.trim() : "",
-        hospital_name: document.getElementById("regHospital") ? document.getElementById("regHospital").value.trim() : ""
+        full_name: getFormVal("regFullName", "Patient User"),
+        username: getFormVal("regUsername", "user_" + Math.floor(Math.random()*10000)),
+        age: parseInt(getFormVal("regAge", "45")) || 45,
+        gender: getFormVal("regGender", "Female"),
+        email: getFormVal("regEmail", ""),
+        password: getFormVal("regPassword", ""),
+        phone: getFormVal("regPhone", "+91 9876543210"),
+        role: (typeof regRole !== "undefined" && regRole) ? regRole : "patient",
+        diabetes_type: getFormVal("regDiabetesType", "Type 2"),
+        diabetes_duration_years: parseInt(getFormVal("regDiabetesDuration", "5")) || 5,
+        specialization: getFormVal("regSpecialization", ""),
+        license_number: getFormVal("regLicense", ""),
+        hospital_name: getFormVal("regHospital", "")
     };
+
+    if (!payload.email || !payload.email.includes("@")) {
+        showToast("Please enter a valid email address.", "warning");
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalBtnHtml;
+        }
+        return;
+    }
+
+    if (!payload.password || payload.password.length < 6) {
+        showToast("Password must be at least 6 characters.", "warning");
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalBtnHtml;
+        }
+        return;
+    }
 
     try {
         const res = await fetch(`${API_BASE}/auth/register`, {
@@ -262,7 +285,8 @@ async function handleRegister(e) {
             localStorage.setItem("netra_user", JSON.stringify(currentUser));
             localStorage.setItem("netra_token", authToken);
 
-            document.getElementById("modalOtp").classList.remove("hidden");
+            const modal = document.getElementById("modalOtp");
+            if (modal) modal.classList.remove("hidden");
             const otpVal = data.dev_otp || (data.user ? data.user.otp_code : "") || "";
             let subtext = `We dispatched an official OTP email to <b>${payload.email}</b>.`;
             if (otpVal) {
@@ -274,10 +298,13 @@ async function handleRegister(e) {
                         <i class="fa-solid fa-circle-check"></i> Auto-Filled • Click Verify & Activate Below
                     </div>
                 </div>`;
-                document.getElementById("otpInputCode").value = otpVal;
+                const otpInp = document.getElementById("otpInputCode");
+                if (otpInp) otpInp.value = otpVal;
             }
-            document.getElementById("otpModalSubtext").innerHTML = subtext;
-            document.getElementById("otpInputCode").focus();
+            const subtextEl = document.getElementById("otpModalSubtext");
+            if (subtextEl) subtextEl.innerHTML = subtext;
+            const otpInp = document.getElementById("otpInputCode");
+            if (otpInp) otpInp.focus();
             showToast(data.message || `Verification code sent to ${payload.email}`, "success");
         } else {
             showToast(data.error || "Registration failed.", "error");
