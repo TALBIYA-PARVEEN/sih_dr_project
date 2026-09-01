@@ -2098,6 +2098,8 @@ function closeAdminAddDoctorModal() {
     document.getElementById("modalAdminAddDoctor").classList.add("hidden");
 }
 
+let lastCreatedDoctorCredentials = null;
+
 async function handleAdminCreateDoctor(e) {
     e.preventDefault();
     const payload = {
@@ -2117,15 +2119,55 @@ async function handleAdminCreateDoctor(e) {
         });
         const data = await res.json();
         if (data.status === "success") {
-            showToast(data.message, "success");
+            showToast("Doctor registered and approved!", "success");
             closeAdminAddDoctorModal();
             loadAdminDashboard();
+
+            // Populate on-screen credentials display modal
+            const creds = data.credentials || payload;
+            creds.password = creds.password || "Doctor@2026";
+            lastCreatedDoctorCredentials = creds;
+
+            const nameEl = document.getElementById("docSuccessName");
+            if (nameEl) nameEl.innerText = creds.full_name;
+            const uEl = document.getElementById("docSuccessUsername");
+            if (uEl) uEl.innerText = creds.username;
+            const emEl = document.getElementById("docSuccessEmail");
+            if (emEl) emEl.innerText = creds.email;
+            const pwEl = document.getElementById("docSuccessPassword");
+            if (pwEl) pwEl.innerText = creds.password;
+            const licEl = document.getElementById("docSuccessLicense");
+            if (licEl) licEl.innerText = creds.license_number;
+
+            const modalSucc = document.getElementById("modalDoctorCreatedSuccess");
+            if (modalSucc) modalSucc.classList.remove("hidden");
         } else {
             showToast(data.error || "Failed to register doctor.", "error");
         }
     } catch (err) {
         showToast("Error: " + err.message, "error");
     }
+}
+
+function closeDoctorCreatedSuccessModal() {
+    const modalSucc = document.getElementById("modalDoctorCreatedSuccess");
+    if (modalSucc) modalSucc.classList.add("hidden");
+}
+
+function copyDoctorCredentialsToClipboard() {
+    if (!lastCreatedDoctorCredentials) return;
+    const text = `NetraAI Doctor Portal Credentials:
+Name: ${lastCreatedDoctorCredentials.full_name}
+Username: ${lastCreatedDoctorCredentials.username}
+Email: ${lastCreatedDoctorCredentials.email}
+Password: ${lastCreatedDoctorCredentials.password || 'Doctor@2026'}
+License: ${lastCreatedDoctorCredentials.license_number}`;
+
+    navigator.clipboard.writeText(text).then(() => {
+        showToast("Doctor login credentials copied to clipboard!", "success");
+    }).catch(() => {
+        showToast("Password: " + (lastCreatedDoctorCredentials.password || "Doctor@2026"), "info");
+    });
 }
 
 async function runSimulinkSimulation() {

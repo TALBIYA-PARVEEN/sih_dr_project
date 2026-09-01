@@ -1896,6 +1896,56 @@
             </div>
         </div>
 
+        <!-- Modal: Doctor Account Provisioned / Credentials Display -->
+        <div id="modalDoctorCreatedSuccess" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+            <div class="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-emerald-100 text-center animate-fade-in">
+                <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-3xl shadow-sm">
+                    <i class="fa-solid fa-user-doctor"></i>
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold text-slate-800">Doctor Successfully Provisioned!</h3>
+                    <p class="text-xs text-slate-500 mt-1">Official ophthalmologist profile is verified & active in NetraAI network.</p>
+                </div>
+
+                <div class="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-4 text-left space-y-2 text-xs">
+                    <div class="flex justify-between items-center py-1 border-b border-emerald-200/50">
+                        <span class="text-slate-500">Doctor Name:</span>
+                        <span id="docSuccessName" class="font-bold text-slate-800">Dr. Nair</span>
+                    </div>
+                    <div class="flex justify-between items-center py-1 border-b border-emerald-200/50">
+                        <span class="text-slate-500">Username:</span>
+                        <span id="docSuccessUsername" class="font-mono font-bold text-indigo-700">dr_nair</span>
+                    </div>
+                    <div class="flex justify-between items-center py-1 border-b border-emerald-200/50">
+                        <span class="text-slate-500">Email:</span>
+                        <span id="docSuccessEmail" class="font-mono text-slate-700">dev.talbiya.parveen@gmail.com</span>
+                    </div>
+                    <div class="flex justify-between items-center py-1 border-b border-emerald-200/50">
+                        <span class="text-slate-500">Default Password:</span>
+                        <span id="docSuccessPassword" class="font-mono font-bold bg-white px-2 py-0.5 rounded border border-emerald-300 text-emerald-800">Doctor@2026</span>
+                    </div>
+                    <div class="flex justify-between items-center py-1">
+                        <span class="text-slate-500">Medical License:</span>
+                        <span id="docSuccessLicense" class="font-mono font-semibold text-slate-700">MCI-RET-20027</span>
+                    </div>
+                </div>
+
+                <p class="text-[11px] text-slate-400">
+                    <i class="fa-solid fa-envelope mr-1 text-emerald-600"></i> Credentials have also been dispatched to the doctor's email.
+                </p>
+
+                <div class="flex items-center space-x-2 pt-2">
+                    <button onclick="copyDoctorCredentialsToClipboard()" class="flex-1 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-xl text-xs transition flex items-center justify-center space-x-1">
+                        <i class="fa-solid fa-copy"></i>
+                        <span>Copy Credentials</span>
+                    </button>
+                    <button onclick="closeDoctorCreatedSuccessModal()" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition shadow">
+                        Done & Continue
+                    </button>
+                </div>
+            </div>
+        </div>
+
     </main>
 
     <!-- Footer -->
@@ -1911,6 +1961,6 @@
     </footer>
 
     <!-- App JS -->
-    <script src="js/app.js?v=20260901_500"></script>
+    <script src="js/app.js?v=20260902_550"></script>
 </body>
 </html>

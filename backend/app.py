@@ -1697,8 +1697,16 @@ def create_app():
 
         return jsonify({
             "status": "success",
-            "message": f"Successfully registered and approved doctor {full_name} ({license_no}). Credentials sent to {email}.",
+            "message": f"Successfully registered and approved doctor {full_name} ({license_no}). Login passcode: {password}",
             "email_sent": email_sent,
+            "credentials": {
+                "full_name": full_name,
+                "username": username,
+                "email": email,
+                "password": password,
+                "license_number": license_no,
+                "hospital_name": hospital
+            },
             "doctor": serialize_doc(doctor_profile)
         }), 201
 
