@@ -565,6 +565,20 @@ def create_app():
             "user": serialize_doc(user)
         })
 
+    @app.route("/api/auth/google/client-id", methods=["GET"])
+    def get_google_client_id():
+        cid = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
+        if not cid:
+            try:
+                cid = current_app.config.get("GOOGLE_CLIENT_ID", "").strip()
+            except Exception:
+                pass
+        is_valid = bool(cid and not cid.startswith("YOUR_") and ".apps.googleusercontent.com" in cid)
+        return jsonify({
+            "client_id": cid if is_valid else None,
+            "configured": is_valid
+        })
+
     @app.route("/api/auth/google", methods=["POST"])
     def google_auth():
         data = request.get_json() or {}
