@@ -72,6 +72,7 @@ function navigateTo(pageId, pushState = true) {
 
     if (pageId === "doctor") loadDoctorQueue();
     if (pageId === "admin") loadAdminDashboard();
+    if (pageId === "login") setTimeout(initOfficialGoogleSignIn, 150);
     if (pageId === "patient" && currentUser) {
         updatePatientProfileUI();
         loadPatientHistory();
@@ -193,6 +194,35 @@ async function handleLogin(e) {
     }
 }
 
+const GOOGLE_CLIENT_ID = "615967675101-8p9f3h8j0q3v0c8v0e9d1a2b3c4d5e6f.apps.googleusercontent.com";
+
+function initOfficialGoogleSignIn() {
+    if (window.google && google.accounts && google.accounts.id) {
+        try {
+            google.accounts.id.initialize({
+                client_id: GOOGLE_CLIENT_ID,
+                callback: handleGoogleCredentialResponse,
+                auto_select: false
+            });
+            const btnContainer = document.getElementById("googleSignInButton");
+            if (btnContainer) {
+                btnContainer.innerHTML = "";
+                google.accounts.id.renderButton(btnContainer, {
+                    type: "standard",
+                    theme: "outline",
+                    size: "large",
+                    text: "continue_with",
+                    shape: "rectangular",
+                    logo_alignment: "left",
+                    width: 320
+                });
+            }
+        } catch (e) {
+            console.log("[GOOGLE-ID-INIT-NOTE]", e);
+        }
+    }
+}
+
 async function handleGoogleCredentialResponse(response) {
     try {
         showToast("Authenticating with Google...", "info");
@@ -218,57 +248,6 @@ async function handleGoogleCredentialResponse(response) {
     } catch (err) {
         showToast("Google Sign-In connection error: " + err.message, "error");
     }
-}
-
-function triggerGoogleSignIn() {
-    const modal = document.getElementById("modalGoogleAuth");
-    if (modal) modal.classList.remove("hidden");
-}
-
-function closeGoogleAuthModal() {
-    const modal = document.getElementById("modalGoogleAuth");
-    if (modal) modal.classList.add("hidden");
-}
-
-function toggleCustomGoogleInput() {
-    const form = document.getElementById("formCustomGoogle");
-    if (form) form.classList.toggle("hidden");
-}
-
-async function loginWithGoogleAccount(name, email) {
-    try {
-        showToast("Authenticating as " + name + "...", "info");
-        const res = await fetch(`${API_BASE}/auth/google`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ full_name: name, email: email, role: "patient" })
-        });
-        const data = await res.json();
-        if (data.status === "success") {
-            closeGoogleAuthModal();
-            currentUser = data.user;
-            authToken = data.token;
-            localStorage.setItem("netra_user", JSON.stringify(currentUser));
-            localStorage.setItem("netra_token", authToken);
-            if (typeof updateHeaderAuthUI === "function") updateHeaderAuthUI();
-            showToast("Welcome to NetraAI, " + (currentUser.full_name || currentUser.username) + "!", "success");
-            if (currentUser.role === "doctor") navigateTo("doctor");
-            else if (currentUser.role === "admin") navigateTo("admin");
-            else navigateTo("patient");
-        } else {
-            showToast(data.error || "Google Sign-In failed.", "error");
-        }
-    } catch (e) {
-        showToast("Connection error: " + e.message, "error");
-    }
-}
-
-function handleCustomGoogleSubmit(e) {
-    if (e) e.preventDefault();
-    const name = document.getElementById("customGoogleName").value.trim();
-    const email = document.getElementById("customGoogleEmail").value.trim();
-    if (!email) return;
-    loginWithGoogleAccount(name || "Google User", email);
 }
 
 // -----------------------------------------------------------------------------
