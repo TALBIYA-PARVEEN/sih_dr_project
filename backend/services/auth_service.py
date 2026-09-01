@@ -112,7 +112,7 @@ class AuthService:
 
     @staticmethod
     def _deliver_email(to_email, subject, text_body, html_body):
-        """Ultra-resilient email delivery with automatic Dual-Port (SSL 465 -> TLS 587) fallback and max 1.8s join."""
+        """Ultra-resilient email delivery using clean EmailMessage with non-daemon background thread."""
         mail_server = current_app.config.get("MAIL_SERVER", "smtp.gmail.com")
         mail_user = current_app.config.get("MAIL_USERNAME", "2k24.cs1q.2413756@gmail.com").strip()
         mail_pass = current_app.config.get("MAIL_PASSWORD", "tyhelznlhlknqowp").strip()
@@ -123,22 +123,20 @@ class AuthService:
 
         def _worker():
             try:
-                from email.utils import formatdate
-                msg = MIMEMultipart("alternative")
+                from email.message import EmailMessage
+                msg = EmailMessage()
+                msg["Subject"] = subject
                 msg["From"] = f"NetraAI Tele-Ophthalmology <{mail_user}>"
                 msg["To"] = to_email
-                msg["Reply-To"] = mail_user
-                msg["Subject"] = subject
-                msg["Date"] = formatdate(localtime=True)
-
-                msg.attach(MIMEText(text_body, "plain", "utf-8"))
-                msg.attach(MIMEText(html_body, "html", "utf-8"))
+                msg.set_content(text_body)
+                if html_body:
+                    msg.add_alternative(html_body, subtype="html")
 
                 # Primary Attempt: Port 465 (SSL)
                 try:
-                    with smtplib.SMTP_SSL(mail_server, 465, timeout=1.8) as s:
+                    with smtplib.SMTP_SSL(mail_server, 465, timeout=10.0) as s:
                         s.login(mail_user, mail_pass)
-                        s.sendmail(mail_user, [to_email], msg.as_string())
+                        s.send_message(msg)
                     print(f"[EMAIL-SENT] Delivered '{subject}' to {to_email} via Port 465 (SSL)")
                     return
                 except Exception as e_ssl:
@@ -146,21 +144,20 @@ class AuthService:
 
                 # Fallback Attempt: Port 587 (TLS)
                 try:
-                    with smtplib.SMTP(mail_server, 587, timeout=1.8) as s:
+                    with smtplib.SMTP(mail_server, 587, timeout=10.0) as s:
                         s.ehlo()
                         s.starttls()
                         s.ehlo()
                         s.login(mail_user, mail_pass)
-                        s.sendmail(mail_user, [to_email], msg.as_string())
+                        s.send_message(msg)
                     print(f"[EMAIL-SENT] Delivered '{subject}' to {to_email} via Port 587 (TLS)")
                 except Exception as e_tls:
                     print(f"[EMAIL-TLS-NOTE] Port 587: {e_tls}")
             except Exception as e:
                 print(f"[EMAIL-SMTP-ERROR] Worker exception: {e}")
 
-        t = threading.Thread(target=_worker, daemon=True)
+        t = threading.Thread(target=_worker, daemon=False)
         t.start()
-        t.join(timeout=1.8)
         return True
 
     @staticmethod
