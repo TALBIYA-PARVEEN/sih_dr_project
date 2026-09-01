@@ -3,7 +3,7 @@ import numpy as np
 from services.dataset_service import DatasetRegistryService
 
 class ImageQualityAssessmentService:
-    def __init__(self, blur_threshold=30.0, min_brightness=40.0, max_brightness=195.0, min_fov_ratio=0.32):
+    def __init__(self, blur_threshold=12.0, min_brightness=20.0, max_brightness=235.0, min_fov_ratio=0.15):
         self.blur_threshold = blur_threshold
         self.min_brightness = min_brightness
         self.max_brightness = max_brightness
@@ -13,100 +13,142 @@ class ImageQualityAssessmentService:
     def evaluate_quality(self, image_np, filename=None):
         if image_np is None or image_np.size == 0:
             return {
-                "quality_label": "UNGRADABLE - REJECTED",
+                "quality_label": "NOT A RETINA IMAGE",
                 "quality_score": 0.0,
                 "is_gradable": False,
                 "blur_score": 0.0,
                 "brightness_score": 0.0,
                 "contrast_score": 0.0,
                 "fov_ratio": 0.0,
-                "rejection_reason": "Image file is empty or corrupted. Please upload a valid fundus photograph."
+                "rejection_reason": "Image file is empty or corrupted. Please upload a valid retinal scan."
             }
 
-        # 1. General Computer Vision Image Quality Assessment
+        # Handle color channels
         if len(image_np.shape) == 3:
+            h, w, c = image_np.shape
             gray = cv2.cvtColor(image_np, cv2.COLOR_RGB2GRAY)
-            r_mean = float(np.mean(image_np[:, :, 0]))
-            g_mean = float(np.mean(image_np[:, :, 1]))
-            b_mean = float(np.mean(image_np[:, :, 2]))
+            r_chan = image_np[:, :, 0].astype(float)
+            g_chan = image_np[:, :, 1].astype(float)
+            b_chan = image_np[:, :, 2].astype(float)
+            r_mean = float(np.mean(r_chan))
+            g_mean = float(np.mean(g_chan))
+            b_mean = float(np.mean(b_chan))
         else:
+            h, w = image_np.shape
             gray = image_np
             r_mean, g_mean, b_mean = float(np.mean(gray)), float(np.mean(gray)), float(np.mean(gray))
 
-        # Retinal FOV Area Ratio (Circular illumination disc)
-        _, fov_mask = cv2.threshold(gray, 18, 255, cv2.THRESH_BINARY)
+        overall_mean = float(np.mean(gray))
+
+        # Check 1: Completely black or pitch-dark image
+        if overall_mean < 8.0:
+            return {
+                "quality_label": "POOR (UNGRADABLE)",
+                "quality_score": 5.0,
+                "is_gradable": False,
+                "blur_score": 0.0,
+                "brightness_score": round(overall_mean, 1),
+                "contrast_score": 0.0,
+                "fov_ratio": 0.0,
+                "rejection_reason": "Scan is completely dark/underexposed. Please retake the retina photograph with proper illumination."
+            }
+
+        # Check 2: Completely white / washed out image
+        if overall_mean > 245.0:
+            return {
+                "quality_label": "POOR (UNGRADABLE)",
+                "quality_score": 5.0,
+                "is_gradable": False,
+                "blur_score": 0.0,
+                "brightness_score": round(overall_mean, 1),
+                "contrast_score": 0.0,
+                "fov_ratio": 1.0,
+                "rejection_reason": "Scan is completely overexposed/white. Please retake the retina photograph."
+            }
+
+        # Retinal FOV Detection
+        _, fov_mask = cv2.threshold(gray, 12, 255, cv2.THRESH_BINARY)
         total_pixels = gray.shape[0] * gray.shape[1]
-        retinal_pixels = np.count_nonzero(fov_mask)
+        retinal_pixels = int(np.count_nonzero(fov_mask))
         fov_ratio = retinal_pixels / max(1, total_pixels)
 
-        # Focus Analysis (Laplacian Variance)
-        laplacian = cv2.Laplacian(gray, cv2.CV_64F)
-        if retinal_pixels > 100:
-            laplacian_fov = laplacian[fov_mask > 0]
-            blur_score = float(np.var(laplacian_fov))
-            brightness = float(np.mean(gray[fov_mask > 0]))
-            contrast = float(np.std(gray[fov_mask > 0]))
+        # Extract active retinal region
+        if retinal_pixels > 200:
+            active_gray = gray[fov_mask > 0]
+            brightness = float(np.mean(active_gray))
+            contrast = float(np.std(active_gray))
+            laplacian = cv2.Laplacian(gray, cv2.CV_64F)
+            blur_score = float(np.var(laplacian[fov_mask > 0]))
         else:
-            blur_score = float(np.var(laplacian))
-            brightness = float(np.mean(gray))
+            brightness = overall_mean
             contrast = float(np.std(gray))
+            blur_score = float(np.var(cv2.Laplacian(gray, cv2.CV_64F)))
 
         issues = []
-        is_hard_reject = False
+        is_not_retina = False
+        is_poor_quality = False
 
-        # Check 1: Severe Blur / Out of Focus (Laplacian Variance < 25.0)
-        if blur_score < 25.0:
-            issues.append(f"Severely blurred / out of focus (Sharpness score: {blur_score:.1f}, Min required: 25.0)")
-            is_hard_reject = True
+        # -------------------------------------------------------------
+        # 1. NON-RETINA VALIDATION
+        # -------------------------------------------------------------
+        # Genuine human retina photographs have strong red/orange dominance.
+        # Strong blue dominance (B > R * 1.35 and B > 45) or pure green (G > R * 1.6 and G > 50) represents non-retina photos.
+        if len(image_np.shape) == 3:
+            if (b_mean > r_mean * 1.35 and b_mean > 45.0) or (g_mean > r_mean * 1.55 and g_mean > 50.0):
+                is_not_retina = True
+                issues.append("Non-retinal image detected (unnatural color spectrum). Please capture and upload an authentic eye fundus scan.")
 
-        # Check 2: Severe Underexposure / Darkness
-        if brightness < self.min_brightness:
-            issues.append(f"Severely underexposed / too dark (Brightness: {brightness:.1f}, Min required: {self.min_brightness})")
-            is_hard_reject = True
+        # -------------------------------------------------------------
+        # 2. SEVERE QUALITY DEFECTS (POOR / UNGRADABLE)
+        # -------------------------------------------------------------
+        if blur_score < 10.0:
+            is_poor_quality = True
+            issues.append(f"Image is out of focus / severely blurred (Sharpness: {blur_score:.1f}). Retake photo with sharp optical focus.")
 
-        # Check 3: Severe Overexposure / Flash Glare / Washed Out
-        if brightness > self.max_brightness:
-            issues.append(f"Severely overexposed / excessive flash glare (Brightness: {brightness:.1f}, Max allowed: {self.max_brightness})")
-            is_hard_reject = True
+        if brightness < 20.0:
+            is_poor_quality = True
+            issues.append(f"Severely underexposed / dark (Brightness: {brightness:.1f}). Retake with proper fundus illumination.")
 
-        # Check 4: Low Contrast / Hazy Media (Cataract or dirty lens)
-        if contrast < 18.0:
-            issues.append(f"Low contrast / hazy media (Contrast: {contrast:.1f}, Min required: 18.0)")
-            is_hard_reject = True
+        if brightness > 230.0:
+            is_poor_quality = True
+            issues.append(f"Excessive flash glare / overexposure (Brightness: {brightness:.1f}). Retake with balanced illumination.")
 
-        # Check 5: Retinal Field of View (Must cover at least 32% of frame)
-        if fov_ratio < self.min_fov_ratio:
-            issues.append(f"Incomplete retinal field of view ({fov_ratio*100:.1f}%, Min required: 32%)")
-            is_hard_reject = True
+        if contrast < 10.0:
+            is_poor_quality = True
+            issues.append("Extremely low contrast media. Retake scan with clear view.")
 
-        # Check 6: Non-Retinal Color Spectrum Verification
-        # Authentic human fundus photographs have strong red-channel dominance (R > B)
-        if len(image_np.shape) == 3 and (r_mean < b_mean or (r_mean < 35 and g_mean < 35 and b_mean < 35)):
-            issues.append("Non-retinal color profile detected. Please upload an authentic eye fundus photograph.")
-            is_hard_reject = True
-
-        # Quality scoring (0 - 100)
-        norm_focus = min(100.0, (blur_score / 70.0) * 100.0)
-        norm_bright = max(0.0, 100.0 - abs(brightness - 110.0) * 1.0)
-        norm_fov = min(100.0, (fov_ratio / 0.65) * 100.0)
-        quality_score = float(0.45 * norm_focus + 0.30 * norm_bright + 0.25 * norm_fov)
-
-        if is_hard_reject:
+        # -------------------------------------------------------------
+        # 3. QUALITY CLASSIFICATION & DECISION
+        # -------------------------------------------------------------
+        if is_not_retina:
+            quality_label = "NOT A RETINA IMAGE"
+            is_gradable = False
+            rejection_reason = "Non-retinal image detected. Please upload an authentic retinal fundus photograph."
+            quality_score = 0.0
+        elif is_poor_quality:
             quality_label = "POOR (UNGRADABLE)"
             is_gradable = False
-            rejection_reason = "Quality Assessment Failed: " + "; ".join(issues) + ".\nAction: Clinical AI cannot grade this scan. Please retake a clear retinal photo."
-        elif quality_score < 60.0 or blur_score < 38.0:
-            quality_label = "ADEQUATE"
-            is_gradable = True
-            rejection_reason = "Borderline image quality — enhanced with Ben Graham & CLAHE filters."
+            rejection_reason = "Quality Assessment Failed: " + "; ".join(issues) + "\nAction Required: Retake retinal photo before generating diagnostic report."
+            quality_score = 25.0
         else:
-            quality_label = "GOOD"
+            # Calculate quality score (0 - 100)
+            norm_sharpness = min(100.0, (blur_score / 45.0) * 100.0)
+            norm_bright = max(0.0, 100.0 - abs(brightness - 115.0) * 0.9)
+            norm_contrast = min(100.0, (contrast / 40.0) * 100.0)
+            quality_score = float(0.40 * norm_sharpness + 0.35 * norm_bright + 0.25 * norm_contrast)
+            quality_score = round(max(55.0, min(99.0, quality_score)), 1)
+
+            if quality_score >= 75.0 and blur_score >= 25.0:
+                quality_label = "GOOD"
+            else:
+                quality_label = "MEDIUM"
+
             is_gradable = True
             rejection_reason = None
 
         return {
             "quality_label": quality_label,
-            "quality_score": round(max(5.0, min(100.0, quality_score)), 1),
+            "quality_score": quality_score,
             "is_gradable": is_gradable,
             "blur_score": round(blur_score, 2),
             "brightness_score": round(brightness, 2),
