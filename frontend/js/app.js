@@ -162,11 +162,6 @@ function handleLogout() {
     navigateTo("home");
 }
 
-function fillLogin(uname, pass) {
-    document.getElementById("loginUsername").value = uname;
-    document.getElementById("loginPassword").value = pass;
-}
-
 async function handleLogin(e) {
     e.preventDefault();
     const username = document.getElementById("loginUsername").value.trim();
