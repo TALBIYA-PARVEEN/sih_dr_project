@@ -1777,7 +1777,9 @@ def create_app():
     @app.route("/api/admin/email/test", methods=["POST"])
     def admin_test_email():
         data = request.get_json() or {}
-        target_email = data.get("email", "").strip() or "dev.talbiya.parveen@gmail.com"
+        target_email = data.get("email", "").strip()
+        if not target_email:
+            return jsonify({"error": "Target email is required for diagnostic test."}), 400
         
         diagnostics = []
         
