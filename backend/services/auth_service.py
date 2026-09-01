@@ -133,9 +133,9 @@ class AuthService:
             msg.attach(MIMEText(text_body, "plain", "utf-8"))
             msg.attach(MIMEText(html_body, "html", "utf-8"))
 
-            # Primary Attempt: Port 465 (SSL)
+            # Primary Attempt: Port 465 (SSL) - Strict 2.5s timeout
             try:
-                with smtplib.SMTP_SSL(mail_server, 465, timeout=12) as s:
+                with smtplib.SMTP_SSL(mail_server, 465, timeout=2.5) as s:
                     s.login(mail_user, mail_pass)
                     s.sendmail(mail_user, [to_email], msg.as_string())
                 print(f"[EMAIL-SENT] Delivered '{subject}' to {to_email} via Port 465 (SSL)")
@@ -143,15 +143,19 @@ class AuthService:
             except Exception as e_ssl:
                 print(f"[EMAIL-SSL-NOTE] Port 465: {e_ssl}. Trying Port 587 (TLS)...")
 
-            # Fallback Attempt: Port 587 (STARTTLS)
-            with smtplib.SMTP(mail_server, 587, timeout=12) as s:
-                s.ehlo()
-                s.starttls()
-                s.ehlo()
-                s.login(mail_user, mail_pass)
-                s.sendmail(mail_user, [to_email], msg.as_string())
-            print(f"[EMAIL-SENT] Delivered '{subject}' to {to_email} via Port 587 (TLS)")
-            return True
+            # Fallback Attempt: Port 587 (STARTTLS) - Strict 2.5s timeout
+            try:
+                with smtplib.SMTP(mail_server, 587, timeout=2.5) as s:
+                    s.ehlo()
+                    s.starttls()
+                    s.ehlo()
+                    s.login(mail_user, mail_pass)
+                    s.sendmail(mail_user, [to_email], msg.as_string())
+                print(f"[EMAIL-SENT] Delivered '{subject}' to {to_email} via Port 587 (TLS)")
+                return True
+            except Exception as e_tls:
+                print(f"[EMAIL-TLS-NOTE] Port 587: {e_tls}")
+                return False
         except Exception as e:
             print(f"[EMAIL-SMTP-ERROR] Failed to send email to {to_email}: {e}")
             return False
