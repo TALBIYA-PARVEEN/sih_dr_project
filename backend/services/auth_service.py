@@ -384,4 +384,8 @@ Doctor Notes: {doctor_notes}
 {credentials_text}
 Smart India Hackathon 2026."""
 
-        return AuthService._deliver_email(to_email, subject, text_body, html_body)
+        import threading
+        t = threading.Thread(target=AuthService._deliver_email, args=(to_email, subject, text_body, html_body))
+        t.daemon = True
+        t.start()
+        return True

@@ -1324,11 +1324,11 @@ async function handleDoctorScreeningSubmit(e) {
             const pwBadge = document.getElementById("docPatientTempPwBadge");
 
             if (result.is_new_patient && result.temp_password) {
-                notifText.innerHTML = `New patient account created for <b>${patientEmail}</b>. Login credentials sent to email!`;
-                pwBadge.innerText = `Temp Password: ${result.temp_password}`;
+                notifText.innerHTML = `New patient account created for <b>${patientEmail}</b>.<br><span class="text-xs text-slate-600">Patient can log in at any time with Email: <b>${patientEmail}</b> & Passcode: <code class="bg-indigo-100 text-indigo-900 px-2 py-0.5 rounded font-mono font-bold">${result.temp_password}</code></span>`;
+                pwBadge.innerText = `Login Passcode: ${result.temp_password}`;
                 pwBadge.classList.remove("hidden");
             } else {
-                notifText.innerHTML = `Diagnostic scan attached to existing patient dashboard for <b>${patientEmail}</b>. (Existing password preserved).`;
+                notifText.innerHTML = `Diagnostic scan attached to existing patient dashboard for <b>${patientEmail}</b>. (Existing credentials preserved).`;
                 pwBadge.classList.add("hidden");
             }
 
