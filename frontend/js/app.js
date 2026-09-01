@@ -851,6 +851,13 @@ async function loadPatientHistory() {
             `;
             tbody.appendChild(tr);
         });
+        if (history.length > 0) {
+            const container = document.getElementById("patientResultContainer");
+            if (container && container.classList.contains("hidden")) {
+                const latestId = history[0].screening_id || history[0].id;
+                restoreLastSession(latestId);
+            }
+        }
     } catch (e) {
         console.error("History load error", e);
     }
@@ -1207,9 +1214,23 @@ function renderPatientResults(data) {
     document.getElementById("bioOpticDisc").innerText = bio.optic_disc_coord || "(N/A)";
     document.getElementById("labelVessels").innerText = `2. Vessels (${bio.vessel_density_pct}%)`;
 
-    const rev = data.clinician_review;
-    document.getElementById("patientDocStatus").innerText = rev.status;
-    document.getElementById("patientDocNotes").innerText = rev.notes || `Assigned to ${data.assigned_doctor_name || 'Ophthalmologist'}.`;
+    const rev = data.clinician_review || {};
+    const statusText = rev.status || data.review_status || "Pending Review";
+    const statusEl = document.getElementById("patientDocStatus");
+    if (statusEl) {
+        statusEl.innerText = statusText;
+        if (statusText === "Confirmed" || statusText === "Clinically Validated") {
+            statusEl.className = "font-bold text-emerald-600";
+        } else if (statusText === "Refer to Specialist" || statusText === "Requires Hospital Referral") {
+            statusEl.className = "font-bold text-rose-600";
+        } else {
+            statusEl.className = "font-bold text-amber-600";
+        }
+    }
+    const notesEl = document.getElementById("patientDocNotes");
+    if (notesEl) {
+        notesEl.innerText = rev.notes || (statusText === "Pending Review" ? `Awaiting examining ophthalmologist sign-off (${data.assigned_doctor_name || 'Assigned Specialist'}).` : "Clinical evaluation completed.");
+    }
     
     const assignedDocNameEl = document.getElementById("patientAssignedDoctorName");
     if (assignedDocNameEl && data.assigned_doctor_name) {
@@ -1465,33 +1486,38 @@ async function submitDoctorSignOff() {
 // -----------------------------------------------------------------------------
 async function loadPatientChat() {
     if (!currentUser) return;
-    const partnerId = currentUser.assigned_doctor_id || "doc_demo";
     try {
-        const res = await fetch(`${API_BASE}/messages/thread/${currentUser.id}/${partnerId}`);
+        const res = await fetch(`${API_BASE}/messages/patient/${currentUser.id}`);
         const data = await res.json();
         const stream = document.getElementById("patientChatMessagesStream");
         if (!stream) return;
         stream.innerHTML = "";
 
         if (!data.messages || data.messages.length === 0) {
-            stream.innerHTML = `<div class="text-xs text-slate-400 text-center py-10">No messages yet. Send a message to your assigned ophthalmologist below.</div>`;
+            stream.innerHTML = `<div class="text-xs text-slate-400 text-center py-10">No messages yet. When your examining doctor reviews your retina scan, their clinical directives & sign-off will appear here automatically.</div>`;
             return;
         }
 
         data.messages.forEach(m => {
             const isMe = m.sender_id === currentUser.id;
+            const timeStr = m.created_at ? new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
             const bubble = document.createElement("div");
             bubble.className = `flex ${isMe ? 'justify-end' : 'justify-start'}`;
             bubble.innerHTML = `
-                <div class="max-w-xs p-3 rounded-2xl text-xs ${isMe ? 'bg-indigo-600 text-white rounded-br-none' : 'bg-white border text-slate-800 rounded-bl-none shadow-xs'}">
-                    <div class="font-semibold text-[10px] opacity-75 mb-0.5">${m.sender_name} (${m.sender_role})</div>
-                    <div>${m.content}</div>
+                <div class="max-w-xs p-3 rounded-2xl text-xs ${isMe ? 'bg-indigo-600 text-white rounded-br-none' : 'bg-white border border-slate-200 text-slate-800 rounded-bl-none shadow-xs'} space-y-1">
+                    <div class="flex items-center justify-between text-[10px] opacity-75 space-x-2">
+                        <span class="font-bold">${m.sender_name || (isMe ? 'You' : 'Doctor')} (${m.sender_role || 'doctor'})</span>
+                        <span>${timeStr}</span>
+                    </div>
+                    <div class="leading-relaxed">${m.content}</div>
                 </div>
             `;
             stream.appendChild(bubble);
         });
         stream.scrollTop = stream.scrollHeight;
-    } catch (e) {}
+    } catch (e) {
+        console.error("loadPatientChat error:", e);
+    }
 }
 
 async function handlePatientSendMessage(e) {
@@ -1501,7 +1527,21 @@ async function handlePatientSendMessage(e) {
     const content = input.value.trim();
     if (!content) return;
 
-    const recipientId = currentUser.assigned_doctor_id || "doc_demo";
+    let recipientId = currentUser.assigned_doctor_id;
+    if (!recipientId || recipientId === "doc_demo") {
+        try {
+            const docRes = await fetch(`${API_BASE}/auth/doctors`);
+            const docData = await docRes.json();
+            if (docData.doctors && docData.doctors.length > 0) {
+                recipientId = docData.doctors[0].user_id || docData.doctors[0].id;
+            } else {
+                recipientId = "doctor";
+            }
+        } catch (e) {
+            recipientId = "doctor";
+        }
+    }
+
     try {
         const res = await fetch(`${API_BASE}/messages/send`, {
             method: "POST",
@@ -1510,13 +1550,15 @@ async function handlePatientSendMessage(e) {
                 sender_id: currentUser.id,
                 recipient_id: recipientId,
                 content: content,
-                screening_id: activeSessionId
+                screening_id: activeSessionId || null
             })
         });
         const data = await res.json();
         if (data.status === "success") {
             input.value = "";
             loadPatientChat();
+        } else {
+            showToast(data.error || "Failed to send message.", "error");
         }
     } catch (err) {
         showToast("Error sending message: " + err.message, "error");

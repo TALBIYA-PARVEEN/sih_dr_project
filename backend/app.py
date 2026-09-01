@@ -1248,17 +1248,23 @@ def create_app():
             }}
         )
 
-        # Notify Patient via 'messages'
-        if session.get("patient_user_id"):
+        # Resolve patient ID and notify Patient via 'messages'
+        target_patient_user_id = session.get("patient_user_id") or session.get("patient_id")
+        if not target_patient_user_id:
+            p_user = mongo.users.find_one({"$or": [{"email": session.get("patient_email")}, {"full_name": session.get("patient_name")}]})
+            if p_user:
+                target_patient_user_id = p_user["id"]
+
+        if target_patient_user_id:
             mongo.messages.insert_one({
                 "id": str(uuid.uuid4()),
                 "sender_id": doctor_id or "doctor",
                 "sender_name": doctor_name,
                 "sender_role": "doctor",
-                "recipient_id": session["patient_user_id"],
-                "recipient_name": session["patient_name"],
+                "recipient_id": target_patient_user_id,
+                "recipient_name": session.get("patient_name", "Patient"),
                 "screening_id": session_id,
-                "content": f"Clinical Evaluation Completed: {status}. Prescriptions & Directives: {notes}",
+                "content": f"Clinical Evaluation Completed: {status}. Prescriptions & Directives: {notes or 'Your retinal screening has been evaluated and officially signed off.'}",
                 "is_read": False,
                 "created_at": datetime.utcnow().isoformat()
             })
@@ -1300,6 +1306,28 @@ def create_app():
         mongo.messages.insert_one(msg_doc)
 
         return jsonify({"status": "success", "message": "Message sent.", "data": serialize_doc(msg_doc)}), 201
+
+    @app.route("/api/messages/patient/<patient_id>", methods=["GET"])
+    def get_patient_messages(patient_id):
+        user = mongo.users.find_one({"$or": [{"id": patient_id}, {"username": patient_id}, {"email": patient_id.lower()}]})
+        patient_profile = mongo.patients.find_one({"$or": [{"user_id": patient_id}, {"id": patient_id}]})
+
+        search_ids = [patient_id]
+        if user:
+            search_ids.extend([user.get("id"), user.get("username")])
+        if patient_profile:
+            search_ids.extend([patient_profile.get("id"), patient_profile.get("user_id")])
+
+        search_ids = list(set(filter(None, search_ids)))
+
+        messages = list(mongo.messages.find({
+            "$or": [
+                {"recipient_id": {"$in": search_ids}},
+                {"sender_id": {"$in": search_ids}}
+            ]
+        }, sort=[("created_at", 1)]))
+
+        return jsonify({"status": "success", "total": len(messages), "messages": [serialize_doc(m) for m in messages]})
 
     @app.route("/api/messages/thread/<user_a>/<user_b>", methods=["GET"])
     def get_conversation_thread(user_a, user_b):
