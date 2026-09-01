@@ -227,6 +227,13 @@ function getFormVal(id, fallback = "") {
     return el ? el.value.trim() : fallback;
 }
 
+function updateHeaderAuthUI() {
+    const currentPage = (window.location.hash || "#home").replace("#", "") || "home";
+    if (typeof updateNavbarForPage === "function") {
+        updateNavbarForPage(currentPage);
+    }
+}
+
 async function handleRegister(e) {
     if (e && e.preventDefault) e.preventDefault();
     const btn = (e && e.target && e.target.querySelector) ? e.target.querySelector('button[type="submit"]') : document.querySelector('#formRegister button[type="submit"]');
@@ -274,6 +281,7 @@ async function handleRegister(e) {
     const otpInp = document.getElementById("otpInputCode");
     if (otpInp) {
         otpInp.value = "";
+        otpInp.placeholder = "Enter 6-digit code from email";
         otpInp.focus();
     }
 
@@ -297,24 +305,11 @@ async function handleRegister(e) {
             localStorage.setItem("netra_user", JSON.stringify(currentUser));
             localStorage.setItem("netra_token", authToken);
 
-            const otpCode = data.dev_otp || (data.user ? data.user.otp_code : null);
-            let subtext = `We sent a 6-digit verification code to <b>${payload.email}</b>.<br><span class="text-indigo-600 font-bold text-xs block mt-1.5"><i class="fa-solid fa-envelope mr-1"></i> Check your Inbox / Spam folder.</span>`;
-            
-            if (otpCode) {
-                subtext += `<div class="mt-3 p-3 bg-emerald-50 border-2 border-emerald-300 rounded-2xl text-xs text-emerald-950 flex items-center justify-between shadow-xs">
-                    <div>
-                        <span class="font-bold text-[11px] block text-emerald-700"><i class="fa-solid fa-shield-check mr-1"></i> Security Verification OTP:</span>
-                        <span class="font-mono text-lg font-black tracking-widest text-emerald-800">${otpCode}</span>
-                    </div>
-                    <button type="button" onclick="document.getElementById('otpInputCode').value='${otpCode}'; handleVerifyOtp();" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow transition flex items-center">
-                        <i class="fa-solid fa-bolt mr-1"></i> Auto-Fill & Verify
-                    </button>
-                </div>`;
-            }
+            let subtext = `We sent a 6-digit verification code to <b>${payload.email}</b>.<br><span class="text-indigo-600 font-bold text-xs block mt-1.5"><i class="fa-solid fa-envelope mr-1"></i> Please check your Email Inbox / Spam and enter the code below:</span>`;
             if (subtextEl) subtextEl.innerHTML = subtext;
             if (otpInp) {
-                otpInp.value = otpCode || "";
-                otpInp.placeholder = "Enter 6-digit code";
+                otpInp.value = "";
+                otpInp.placeholder = "Enter 6-digit code from email";
                 otpInp.focus();
             }
             showToast(data.message || `Verification code sent to ${payload.email}`, "success");
