@@ -1049,9 +1049,9 @@ def create_app():
         except Exception as e:
             print(f"[PDF-ERR] {e}")
 
-        # 7. Deliver Welcome Email & Report Credentials to Patient
+        # 7. Deliver Welcome Email & Report Credentials ONLY for New Patients
         email_sent = False
-        if patient_email:
+        if patient_email and is_new_patient and temp_password:
             try:
                 email_sent = AuthService.send_patient_welcome_report_email(
                     to_email=patient_email,
@@ -1086,7 +1086,7 @@ def create_app():
             "temp_password": temp_password,
             "patient_user_id": patient_user_id,
             "email_sent": email_sent,
-            "message": f"Screening completed for {patient_name}. Diagnostic report signed & dispatched.",
+            "message": f"Screening completed for {patient_name}. Diagnostic report added to your review queue.",
             "data": serialize_doc(session_doc)
         }), 201
 
@@ -1095,25 +1095,32 @@ def create_app():
     # --------------------------------------------------------------------------
     @app.route("/api/patient/history/<patient_id>", methods=["GET"])
     def get_patient_history(patient_id):
-        # Look up user to find all associated IDs (user id, patient id, username, full_name)
-        user = mongo.users.find_one({"$or": [{"id": patient_id}, {"username": patient_id}]})
+        # Look up user to find all associated IDs (user id, patient id, username, full_name, email)
+        user = mongo.users.find_one({"$or": [{"id": patient_id}, {"username": patient_id}, {"email": patient_id.lower()}]})
         patient_profile = mongo.patients.find_one({"$or": [{"user_id": patient_id}, {"id": patient_id}]})
 
         search_ids = [patient_id]
+        search_emails = []
         if user:
             search_ids.extend([user.get("id"), user.get("username")])
+            if user.get("email"):
+                search_emails.append(user["email"].lower())
         if patient_profile:
             search_ids.extend([patient_profile.get("id"), patient_profile.get("user_id")])
 
         search_ids = list(set(filter(None, search_ids)))
+        search_emails = list(set(filter(None, search_emails)))
 
-        query = {
-            "$or": [
-                {"patient_user_id": {"$in": search_ids}},
-                {"patient_id": {"$in": search_ids}},
-                {"user_id": {"$in": search_ids}}
-            ]
-        }
+        query_or = [
+            {"patient_user_id": {"$in": search_ids}},
+            {"patient_id": {"$in": search_ids}},
+            {"user_id": {"$in": search_ids}}
+        ]
+        if search_emails:
+            query_or.append({"patient_email": {"$in": search_emails}})
+            query_or.append({"email": {"$in": search_emails}})
+
+        query = {"$or": query_or}
 
         reports = mongo.reports.find(query, sort=[("created_at", -1)])
         screenings = mongo.screenings.find(query, sort=[("created_at", -1)])
