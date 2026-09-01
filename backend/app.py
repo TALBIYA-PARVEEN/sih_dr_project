@@ -1716,6 +1716,65 @@ def create_app():
             "doctor": serialize_doc(doctor_profile)
         }), 201
 
+    @app.route("/api/admin/email/test", methods=["POST"])
+    def admin_test_email():
+        data = request.get_json() or {}
+        target_email = data.get("email", "").strip() or "dev.talbiya.parveen@gmail.com"
+        
+        diagnostics = []
+        
+        # Check Resend
+        resend_key = os.environ.get("RESEND_API_KEY", "").strip()
+        diagnostics.append(f"RESEND_API_KEY configured: {bool(resend_key)} (length: {len(resend_key)})")
+        if resend_key:
+            try:
+                import requests
+                r = requests.post(
+                    "https://api.resend.com/emails",
+                    headers={"Authorization": f"Bearer {resend_key}", "Content-Type": "application/json"},
+                    json={
+                        "from": os.environ.get("RESEND_FROM", "NetraAI Healthcare <onboarding@resend.dev>"),
+                        "to": [target_email],
+                        "subject": "Diagnostic Test Delivery • NetraAI",
+                        "text": f"This is an automated diagnostic test from NetraAI server to {target_email}."
+                    },
+                    timeout=8.0
+                )
+                diagnostics.append(f"Resend Response: {r.status_code} - {r.text}")
+                if r.status_code in [200, 201]:
+                    return jsonify({"status": "success", "message": f"Email successfully delivered to {target_email} via Resend!", "diagnostics": diagnostics})
+            except Exception as e:
+                diagnostics.append(f"Resend Error: {str(e)}")
+
+        # Check Brevo
+        brevo_key = os.environ.get("BREVO_API_KEY", "").strip()
+        diagnostics.append(f"BREVO_API_KEY configured: {bool(brevo_key)}")
+        if brevo_key:
+            try:
+                import requests
+                r = requests.post(
+                    "https://api.brevo.com/v3/smtp/email",
+                    headers={"api-key": brevo_key, "Content-Type": "application/json"},
+                    json={
+                        "sender": {"name": "NetraAI Healthcare", "email": "2k24.cs1q.2413756@gmail.com"},
+                        "to": [{"email": target_email}],
+                        "subject": "Diagnostic Test Delivery • NetraAI",
+                        "textContent": f"This is an automated diagnostic test from NetraAI server to {target_email}."
+                    },
+                    timeout=8.0
+                )
+                diagnostics.append(f"Brevo Response: {r.status_code} - {r.text}")
+                if r.status_code in [200, 201]:
+                    return jsonify({"status": "success", "message": f"Email successfully delivered to {target_email} via Brevo!", "diagnostics": diagnostics})
+            except Exception as e:
+                diagnostics.append(f"Brevo Error: {str(e)}")
+
+        return jsonify({
+            "status": "failed",
+            "message": "Email delivery failed over HTTPS cloud gateways. Please verify your RESEND_API_KEY or BREVO_API_KEY in Render dashboard.",
+            "diagnostics": diagnostics
+        }), 400
+
     @app.route("/api/dataset/upload-csv", methods=["POST"])
     def upload_dataset_csv():
         if "file" not in request.files:
