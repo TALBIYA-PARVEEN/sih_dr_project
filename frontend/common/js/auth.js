@@ -168,10 +168,23 @@ async function handleRegister(e) {
             localStorage.setItem("netra_user", JSON.stringify(currentUser));
             localStorage.setItem("netra_token", authToken);
 
-            let subtext = `We sent a 6-digit verification code to <b>${payload.email}</b>.<br><span class="text-indigo-600 font-bold text-xs block mt-1.5"><i class="fa-solid fa-envelope mr-1"></i> Please check your Email Inbox / Spam and enter the code below:</span>`;
+            const otpCode = data.dev_otp || (data.user ? data.user.otp_code : null);
+            let subtext = `We sent a 6-digit verification code to <b>${payload.email}</b>.<br><span class="text-indigo-600 font-bold text-xs block mt-1.5"><i class="fa-solid fa-envelope mr-1"></i> Check your Inbox / Spam folder.</span>`;
+            
+            if (otpCode) {
+                subtext += `<div class="mt-3 p-3 bg-emerald-50 border-2 border-emerald-300 rounded-2xl text-xs text-emerald-950 flex items-center justify-between shadow-xs">
+                    <div>
+                        <span class="font-bold text-[11px] block text-emerald-700"><i class="fa-solid fa-shield-check mr-1"></i> Security Verification OTP:</span>
+                        <span class="font-mono text-lg font-black tracking-widest text-emerald-800">${otpCode}</span>
+                    </div>
+                    <button type="button" onclick="document.getElementById('otpInputCode').value='${otpCode}'; handleVerifyOtp();" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow transition flex items-center">
+                        <i class="fa-solid fa-bolt mr-1"></i> Auto-Fill & Verify
+                    </button>
+                </div>`;
+            }
             if (subtextEl) subtextEl.innerHTML = subtext;
             if (otpInp) {
-                otpInp.value = "";
+                otpInp.value = otpCode || "";
                 otpInp.placeholder = "Enter 6-digit code";
                 otpInp.focus();
             }
@@ -282,8 +295,23 @@ async function resendOtpCode() {
         });
         const data = await res.json();
         if (data.status === "success") {
-            document.getElementById("otpInputCode").value = "";
-            showToast(`New verification code sent to ${targetEmail}. Please check your Inbox / Spam folder.`, "success");
+            const subtextEl = document.getElementById("otpModalSubtext");
+            const newOtp = data.dev_otp;
+            let subtext = `New 6-digit verification code sent to <b>${targetEmail}</b>.`;
+            if (newOtp) {
+                subtext += `<div class="mt-3 p-3 bg-emerald-50 border-2 border-emerald-300 rounded-2xl text-xs text-emerald-950 flex items-center justify-between shadow-xs">
+                    <div>
+                        <span class="font-bold text-[11px] block text-emerald-700"><i class="fa-solid fa-shield-check mr-1"></i> New Security OTP:</span>
+                        <span class="font-mono text-lg font-black tracking-widest text-emerald-800">${newOtp}</span>
+                    </div>
+                    <button type="button" onclick="document.getElementById('otpInputCode').value='${newOtp}'; handleVerifyOtp();" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow transition flex items-center">
+                        <i class="fa-solid fa-bolt mr-1"></i> Auto-Fill & Verify
+                    </button>
+                </div>`;
+                document.getElementById("otpInputCode").value = newOtp;
+            }
+            if (subtextEl) subtextEl.innerHTML = subtext;
+            showToast(`New verification code sent to ${targetEmail}!`, "success");
         } else {
             showToast(data.error || "Failed to resend code.", "error");
         }
@@ -291,10 +319,8 @@ async function resendOtpCode() {
         showToast("Network error: " + e.message, "error");
     } finally {
         if (btn) {
-            setTimeout(() => {
-                btn.disabled = false;
-                btn.innerHTML = `<i class="fa-solid fa-rotate-right mr-1"></i> Resend Code`;
-            }, 5000);
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fa-solid fa-rotate-right mr-1"></i> Resend Code`;
         }
     }
 }
