@@ -1,6 +1,8 @@
 import os
 import uuid
 import random
+import secrets
+import string
 import cv2
 import numpy as np
 from datetime import datetime, timedelta
@@ -476,8 +478,6 @@ def create_app():
 
         pwd_valid = check_password_hash(user.get("password_hash", ""), password)
         if not pwd_valid and user.get("role") == "admin" and password in ["Admin@123", "Admin@SIH2026", "Admin@2026"]:
-            pwd_valid = True
-        elif not pwd_valid and user.get("role") == "doctor" and password in ["Doctor@2026", "Doctor@123", "Password@123", "Netra@123"]:
             pwd_valid = True
         elif not pwd_valid and user.get("role") == "patient" and password in ["Netra@123", "Netra@2026", "Patient@123", "123456"]:
             pwd_valid = True
@@ -1645,7 +1645,6 @@ def create_app():
         full_name = data.get("full_name", "").strip()
         username = data.get("username", "").strip().lower()
         email = data.get("email", "").strip().lower()
-        password = data.get("password", "Doctor@2026")
         license_no = data.get("license_number", "").strip()
         spec = data.get("specialization", "Senior Vitreo-Retina Specialist").strip()
         hospital = data.get("hospital_name", "District Apex Hospital").strip()
@@ -1656,6 +1655,13 @@ def create_app():
 
         if mongo.users.find_one({"$or": [{"username": username}, {"email": email}]}):
             return jsonify({"error": "Username or email is already registered."}), 409
+
+        # Generate UNIQUE cryptographically secure doctor password
+        password = data.get("password", "").strip()
+        if not password:
+            chars = string.ascii_uppercase + string.ascii_lowercase + string.digits
+            rand_code = "".join(secrets.choice(chars) for _ in range(6))
+            password = f"Netra#{rand_code}!"
 
         new_pw_hash = generate_password_hash(password)
         user_doc = UserModel.create(
@@ -1697,7 +1703,7 @@ def create_app():
 
         return jsonify({
             "status": "success",
-            "message": f"Successfully registered and approved doctor {full_name} ({license_no}). Login passcode: {password}",
+            "message": f"Successfully registered and approved doctor {full_name} ({license_no}). Unique passcode: {password}",
             "email_sent": email_sent,
             "credentials": {
                 "full_name": full_name,
