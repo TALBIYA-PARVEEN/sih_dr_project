@@ -125,8 +125,12 @@ class AuthService:
             from email.message import EmailMessage
             msg = EmailMessage()
             msg["Subject"] = subject
-            msg["From"] = f"NetraAI Tele-Ophthalmology <{mail_user}>"
+            msg["From"] = f"NetraAI Verification <{mail_user}>"
             msg["To"] = to_email
+            msg["Reply-To"] = mail_user
+            msg["X-Priority"] = "1"
+            msg["X-MSMail-Priority"] = "High"
+            msg["Importance"] = "High"
             msg.set_content(text_body)
             if html_body:
                 msg.add_alternative(html_body, subtype="html")
@@ -161,7 +165,7 @@ class AuthService:
     @staticmethod
     def send_otp_email(to_email, otp_code, purpose="verification"):
         """Sends real email OTP via Gmail SMTP using multipart plain + HTML."""
-        subject = f"NetraAI Verification Code: {otp_code}"
+        subject = f"NetraAI Security Code: {otp_code} [Ref #{uuid.uuid4().hex[:6].upper()}]"
         
         html_body = f"""
         <!DOCTYPE html>
