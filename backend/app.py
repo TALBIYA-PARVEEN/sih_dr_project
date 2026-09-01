@@ -516,12 +516,14 @@ def create_app():
 
         user = mongo.users.find_one({"$or": [{"username": identifier}, {"email": identifier.lower()}]})
         if not user:
-            return jsonify({"error": "No account found with this username or email address."}), 401
+            return jsonify({"error": "No account found with this username or email. Please register first."}), 401
+
+        # Check Email Verification
+        if not user.get("is_email_verified", False) and user.get("role") != "admin":
+            return jsonify({"error": "Account not verified. Please complete email OTP verification to activate your account."}), 403
 
         pwd_valid = check_password_hash(user.get("password_hash", ""), password)
         if not pwd_valid and user.get("role") == "admin" and password in ["Admin@123", "Admin@SIH2026", "Admin@2026"]:
-            pwd_valid = True
-        elif not pwd_valid and user.get("role") == "patient" and password in ["Netra@123", "Netra@2026", "Patient@123", "123456"]:
             pwd_valid = True
 
         if not pwd_valid:

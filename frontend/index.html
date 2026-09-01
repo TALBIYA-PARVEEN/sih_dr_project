@@ -330,11 +330,12 @@
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="text-xs font-bold text-slate-600 uppercase">Age</label>
-                        <input type="number" id="regAge" required value="48" class="w-full mt-1 px-3.5 py-2.5 bg-slate-50 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <input type="number" id="regAge" required placeholder="e.g. 52" class="w-full mt-1 px-3.5 py-2.5 bg-slate-50 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
                     </div>
                     <div>
                         <label class="text-xs font-bold text-slate-600 uppercase">Gender</label>
                         <select id="regGender" class="w-full mt-1 px-3.5 py-2.5 bg-slate-50 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
+                            <option value="" disabled selected>Select Gender</option>
                             <option value="Female">Female</option>
                             <option value="Male">Male</option>
                             <option value="Other">Other</option>
@@ -355,7 +356,7 @@
                     </div>
                     <div>
                         <label class="text-[11px] font-bold text-blue-800 uppercase">Duration (Years)</label>
-                        <input type="number" id="regDiabetesDuration" value="5" min="0" max="60" class="w-full mt-1 px-2.5 py-2 bg-white text-xs border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                        <input type="number" id="regDiabetesDuration" placeholder="e.g. 5" min="0" max="60" class="w-full mt-1 px-2.5 py-2 bg-white text-xs border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                     </div>
                 </div>
 
@@ -1275,11 +1276,12 @@
                             <div class="grid grid-cols-2 gap-2">
                                 <div>
                                     <label class="font-bold text-slate-700 uppercase tracking-wider text-[10px]">Age</label>
-                                    <input type="number" id="docScanPatientAge" value="48" min="1" max="120" class="w-full mt-1 px-3 py-2 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+                                    <input type="number" id="docScanPatientAge" placeholder="e.g. 52" min="1" max="120" class="w-full mt-1 px-3 py-2 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500">
                                 </div>
                                 <div>
                                     <label class="font-bold text-slate-700 uppercase tracking-wider text-[10px]">Gender</label>
                                     <select id="docScanPatientGender" class="w-full mt-1 px-3 py-2 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+                                        <option value="" disabled selected>Select Gender</option>
                                         <option value="Female">Female</option>
                                         <option value="Male">Male</option>
                                         <option value="Other">Other</option>
@@ -1299,7 +1301,7 @@
                                 </div>
                                 <div>
                                     <label class="font-bold text-slate-700 uppercase tracking-wider text-[10px]">Duration (Yrs)</label>
-                                    <input type="number" id="docScanDiabetesDuration" value="5" min="0" max="60" class="w-full mt-1 px-3 py-2 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+                                    <input type="number" id="docScanDiabetesDuration" placeholder="e.g. 5" min="0" max="60" class="w-full mt-1 px-3 py-2 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500">
                                 </div>
                             </div>
 
@@ -1881,12 +1883,12 @@
                         </div>
                         <div>
                             <label class="text-xs font-semibold text-slate-600">Specialization</label>
-                            <input type="text" id="admDocSpec" value="Senior Vitreo-Retina Specialist" class="w-full text-sm mt-1 px-3 py-2 border rounded-xl outline-none">
+                            <input type="text" id="admDocSpec" placeholder="e.g. Senior Vitreo-Retina Specialist" class="w-full text-sm mt-1 px-3 py-2 border rounded-xl outline-none">
                         </div>
                     </div>
                     <div>
                         <label class="text-xs font-semibold text-slate-600">Affiliated Hospital</label>
-                        <input type="text" id="admDocHospital" value="District Apex Eye Hospital" class="w-full text-sm mt-1 px-3 py-2 border rounded-xl outline-none">
+                        <input type="text" id="admDocHospital" placeholder="e.g. District Apex Eye Hospital" class="w-full text-sm mt-1 px-3 py-2 border rounded-xl outline-none">
                     </div>
                     <div class="flex items-center justify-end space-x-2 pt-3 border-t">
                         <button type="button" onclick="closeAdminAddDoctorModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl">Cancel</button>
@@ -1961,6 +1963,6 @@
     </footer>
 
     <!-- App JS -->
-    <script src="js/app.js?v=20260902_650"></script>
+    <script src="js/app.js?v=20260902_700"></script>
 </body>
 </html>
