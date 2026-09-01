@@ -1366,20 +1366,22 @@ async function loadDoctorQueue() {
 
         doctorQueue.forEach((s) => {
             const isRef = s.prediction && s.prediction.is_referable;
+            const reviewStatus = (s.clinician_review && s.clinician_review.status) || s.review_status || "Pending Review";
+            const dateStr = s.created_at ? new Date(s.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Just now";
             const item = document.createElement("div");
-            item.className = "p-3 rounded-2xl border border-slate-200 hover:border-emerald-500 cursor-pointer transition bg-white space-y-1";
+            item.className = "p-3 rounded-2xl border border-slate-200 hover:border-emerald-500 cursor-pointer transition bg-white space-y-1 group";
             item.onclick = () => selectDoctorPatient(s);
 
             item.innerHTML = `
                 <div class="flex items-center justify-between">
-                    <span class="font-semibold text-xs text-slate-800">${s.patient_name || 'Patient'}</span>
+                    <span class="font-bold text-xs text-slate-800 group-hover:text-emerald-700 transition">${s.patient_name || 'Patient Scan'}</span>
                     <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${isRef ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}">
-                        ${s.prediction ? s.prediction.severity_name.split('(')[0] : 'Ungradable'}
+                        ${s.prediction ? s.prediction.severity_name.split('(')[0] : 'Scanned'}
                     </span>
                 </div>
                 <div class="flex items-center justify-between text-[11px] text-slate-400">
-                    <span>Age: ${s.patient_age || 'N/A'}</span>
-                    <span class="font-medium text-slate-600">${s.clinician_review.status}</span>
+                    <span>Age: ${s.patient_age || 'N/A'} • ${s.patient_gender || 'Scan'}</span>
+                    <span class="font-semibold text-slate-600">${reviewStatus} (${dateStr})</span>
                 </div>
             `;
             list.appendChild(item);
@@ -1392,23 +1394,43 @@ async function loadDoctorQueue() {
 }
 
 function selectDoctorPatient(session) {
+    if (!session) return;
     currentDoctorSession = session;
     activeSessionId = session.id;
 
     document.getElementById("doctorStationEmpty").classList.add("hidden");
     document.getElementById("doctorStationContent").classList.remove("hidden");
 
-    document.getElementById("docPatientName").innerText = `Patient: ${session.patient_name || 'Anonymous'}`;
-    document.getElementById("docPatientMeta").innerText = `Age: ${session.patient_age || 'N/A'} • Gender: ${session.patient_gender || 'N/A'}`;
-    document.getElementById("docAIStatusBadge").innerText = session.prediction ? session.prediction.severity_name : "Ungradable";
+    const patientName = session.patient_name || 'Anonymous Patient';
+    const patientAge = session.patient_age || 'N/A';
+    const patientGender = session.patient_gender || 'N/A';
+    const diabetesInfo = session.diabetes_info || 'Type 2 Diabetes';
+
+    document.getElementById("docPatientName").innerText = `Patient: ${patientName}`;
+    document.getElementById("docPatientMeta").innerText = `Age: ${patientAge} • Gender: ${patientGender} • ${diabetesInfo}`;
+
+    const pred = session.prediction || {};
+    const aiBadge = document.getElementById("docAIStatusBadge");
+    if (aiBadge) {
+        aiBadge.innerText = pred.severity_name || "Diagnostic Complete";
+        if (pred.is_referable) {
+            aiBadge.className = "px-3 py-1 bg-rose-100 text-rose-800 rounded-full text-xs font-bold border border-rose-200";
+        } else {
+            aiBadge.className = "px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-xs font-bold border border-emerald-200";
+        }
+    }
 
     document.getElementById("docScanOrig").src = `${API_BASE}/files/${session.id}/original`;
     document.getElementById("docScanVessels").src = `${API_BASE}/files/${session.id}/vessels`;
     document.getElementById("docScanLesions").src = `${API_BASE}/files/${session.id}/lesions`;
     document.getElementById("docScanGradcam").src = `${API_BASE}/files/${session.id}/gradcam`;
 
-    document.getElementById("docSelectStatus").value = session.clinician_review.status || "Confirmed";
-    document.getElementById("docInputNotes").value = session.clinician_review.notes || "";
+    const rev = session.clinician_review || {};
+    const statusSelect = document.getElementById("docSelectStatus");
+    if (statusSelect) statusSelect.value = rev.status || session.review_status || "Confirmed";
+
+    const notesInput = document.getElementById("docInputNotes");
+    if (notesInput) notesInput.value = rev.notes || "";
 }
 
 async function submitDoctorSignOff() {

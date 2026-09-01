@@ -1161,21 +1161,42 @@ def create_app():
     # --------------------------------------------------------------------------
     @app.route("/api/doctor/queue/<doctor_id>", methods=["GET"])
     def get_doctor_queue(doctor_id):
-        pending_filter = {
-            "review_status": {"$in": ["Pending Review", "Pending", "pending_review", None, ""]}
+        doc_profile_id = None
+        doc_user_id = None
+        if doctor_id and doctor_id != "all":
+            d_doc = mongo.doctors.find_one({"$or": [{"id": doctor_id}, {"user_id": doctor_id}]})
+            if d_doc:
+                doc_profile_id = d_doc.get("id")
+                doc_user_id = d_doc.get("user_id")
+
+        id_matches = [doctor_id, doc_profile_id, doc_user_id, None, "all", "", "None"]
+        id_matches = [x for x in id_matches if x is not None]
+
+        query = {
+            "$or": [
+                {"assigned_doctor_id": {"$in": id_matches}},
+                {"assigned_doctor_id": None},
+                {"assigned_doctor_id": {"$exists": False}}
+            ]
         }
-        if doctor_id == "all" or not doctor_id:
-            query = pending_filter
-        else:
-            query = {
-                "$and": [
-                    {"$or": [{"assigned_doctor_id": doctor_id}, {"assigned_doctor_id": None}, {"assigned_doctor_id": "all"}]},
-                    {"patient_user_id": {"$ne": doctor_id}},
-                    pending_filter
-                ]
-            }
-        queue = mongo.screenings.find(query, sort=[("created_at", -1)])
-        screenings = [serialize_doc(s) for s in queue]
+
+        # Prevent clinician from self-reviewing personal test scans
+        if doctor_id and doctor_id != "all":
+            query = {"$and": [query, {"patient_user_id": {"$ne": doctor_id}}]}
+
+        queue = list(mongo.screenings.find(query, sort=[("created_at", -1)]))
+        screenings = []
+        for s in queue:
+            s_doc = serialize_doc(s)
+            if not s_doc.get("clinician_review"):
+                s_doc["clinician_review"] = {
+                    "status": s_doc.get("review_status", "Pending Review"),
+                    "notes": "",
+                    "reviewed_by": None,
+                    "reviewed_at": None
+                }
+            screenings.append(s_doc)
+
         return jsonify({"total": len(screenings), "screenings": screenings})
 
     @app.route("/api/review/<session_id>", methods=["POST"])
