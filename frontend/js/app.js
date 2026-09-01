@@ -194,7 +194,7 @@ async function handleLogin(e) {
     }
 }
 
-let activeGoogleClientId = localStorage.getItem("netra_google_client_id") || null;
+let activeGoogleClientId = localStorage.getItem("netra_google_client_id") || "387784977439-ql7h183e12mgdvbfpcd2061d411p269c.apps.googleusercontent.com";
 
 async function fetchGoogleClientId() {
     if (activeGoogleClientId) return activeGoogleClientId;
@@ -208,7 +208,7 @@ async function fetchGoogleClientId() {
     } catch (e) {
         console.log("[GOOGLE-FETCH-NOTE]", e);
     }
-    return null;
+    return activeGoogleClientId || "387784977439-ql7h183e12mgdvbfpcd2061d411p269c.apps.googleusercontent.com";
 }
 
 async function initOfficialGoogleSignIn() {

@@ -35,7 +35,7 @@ class Config:
     ADMIN_NAME = os.environ.get("ADMIN_NAME", "Master District Admin")
 
     # Google OAuth 2.0 Client ID
-    GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com")
+    GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "387784977439-ql7h183e12mgdvbfpcd2061d411p269c.apps.googleusercontent.com")
 
     # Resend & Brevo HTTPS REST API (Port 443 - Cloud Delivery)
     RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
