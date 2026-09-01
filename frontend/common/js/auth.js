@@ -120,20 +120,32 @@ async function handleGoogleCredentialResponse(response) {
     }
 }
 
-async function triggerGoogleSignIn() {
-    const userEmail = prompt("Sign in with Google - Enter your Google Account Email:", "patient.google@gmail.com");
-    if (!userEmail) return;
-    const userName = prompt("Enter your Name:", "Google Patient User") || "Google Patient User";
+function triggerGoogleSignIn() {
+    const modal = document.getElementById("modalGoogleAuth");
+    if (modal) modal.classList.remove("hidden");
+}
 
+function closeGoogleAuthModal() {
+    const modal = document.getElementById("modalGoogleAuth");
+    if (modal) modal.classList.add("hidden");
+}
+
+function toggleCustomGoogleInput() {
+    const form = document.getElementById("formCustomGoogle");
+    if (form) form.classList.toggle("hidden");
+}
+
+async function loginWithGoogleAccount(name, email) {
     try {
-        showToast("Signing in with Google...", "info");
+        showToast("Authenticating as " + name + "...", "info");
         const res = await fetch(`${API_BASE}/auth/google`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: userEmail.trim(), full_name: userName.trim(), role: "patient" })
+            body: JSON.stringify({ full_name: name, email: email, role: "patient" })
         });
         const data = await res.json();
         if (data.status === "success") {
+            closeGoogleAuthModal();
             currentUser = data.user;
             authToken = data.token;
             localStorage.setItem("netra_user", JSON.stringify(currentUser));
@@ -144,11 +156,19 @@ async function triggerGoogleSignIn() {
             else if (currentUser.role === "admin") navigateTo("admin");
             else navigateTo("patient");
         } else {
-            showToast(data.error || "Authentication failed.", "error");
+            showToast(data.error || "Google Sign-In failed.", "error");
         }
-    } catch (err) {
-        showToast("Connection error: " + err.message, "error");
+    } catch (e) {
+        showToast("Connection error: " + e.message, "error");
     }
+}
+
+function handleCustomGoogleSubmit(e) {
+    if (e) e.preventDefault();
+    const name = document.getElementById("customGoogleName").value.trim();
+    const email = document.getElementById("customGoogleEmail").value.trim();
+    if (!email) return;
+    loginWithGoogleAccount(name || "Google User", email);
 }
 
 function getFormVal(id, fallback = "") {
