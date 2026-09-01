@@ -439,18 +439,16 @@ async function handleVerifyOtp() {
             if (currentUser && currentUser.role === "doctor") {
                 const approval = currentUser.approval_status || currentUser.status;
                 if (approval === "pending_approval") {
-                    showToast("Email verified! Your doctor registration is submitted to District Master Admin for approval.", "info");
-                    navigateTo("landing");
+                    showToast("Email verified! Your doctor registration has been submitted to Master Admin for approval.", "info");
                 } else {
-                    showToast("Email verified! Welcome Dr. " + currentUser.full_name, "success");
-                    navigateTo("doctor");
+                    showToast("Email verified! Welcome Dr. " + (currentUser.full_name || currentUser.username) + "!", "success");
                 }
             } else if (currentUser && currentUser.role === "admin") {
-                navigateTo("admin");
+                showToast("Email verified! Welcome Admin.", "success");
             } else {
                 showToast("Email verified successfully! Welcome to NetraAI, " + (currentUser.full_name || currentUser.username) + "!", "success");
-                navigateTo("patient");
             }
+            navigateTo("home");
         } else {
             showToast(data.error || "Invalid verification code. Please check your email.", "error");
         }
