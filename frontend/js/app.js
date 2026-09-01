@@ -1060,9 +1060,12 @@ async function runPatientScreening() {
         const result = await res.json();
         document.getElementById("patientLoadingState").classList.add("hidden");
 
-        if (result.status === "rejected") {
+        if (result.status === "rejected" || result.status === "warning" || result.is_gradable === false) {
             document.getElementById("rejectionCard").classList.remove("hidden");
-            document.getElementById("rejectionReasonText").innerText = result.message;
+            document.getElementById("patientResultContainer").classList.add("hidden");
+            const reason = result.message || (result.quality_assessment ? result.quality_assessment.rejection_reason : "Image quality is unsuitable for clinical grading. Please retake photo.");
+            document.getElementById("rejectionReasonText").innerText = reason;
+            showToast("Quality Check Failed: Please retake a clear retinal photograph.", "error");
             return;
         }
 
@@ -1205,6 +1208,12 @@ async function handleDoctorScreeningSubmit(e) {
         const result = await res.json();
         submitBtn.disabled = false;
         submitBtn.innerHTML = origBtnText;
+
+        if (result.status === "rejected" || result.is_gradable === false) {
+            showToast("Quality Check Failed: " + (result.message || "Image is ungradable. Please retake photo."), "error");
+            alert("Scan Rejected (Ungradable Image Quality)\n\n" + (result.message || "The uploaded image is blurry, underexposed, or not a valid retina scan.\n\nPlease retake a clear retinal photo."));
+            return;
+        }
 
         if (result.status === "success" || result.status === "warning") {
             const data = result.data;

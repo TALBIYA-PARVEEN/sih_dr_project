@@ -619,6 +619,15 @@ def create_app():
         # 1. Quality Assessment (Checks dataset CSV or evaluates CV metrics)
         iqa_result = iqa_service.evaluate_quality(img_rgb, filename=file.filename)
 
+        if not iqa_result.get("is_gradable", True):
+            return jsonify({
+                "status": "rejected",
+                "is_gradable": False,
+                "error": "Image Quality Assessment Failed: Retake Photo Required",
+                "message": iqa_result["rejection_reason"],
+                "quality_assessment": iqa_result
+            }), 422
+
         session_doc = {
             "id": session_id,
             "patient_id": patient_profile.get("id") if patient_profile else str(uuid.uuid4()),
@@ -863,6 +872,15 @@ def create_app():
 
         # 2. Image Quality Assessment
         iqa_result = iqa_service.evaluate_quality(img_rgb, filename=file.filename)
+
+        if not iqa_result.get("is_gradable", True):
+            return jsonify({
+                "status": "rejected",
+                "is_gradable": False,
+                "error": "Image Quality Assessment Failed: Retake Photo Required",
+                "message": iqa_result["rejection_reason"],
+                "quality_assessment": iqa_result
+            }), 422
 
         # 3. Preprocessing
         prep_res = preprocessor.preprocess(img_rgb)
