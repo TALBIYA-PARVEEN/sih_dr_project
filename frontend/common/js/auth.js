@@ -102,10 +102,6 @@ async function handleRegister(e) {
     if (e && e.preventDefault) e.preventDefault();
     const btn = (e && e.target && e.target.querySelector) ? e.target.querySelector('button[type="submit"]') : document.querySelector('#formRegister button[type="submit"]');
     const originalBtnHtml = btn ? btn.innerHTML : "Register & Send Email OTP";
-    if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Registering & Dispatching OTP...`;
-    }
 
     const payload = {
         full_name: getFormVal("regFullName", "Patient User"),
@@ -125,20 +121,36 @@ async function handleRegister(e) {
 
     if (!payload.email || !payload.email.includes("@")) {
         showToast("Please enter a valid email address.", "warning");
-        if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = originalBtnHtml;
-        }
         return;
     }
 
     if (!payload.password || payload.password.length < 6) {
         showToast("Password must be at least 6 characters.", "warning");
-        if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = originalBtnHtml;
-        }
         return;
+    }
+
+    // 1. Open the OTP modal IMMEDIATELY (0ms instant response)
+    tempRegisterEmail = payload.email;
+    const modal = document.getElementById("modalOtp");
+    if (modal) modal.classList.remove("hidden");
+    const subtextEl = document.getElementById("otpModalSubtext");
+    if (subtextEl) {
+        subtextEl.innerHTML = `
+            <div class="p-3 bg-indigo-50 border border-indigo-200 rounded-2xl text-center">
+                <div class="text-xs text-indigo-700 font-bold flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-spinner fa-spin"></i> Generating OTP & Sending to <b>${payload.email}</b>...
+                </div>
+            </div>`;
+    }
+    const otpInp = document.getElementById("otpInputCode");
+    if (otpInp) {
+        otpInp.value = "";
+        otpInp.focus();
+    }
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Processing...`;
     }
 
     try {
@@ -156,32 +168,33 @@ async function handleRegister(e) {
             localStorage.setItem("netra_user", JSON.stringify(currentUser));
             localStorage.setItem("netra_token", authToken);
 
-            const modal = document.getElementById("modalOtp");
-            if (modal) modal.classList.remove("hidden");
             const otpVal = data.dev_otp || (data.user ? data.user.otp_code : "") || "";
-            let subtext = `We dispatched an official OTP email to <b>${payload.email}</b>.`;
+            let subtext = `Verification code dispatched to <b>${payload.email}</b>.`;
             if (otpVal) {
                 subtext += `
                 <div class="mt-2.5 p-3 bg-indigo-50 border border-indigo-200 rounded-2xl text-center">
-                    <div class="text-[10px] font-bold text-indigo-700 uppercase tracking-wider">Verification OTP Code:</div>
+                    <div class="text-[10px] font-bold text-indigo-700 uppercase tracking-wider">Your 6-Digit OTP Code:</div>
                     <div class="text-2xl font-mono font-extrabold text-indigo-950 tracking-widest my-1">${otpVal}</div>
                     <div class="text-[10px] text-emerald-700 font-bold flex items-center justify-center gap-1">
-                        <i class="fa-solid fa-circle-check"></i> Auto-Filled • Click Verify & Activate Below
+                        <i class="fa-solid fa-circle-check"></i> Code Auto-Filled • Click Verify & Activate Below
                     </div>
                 </div>`;
-                const otpInp = document.getElementById("otpInputCode");
                 if (otpInp) otpInp.value = otpVal;
             }
-            const subtextEl = document.getElementById("otpModalSubtext");
             if (subtextEl) subtextEl.innerHTML = subtext;
-            const otpInp = document.getElementById("otpInputCode");
             if (otpInp) otpInp.focus();
             showToast(data.message || `Verification code sent to ${payload.email}`, "success");
         } else {
             showToast(data.error || "Registration failed.", "error");
+            if (subtextEl) {
+                subtextEl.innerHTML = `<span class="text-rose-600 font-semibold">${data.error || "Registration error occurred."}</span>`;
+            }
         }
     } catch (err) {
-        showToast("Error connecting to server: " + err.message, "error");
+        showToast("Server connection error: " + err.message, "error");
+        if (subtextEl) {
+            subtextEl.innerHTML = `<span class="text-rose-600 font-semibold">Could not reach server: ${err.message}</span>`;
+        }
     } finally {
         if (btn) {
             btn.disabled = false;
