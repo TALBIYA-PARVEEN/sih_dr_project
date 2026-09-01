@@ -245,6 +245,82 @@ class AuthService:
         return True
 
     @staticmethod
+    def send_doctor_credentials_email(to_email, doctor_name, username, password, hospital_name="District Eye Hospital", license_number="MCI-VERIFIED"):
+        """Sends official credentials and login access email when Master Admin registers a new doctor."""
+        subject = "Doctor Account Credentials & Clinical Clearance • NetraAI"
+
+        html_body = f"""
+        <!DOCTYPE html>
+        <html>
+        <body style="font-family: Arial, sans-serif; background-color: #f8fafc; padding: 20px; color: #1e293b;">
+            <div style="max-width: 540px; margin: auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 20px; padding: 32px; box-shadow: 0 6px 20px rgba(0,0,0,0.06);">
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <div style="width: 56px; height: 56px; background-color: #ecfdf5; color: #059669; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 28px; line-height: 56px; margin-bottom: 12px;">
+                        🩺
+                    </div>
+                    <h2 style="color: #065f46; margin: 0; font-size: 22px;">Doctor Clinical Account Created</h2>
+                    <p style="color: #64748b; font-size: 13px; margin-top: 4px;">National Tele-Ophthalmology Diagnostic Network</p>
+                </div>
+                
+                <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 16px 0;">
+                
+                <p style="font-size: 14px; color: #334155;">Dear <b>{doctor_name}</b>,</p>
+                
+                <p style="font-size: 14px; color: #334155; line-height: 1.6;">
+                    An authorized clinical doctor account has been provisioned for you by the <b>District Healthcare Administration</b>. You are officially verified for <b>{hospital_name}</b> (License: <code style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; color: #4338ca; font-weight: bold;">{license_number}</code>).
+                </p>
+
+                <!-- Credentials Box -->
+                <div style="background-color: #eef2ff; border: 1px solid #c7d2fe; border-radius: 14px; padding: 18px; margin: 20px 0;">
+                    <div style="font-size: 12px; font-weight: bold; color: #3730a3; text-transform: uppercase;">Your Doctor Portal Login Credentials:</div>
+                    
+                    <div style="background: #ffffff; border: 1px solid #e0e7ff; border-radius: 10px; padding: 12px; font-family: monospace; font-size: 13px; color: #1e1b4b; margin-top: 10px;">
+                        <div><b>Login Email / Username:</b> {to_email} <i>(or {username})</i></div>
+                        <div style="margin-top: 6px;"><b>Password:</b> <span style="background: #e0e7ff; padding: 2px 8px; border-radius: 6px; font-weight: bold; color: #312e81;">{password}</span></div>
+                    </div>
+                </div>
+
+                <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 14px; padding: 16px; margin: 20px 0;">
+                    <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: bold; color: #166534;">Your Active Clinical Privileges:</p>
+                    <ul style="margin: 0; padding-left: 20px; font-size: 12px; color: #14532d; line-height: 1.6;">
+                        <li>Perform walk-in patient retinal fundus examinations</li>
+                        <li>Evaluate assigned AI triage screening queues in real time</li>
+                        <li>Electronically sign & stamp diagnostic reports</li>
+                        <li>Conduct tele-consultations with diabetic patients</li>
+                    </ul>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 20px 0;">
+                <p style="font-size: 11px; color: #94a3b8; text-align: center; margin: 0;">
+                    Smart India Hackathon (SIH 2026) • District Tele-Ophthalmology Network • Confidential Medical Communication
+                </p>
+            </div>
+        </body>
+        </html>
+        """
+
+        text_body = f"""Official Doctor Account Credentials - NetraAI Tele-Ophthalmology
+
+Dear {doctor_name},
+
+An authorized clinical doctor account has been provisioned for you by the District Healthcare Administration.
+Hospital: {hospital_name}
+License: {license_number}
+
+Your Doctor Portal Login Credentials:
+Email / Username: {to_email} (or {username})
+Password: {password}
+
+You may now log in to the NetraAI Doctor Portal to examine patient screenings and sign diagnostic reports.
+Smart India Hackathon 2026."""
+
+        import threading
+        t = threading.Thread(target=AuthService._deliver_email, args=(to_email, subject, text_body, html_body))
+        t.daemon = True
+        t.start()
+        return True
+
+    @staticmethod
     def send_doctor_approval_email(to_email, doctor_name, hospital_name="District Eye Hospital", license_number="MCI-VERIFIED"):
         """Sends official confirmation email to the doctor when Master Admin approves their registration."""
         subject = "Official Account Approval • NetraAI Tele-Ophthalmology Network"
