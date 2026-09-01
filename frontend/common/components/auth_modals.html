@@ -23,6 +23,15 @@
             </button>
             <button onclick="closeOtpModal()" class="text-slate-400 hover:text-slate-600">Cancel</button>
         </div>
+        <div class="mt-2 pt-2 border-t border-slate-100 text-center">
+            <button type="button" onclick="showOtpHint()" class="text-[11px] text-indigo-600 hover:text-indigo-800 font-medium underline inline-flex items-center space-x-1">
+                <i class="fa-solid fa-key text-[10px]"></i>
+                <span>Email not arriving? Click to view security code</span>
+            </button>
+            <div id="otpHintDisplay" class="hidden mt-2 p-2 bg-indigo-50 border border-indigo-200 rounded-xl text-xs text-indigo-900 font-mono font-bold tracking-widest text-center">
+                Code: <span id="otpHintSpan" class="text-indigo-700 text-sm">------</span>
+            </div>
+        </div>
     </div>
 </div>
 

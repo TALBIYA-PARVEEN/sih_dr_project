@@ -316,6 +316,31 @@ async function resendOtpCode() {
     }
 }
 
+function showOtpHint() {
+    const hintBox = document.getElementById("otpHintDisplay");
+    const hintSpan = document.getElementById("otpHintSpan");
+    let code = null;
+    const storedUser = localStorage.getItem("netra_user");
+    if (storedUser) {
+        try {
+            const parsed = JSON.parse(storedUser);
+            if (parsed.otp_code) code = parsed.otp_code;
+        } catch(e){}
+    }
+    if (!code && window.lastGeneratedOtp) {
+        code = window.lastGeneratedOtp;
+    }
+    if (!code) {
+        code = "Check Email / Resend";
+    }
+    if (hintSpan) hintSpan.innerText = code;
+    if (hintBox) hintBox.classList.remove("hidden");
+    const otpInp = document.getElementById("otpInputCode");
+    if (otpInp && code && code.length === 6) {
+        otpInp.value = code;
+    }
+}
+
 function closeOtpModal() {
     const modal = document.getElementById("modalOtp");
     if (modal) modal.classList.add("hidden");
