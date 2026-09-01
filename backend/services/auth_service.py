@@ -6,6 +6,7 @@ import hashlib
 import random
 import time
 import smtplib
+import threading
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
@@ -29,13 +30,13 @@ class AuthService:
             username = user.get("username", "")
             email = user.get("email", "")
             role = user.get("role", "patient")
-            is_doctor = user.get("is_doctor", False)
+            is_doctor = (role == "doctor")
         else:
             sub = str(getattr(user, "id", ""))
             username = getattr(user, "username", "")
             email = getattr(user, "email", "")
             role = getattr(user, "role", "patient")
-            is_doctor = getattr(user, "is_doctor", False)
+            is_doctor = (role == "doctor")
 
         payload = {
             "sub": sub,
@@ -110,8 +111,8 @@ class AuthService:
         return f"{random.randint(100000, 999999)}"
 
     @staticmethod
-    def _deliver_email(to_email, subject, text_body, html_body):
-        """Ultra-resilient email delivery with automatic Dual-Port (SSL 465 -> TLS 587) fallback and proper SPF/DKIM headers."""
+    def _deliver_email(to_email, subject, text_body, html_body, async_mode=True):
+        """Ultra-resilient email delivery with automatic Dual-Port (SSL 465 -> TLS 587) fallback in background thread."""
         mail_server = current_app.config.get("MAIL_SERVER", "smtp.gmail.com")
         mail_user = current_app.config.get("MAIL_USERNAME", "2k24.cs1q.2413756@gmail.com").strip()
         mail_pass = current_app.config.get("MAIL_PASSWORD", "tyhelznlhlknqowp").strip()
@@ -120,42 +121,52 @@ class AuthService:
             print(f"[DEV-FALLBACK] SMTP credentials not configured. Target: {to_email}")
             return False
 
-        try:
-            from email.utils import formatdate
-
-            msg = MIMEMultipart("alternative")
-            msg["From"] = f"NetraAI Tele-Ophthalmology <{mail_user}>"
-            msg["To"] = to_email
-            msg["Reply-To"] = mail_user
-            msg["Subject"] = subject
-            msg["Date"] = formatdate(localtime=True)
-
-            msg.attach(MIMEText(text_body, "plain", "utf-8"))
-            msg.attach(MIMEText(html_body, "html", "utf-8"))
-
-            # Primary Attempt: Port 465 (SSL - most universally accepted on cloud hosting like Render)
+        def _send_worker(server_host, user, pwd, recipient, subj, txt, html):
             try:
-                with smtplib.SMTP_SSL(mail_server, 465, timeout=12) as server:
-                    server.login(mail_user, mail_pass)
-                    server.sendmail(mail_user, [to_email], msg.as_string())
-                print(f"[EMAIL-SENT] Successfully delivered '{subject}' to {to_email} via Port 465 (SSL)")
+                from email.utils import formatdate
+                msg = MIMEMultipart("alternative")
+                msg["From"] = f"NetraAI Tele-Ophthalmology <{user}>"
+                msg["To"] = recipient
+                msg["Reply-To"] = user
+                msg["Subject"] = subj
+                msg["Date"] = formatdate(localtime=True)
+
+                msg.attach(MIMEText(txt, "plain", "utf-8"))
+                msg.attach(MIMEText(html, "html", "utf-8"))
+
+                # Primary Attempt: Port 465 (SSL)
+                try:
+                    with smtplib.SMTP_SSL(server_host, 465, timeout=12) as s:
+                        s.login(user, pwd)
+                        s.sendmail(user, [recipient], msg.as_string())
+                    print(f"[EMAIL-SENT] Delivered '{subj}' to {recipient} via Port 465 (SSL)")
+                    return True
+                except Exception as e_ssl:
+                    print(f"[EMAIL-SSL-NOTE] Port 465: {e_ssl}. Trying Port 587 (TLS)...")
+
+                # Fallback Attempt: Port 587 (STARTTLS)
+                with smtplib.SMTP(server_host, 587, timeout=12) as s:
+                    s.ehlo()
+                    s.starttls()
+                    s.ehlo()
+                    s.login(user, pwd)
+                    s.sendmail(user, [recipient], msg.as_string())
+                print(f"[EMAIL-SENT] Delivered '{subj}' to {recipient} via Port 587 (TLS)")
                 return True
-            except Exception as e_ssl:
-                print(f"[EMAIL-SSL-NOTE] Port 465 attempt note: {e_ssl}. Trying Port 587 (TLS)...")
+            except Exception as e:
+                print(f"[EMAIL-SMTP-ERROR] Failed to send email to {recipient}: {e}")
+                return False
 
-            # Fallback Attempt: Port 587 (STARTTLS)
-            with smtplib.SMTP(mail_server, 587, timeout=12) as server:
-                server.ehlo()
-                server.starttls()
-                server.ehlo()
-                server.login(mail_user, mail_pass)
-                server.sendmail(mail_user, [to_email], msg.as_string())
-
-            print(f"[EMAIL-SENT] Successfully delivered '{subject}' to {to_email} via Port 587 (TLS)")
+        if async_mode:
+            t = threading.Thread(
+                target=_send_worker,
+                args=(mail_server, mail_user, mail_pass, to_email, subject, text_body, html_body),
+                daemon=True
+            )
+            t.start()
             return True
-        except Exception as e:
-            print(f"[EMAIL-SMTP-ERROR] Failed to send email to {to_email}: {e}")
-            return False
+        else:
+            return _send_worker(mail_server, mail_user, mail_pass, to_email, subject, text_body, html_body)
 
     @staticmethod
     def send_otp_email(to_email, otp_code, purpose="verification"):
