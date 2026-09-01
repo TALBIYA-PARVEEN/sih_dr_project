@@ -112,7 +112,7 @@ class AuthService:
 
     @staticmethod
     def _deliver_email(to_email, subject, text_body, html_body):
-        """Ultra-resilient email delivery using clean EmailMessage with non-daemon background thread."""
+        """Synchronous high-reliability delivery to ensure Gunicorn completes the socket transmission."""
         mail_server = current_app.config.get("MAIL_SERVER", "smtp.gmail.com")
         mail_user = current_app.config.get("MAIL_USERNAME", "2k24.cs1q.2413756@gmail.com").strip()
         mail_pass = current_app.config.get("MAIL_PASSWORD", "tyhelznlhlknqowp").strip()
@@ -121,44 +121,42 @@ class AuthService:
             print(f"[DEV-FALLBACK] SMTP credentials not configured. Target: {to_email}")
             return False
 
-        def _worker():
+        try:
+            from email.message import EmailMessage
+            msg = EmailMessage()
+            msg["Subject"] = subject
+            msg["From"] = f"NetraAI Tele-Ophthalmology <{mail_user}>"
+            msg["To"] = to_email
+            msg.set_content(text_body)
+            if html_body:
+                msg.add_alternative(html_body, subtype="html")
+
+            # Primary Attempt: Port 465 (SSL)
             try:
-                from email.message import EmailMessage
-                msg = EmailMessage()
-                msg["Subject"] = subject
-                msg["From"] = f"NetraAI Tele-Ophthalmology <{mail_user}>"
-                msg["To"] = to_email
-                msg.set_content(text_body)
-                if html_body:
-                    msg.add_alternative(html_body, subtype="html")
+                with smtplib.SMTP_SSL(mail_server, 465, timeout=5.0) as s:
+                    s.login(mail_user, mail_pass)
+                    s.send_message(msg)
+                print(f"[EMAIL-SENT] Delivered '{subject}' to {to_email} via Port 465 (SSL)")
+                return True
+            except Exception as e_ssl:
+                print(f"[EMAIL-SSL-NOTE] Port 465 failed: {e_ssl}. Trying Port 587 (TLS)...")
 
-                # Primary Attempt: Port 465 (SSL)
-                try:
-                    with smtplib.SMTP_SSL(mail_server, 465, timeout=10.0) as s:
-                        s.login(mail_user, mail_pass)
-                        s.send_message(msg)
-                    print(f"[EMAIL-SENT] Delivered '{subject}' to {to_email} via Port 465 (SSL)")
-                    return
-                except Exception as e_ssl:
-                    print(f"[EMAIL-SSL-NOTE] Port 465: {e_ssl}")
-
-                # Fallback Attempt: Port 587 (TLS)
-                try:
-                    with smtplib.SMTP(mail_server, 587, timeout=10.0) as s:
-                        s.ehlo()
-                        s.starttls()
-                        s.ehlo()
-                        s.login(mail_user, mail_pass)
-                        s.send_message(msg)
-                    print(f"[EMAIL-SENT] Delivered '{subject}' to {to_email} via Port 587 (TLS)")
-                except Exception as e_tls:
-                    print(f"[EMAIL-TLS-NOTE] Port 587: {e_tls}")
-            except Exception as e:
-                print(f"[EMAIL-SMTP-ERROR] Worker exception: {e}")
-
-        t = threading.Thread(target=_worker, daemon=False)
-        t.start()
-        return True
+            # Fallback Attempt: Port 587 (TLS)
+            try:
+                with smtplib.SMTP(mail_server, 587, timeout=5.0) as s:
+                    s.ehlo()
+                    s.starttls()
+                    s.ehlo()
+                    s.login(mail_user, mail_pass)
+                    s.send_message(msg)
+                print(f"[EMAIL-SENT] Delivered '{subject}' to {to_email} via Port 587 (TLS)")
+                return True
+            except Exception as e_tls:
+                print(f"[EMAIL-TLS-ERROR] Port 587 failed: {e_tls}")
+                return False
+        except Exception as e:
+            print(f"[EMAIL-SMTP-FATAL] Failed to send email to {to_email}: {e}")
+            return False
 
     @staticmethod
     def send_otp_email(to_email, otp_code, purpose="verification"):
