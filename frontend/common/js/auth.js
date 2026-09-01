@@ -162,8 +162,24 @@ async function handleVerifyOtp() {
         return;
     }
 
+    const btn = document.querySelector("#modalOtp button.bg-emerald-600");
+    const originalBtnHtml = btn ? btn.innerHTML : "Verify & Activate";
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Verifying...`;
+    }
+
     try {
-        const targetEmail = tempRegisterEmail || (currentUser ? currentUser.email : "");
+        const targetEmail = tempRegisterEmail || 
+            (currentUser ? currentUser.email : "") || 
+            (document.getElementById("regEmail") ? document.getElementById("regEmail").value.trim() : "") ||
+            (document.getElementById("resetEmailInput") ? document.getElementById("resetEmailInput").value.trim() : "");
+
+        if (!targetEmail) {
+            showToast("Email address missing. Please enter your email in the registration form.", "error");
+            return;
+        }
+
         const res = await fetch(`${API_BASE}/auth/verify-otp`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -191,7 +207,7 @@ async function handleVerifyOtp() {
             } else if (currentUser && currentUser.role === "admin") {
                 navigateTo("admin");
             } else {
-                showToast("Email verified successfully! Welcome to NetraAI.", "success");
+                showToast("Email verified successfully! Welcome to NetraAI, " + (currentUser.full_name || currentUser.username) + "!", "success");
                 navigateTo("patient");
             }
         } else {
@@ -199,6 +215,11 @@ async function handleVerifyOtp() {
         }
     } catch (err) {
         showToast("Verification error: " + err.message, "error");
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalBtnHtml;
+        }
     }
 }
 
