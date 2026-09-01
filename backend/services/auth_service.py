@@ -1,4 +1,5 @@
 import os
+import uuid
 import json
 import base64
 import hmac
