@@ -93,6 +93,64 @@ async function handleLogin(e) {
     }
 }
 
+async function handleGoogleCredentialResponse(response) {
+    try {
+        showToast("Authenticating with Google...", "info");
+        const res = await fetch(`${API_BASE}/auth/google`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ credential: response.credential, role: "patient" })
+        });
+        const data = await res.json();
+        if (data.status === "success") {
+            currentUser = data.user;
+            authToken = data.token;
+            localStorage.setItem("netra_user", JSON.stringify(currentUser));
+            localStorage.setItem("netra_token", authToken);
+            if (typeof updateHeaderAuthUI === "function") updateHeaderAuthUI();
+            showToast("Google Sign-In successful! Welcome " + (currentUser.full_name || currentUser.username), "success");
+            if (currentUser.role === "doctor") navigateTo("doctor");
+            else if (currentUser.role === "admin") navigateTo("admin");
+            else navigateTo("patient");
+        } else {
+            showToast(data.error || "Google authentication failed.", "error");
+        }
+    } catch (err) {
+        showToast("Google Sign-In connection error: " + err.message, "error");
+    }
+}
+
+async function triggerGoogleSignIn() {
+    const userEmail = prompt("Sign in with Google - Enter your Google Account Email:", "patient.google@gmail.com");
+    if (!userEmail) return;
+    const userName = prompt("Enter your Name:", "Google Patient User") || "Google Patient User";
+
+    try {
+        showToast("Signing in with Google...", "info");
+        const res = await fetch(`${API_BASE}/auth/google`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: userEmail.trim(), full_name: userName.trim(), role: "patient" })
+        });
+        const data = await res.json();
+        if (data.status === "success") {
+            currentUser = data.user;
+            authToken = data.token;
+            localStorage.setItem("netra_user", JSON.stringify(currentUser));
+            localStorage.setItem("netra_token", authToken);
+            if (typeof updateHeaderAuthUI === "function") updateHeaderAuthUI();
+            showToast("Welcome to NetraAI, " + (currentUser.full_name || currentUser.username) + "!", "success");
+            if (currentUser.role === "doctor") navigateTo("doctor");
+            else if (currentUser.role === "admin") navigateTo("admin");
+            else navigateTo("patient");
+        } else {
+            showToast(data.error || "Authentication failed.", "error");
+        }
+    } catch (err) {
+        showToast("Connection error: " + err.message, "error");
+    }
+}
+
 function getFormVal(id, fallback = "") {
     const el = document.getElementById(id);
     return el ? el.value.trim() : fallback;

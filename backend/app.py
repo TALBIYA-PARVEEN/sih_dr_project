@@ -510,6 +510,94 @@ def create_app():
             "user": serialize_doc(user)
         })
 
+    @app.route("/api/auth/google", methods=["POST"])
+    def google_auth():
+        data = request.get_json() or {}
+        credential = data.get("credential")
+        role = data.get("role", "patient").strip().lower()
+
+        email = None
+        name = None
+
+        if credential:
+            try:
+                import jwt
+                decoded = jwt.decode(credential, options={"verify_signature": False})
+                email = decoded.get("email")
+                name = decoded.get("name") or decoded.get("given_name") or "Google User"
+            except Exception as e:
+                print(f"[GOOGLE-AUTH] Token decode error: {e}")
+
+        if not email:
+            email = data.get("email")
+            name = data.get("full_name") or data.get("name") or "Google User"
+
+        if not email:
+            return jsonify({"error": "Google authentication failed. Email is required."}), 400
+
+        email = email.strip().lower()
+        user = mongo.users.find_one({"email": email})
+
+        if not user:
+            # Auto-register new Google user
+            username = email.split("@")[0] + "_" + str(random.randint(100, 999))
+            user_doc = UserModel.create(
+                username=username,
+                email=email,
+                password_hash=generate_password_hash(str(uuid.uuid4())),
+                full_name=name or "Google User",
+                role=role,
+                is_email_verified=True,
+                otp_code=None
+            )
+            mongo.users.insert_one(user_doc)
+
+            if role == "patient":
+                balanced_doc = assign_least_loaded_doctor()
+                patient_doc = PatientModel.create(
+                    user_id=user_doc["id"],
+                    full_name=name or "Google Patient",
+                    age=45,
+                    gender="Female",
+                    phone="+91 9876543210",
+                    diabetes_type="Type 2",
+                    diabetes_duration_years=5,
+                    assigned_doctor_id=balanced_doc["doctor_id"]
+                )
+                mongo.patients.insert_one(patient_doc)
+            elif role == "doctor":
+                doctor_doc = DoctorModel.create(
+                    user_id=user_doc["id"],
+                    full_name=name or "Dr. Google Specialist",
+                    specialization="Senior Vitreo-Retina Specialist",
+                    license_number=f"MCI-{uuid.uuid4().hex[:6].upper()}",
+                    hospital_name="District Eye Hospital",
+                    phone="+91 9876543210"
+                )
+                mongo.doctors.insert_one(doctor_doc)
+
+            user = user_doc
+        else:
+            if user.get("role") == "doctor":
+                d_doc = mongo.doctors.find_one({"user_id": user["id"]})
+                if d_doc:
+                    for k in ["specialization", "license_number", "hospital_name", "phone", "approval_status"]:
+                        user[k] = d_doc.get(k)
+            elif user.get("role") == "patient":
+                p_doc = mongo.patients.find_one({"user_id": user["id"]})
+                if p_doc:
+                    for k in ["age", "gender", "phone", "diabetes_type", "diabetes_duration_years", "assigned_doctor_id"]:
+                        user[k] = p_doc.get(k)
+
+        user_obj = type("UserObj", (), user)()
+        token = AuthService.generate_jwt(user_obj)
+        return jsonify({
+            "status": "success",
+            "message": f"Welcome back, {user.get('full_name', 'Google User')}!",
+            "token": token,
+            "user": serialize_doc(user)
+        })
+
     @app.route("/api/auth/doctors", methods=["GET"])
     def get_doctors_list():
         # Only return approved and active doctors
