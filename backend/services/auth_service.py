@@ -114,8 +114,66 @@ class AuthService:
     @staticmethod
     @staticmethod
     def _deliver_email(to_email, subject, text_body, html_body=None):
-        """High-reliability delivery via HTTPS REST API (Resend/Brevo) with fast SMTP fallback."""
-        # 1. Primary Cloud Gateway: Resend HTTPS REST API (Port 443 - Never blocked on Render)
+        """High-reliability delivery via HTTPS REST API (Google Relay / Brevo / Resend) with fast SMTP fallback."""
+        # 0. Primary Cloud Gateway: Google Apps Script HTTPS Mail Relay (Sends to ANY email via Gmail's servers on Port 443)
+        gmail_relay_url = os.environ.get("GMAIL_RELAY_URL", "").strip()
+        if not gmail_relay_url:
+            try:
+                gmail_relay_url = current_app.config.get("GMAIL_RELAY_URL", "").strip()
+            except Exception:
+                pass
+
+        if gmail_relay_url:
+            try:
+                import requests
+                payload = {
+                    "to": to_email,
+                    "subject": subject,
+                    "body": text_body,
+                    "htmlBody": html_body if html_body else text_body
+                }
+                r = requests.post(gmail_relay_url, json=payload, timeout=8.0, allow_redirects=True)
+                if r.status_code in [200, 201, 302]:
+                    print(f"[GMAIL-RELAY-SUCCESS] Delivered '{subject}' to {to_email} via Google Apps Script Relay!")
+                    return True
+                else:
+                    print(f"[GMAIL-RELAY-NOTE] Status {r.status_code}: {r.text}")
+            except Exception as e_relay:
+                print(f"[GMAIL-RELAY-ERROR] {e_relay}")
+
+        # 1. Secondary Cloud Gateway: Brevo HTTPS REST API (Port 443 - Sends to ANY email worldwide without domain requirement)
+        brevo_api_key = os.environ.get("BREVO_API_KEY", "").strip()
+        if not brevo_api_key:
+            try:
+                brevo_api_key = current_app.config.get("BREVO_API_KEY", "").strip()
+            except Exception:
+                pass
+
+        if brevo_api_key:
+            try:
+                import requests
+                headers = {
+                    "api-key": brevo_api_key,
+                    "Content-Type": "application/json"
+                }
+                payload = {
+                    "sender": {"name": "NetraAI Healthcare", "email": "2k24.cs1q.2413756@gmail.com"},
+                    "to": [{"email": to_email}],
+                    "subject": subject,
+                    "textContent": text_body
+                }
+                if html_body:
+                    payload["htmlContent"] = html_body
+                r = requests.post("https://api.brevo.com/v3/smtp/email", json=payload, headers=headers, timeout=5.0)
+                if r.status_code in [200, 201]:
+                    print(f"[BREVO-HTTPS-SUCCESS] Delivered '{subject}' to {to_email} via Brevo API!")
+                    return True
+                else:
+                    print(f"[BREVO-API-NOTE] Status {r.status_code}: {r.text}")
+            except Exception as e_brevo:
+                print(f"[BREVO-API-ERROR] {e_brevo}")
+
+        # 2. Tertiary Cloud Gateway: Resend HTTPS REST API (Port 443)
         resend_api_key = os.environ.get("RESEND_API_KEY", "").strip()
         if not resend_api_key:
             try:
@@ -146,36 +204,6 @@ class AuthService:
                     print(f"[RESEND-API-NOTE] Status {r.status_code}: {r.text}")
             except Exception as e_resend:
                 print(f"[RESEND-API-ERROR] {e_resend}")
-
-        # 2. Secondary Cloud Gateway: Brevo HTTPS REST API (Port 443)
-        brevo_api_key = os.environ.get("BREVO_API_KEY", "").strip()
-        if not brevo_api_key:
-            try:
-                brevo_api_key = current_app.config.get("BREVO_API_KEY", "").strip()
-            except Exception:
-                pass
-
-        if brevo_api_key:
-            try:
-                import requests
-                headers = {
-                    "api-key": brevo_api_key,
-                    "Content-Type": "application/json"
-                }
-                payload = {
-                    "sender": {"name": "NetraAI Healthcare", "email": "2k24.cs1q.2413756@gmail.com"},
-                    "to": [{"email": to_email}],
-                    "subject": subject,
-                    "textContent": text_body
-                }
-                if html_body:
-                    payload["htmlContent"] = html_body
-                r = requests.post("https://api.brevo.com/v3/smtp/email", json=payload, headers=headers, timeout=5.0)
-                if r.status_code in [200, 201]:
-                    print(f"[BREVO-HTTPS-SUCCESS] Delivered '{subject}' to {to_email} via Brevo API!")
-                    return True
-            except Exception as e_brevo:
-                print(f"[BREVO-API-ERROR] {e_brevo}")
 
         # 3. Standard SMTP (Local / VPS)
         mail_server = os.environ.get("MAIL_SERVER", "smtp.gmail.com")
