@@ -129,28 +129,9 @@ async function handleRegister(e) {
         return;
     }
 
-    // 1. Open the OTP modal IMMEDIATELY (0ms instant response)
-    tempRegisterEmail = payload.email;
-    const modal = document.getElementById("modalOtp");
-    if (modal) modal.classList.remove("hidden");
-    const subtextEl = document.getElementById("otpModalSubtext");
-    if (subtextEl) {
-        subtextEl.innerHTML = `
-            <div class="p-3 bg-indigo-50 border border-indigo-200 rounded-2xl text-center">
-                <div class="text-xs text-indigo-700 font-bold flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-spinner fa-spin"></i> Generating OTP & Sending to <b>${payload.email}</b>...
-                </div>
-            </div>`;
-    }
-    const otpInp = document.getElementById("otpInputCode");
-    if (otpInp) {
-        otpInp.value = "";
-        otpInp.focus();
-    }
-
     if (btn) {
         btn.disabled = true;
-        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Processing...`;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Registering & Sending Code...`;
     }
 
     try {
@@ -168,8 +149,15 @@ async function handleRegister(e) {
             localStorage.setItem("netra_user", JSON.stringify(currentUser));
             localStorage.setItem("netra_token", authToken);
 
-            let subtext = `We sent a 6-digit verification code to <b>${payload.email}</b>.<br><span class="text-indigo-600 font-bold text-xs block mt-1.5"><i class="fa-solid fa-envelope mr-1"></i> Please check your Email Inbox / Spam and enter the code below:</span>`;
-            if (subtextEl) subtextEl.innerHTML = subtext;
+            // Open OTP modal ONLY on SUCCESS
+            const modal = document.getElementById("modalOtp");
+            if (modal) modal.classList.remove("hidden");
+
+            const subtextEl = document.getElementById("otpModalSubtext");
+            if (subtextEl) {
+                subtextEl.innerHTML = `We sent a 6-digit verification code to <b>${payload.email}</b>.<br><span class="text-indigo-600 font-bold text-xs block mt-1.5"><i class="fa-solid fa-envelope mr-1"></i> Please check your Email Inbox / Spam and enter the code below:</span>`;
+            }
+            const otpInp = document.getElementById("otpInputCode");
             if (otpInp) {
                 otpInp.value = "";
                 otpInp.placeholder = "Enter 6-digit code from email";
@@ -177,16 +165,14 @@ async function handleRegister(e) {
             }
             showToast(data.message || `Verification code sent to ${payload.email}`, "success");
         } else {
+            const modal = document.getElementById("modalOtp");
+            if (modal) modal.classList.add("hidden");
             showToast(data.error || "Registration failed.", "error");
-            if (subtextEl) {
-                subtextEl.innerHTML = `<span class="text-rose-600 font-semibold">${data.error || "Registration error occurred."}</span>`;
-            }
         }
     } catch (err) {
+        const modal = document.getElementById("modalOtp");
+        if (modal) modal.classList.add("hidden");
         showToast("Server connection error: " + err.message, "error");
-        if (subtextEl) {
-            subtextEl.innerHTML = `<span class="text-rose-600 font-semibold">Could not reach server: ${err.message}</span>`;
-        }
     } finally {
         if (btn) {
             btn.disabled = false;
