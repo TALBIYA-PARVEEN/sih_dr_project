@@ -220,49 +220,19 @@ def create_app():
             is_email_verified=False,
             otp_code=otp_code
         )
+        # Store pending profile data inside user_doc, DO NOT insert into mongo.patients or mongo.doctors until OTP verification
+        user_doc["temp_profile"] = {
+            "age": age,
+            "gender": gender,
+            "phone": phone,
+            "diabetes_type": diabetes_type,
+            "diabetes_duration_years": diabetes_duration,
+            "specialization": specialization or "Senior Vitreo-Retina Specialist",
+            "license_number": license_number or f"MCI-{uuid.uuid4().hex[:6].upper()}",
+            "hospital_name": hospital_name or "District Eye Hospital"
+        }
         user_doc["otp_expiry"] = (datetime.utcnow() + timedelta(minutes=15)).isoformat()
         mongo.users.insert_one(user_doc)
-
-        if role == "patient":
-            # Dynamic load balancing: assign to doctor with minimum workload
-            balanced_doc = assign_least_loaded_doctor()
-            assigned_doc_id = balanced_doc["doctor_id"]
-
-            patient_doc = PatientModel.create(
-                user_id=user_doc["id"],
-                full_name=full_name,
-                age=age,
-                gender=gender,
-                phone=phone,
-                diabetes_type=diabetes_type,
-                diabetes_duration_years=diabetes_duration,
-                assigned_doctor_id=assigned_doc_id
-            )
-            mongo.patients.insert_one(patient_doc)
-            user_doc["patient_id"] = patient_doc["id"]
-            user_doc["age"] = age
-            user_doc["gender"] = gender
-            user_doc["phone"] = phone
-            user_doc["diabetes_type"] = diabetes_type
-            user_doc["diabetes_duration_years"] = diabetes_duration
-            user_doc["assigned_doctor_id"] = assigned_doc_id
-
-        elif role == "doctor":
-            # Doctor registered: starts with pending_approval until approved by Admin
-            doctor_doc = DoctorModel.create(
-                user_id=user_doc["id"],
-                full_name=full_name,
-                specialization=specialization or "Senior Vitreo-Retina Specialist",
-                license_number=license_number or f"MCI-{uuid.uuid4().hex[:6].upper()}",
-                hospital_name=hospital_name or "District Eye Hospital",
-                phone=phone
-            )
-            mongo.doctors.insert_one(doctor_doc)
-            user_doc["doctor_id"] = doctor_doc["id"]
-            user_doc["specialization"] = doctor_doc["specialization"]
-            user_doc["license_number"] = doctor_doc["license_number"]
-            user_doc["hospital_name"] = doctor_doc["hospital_name"]
-            user_doc["approval_status"] = "pending_approval"
 
         email_sent = AuthService.send_otp_email(email, otp_code, purpose="Registration Verification")
 
@@ -271,7 +241,7 @@ def create_app():
         
         reg_message = f"Verification code sent to {email}."
         if role == "doctor":
-            reg_message += " Note: Your doctor account will require Master Admin approval before you can access clinical reviews."
+            reg_message += " Note: Your doctor account will require Master Admin approval after email verification."
 
         return jsonify({
             "status": "success",
@@ -366,16 +336,79 @@ def create_app():
             except Exception:
                 pass
 
+        temp = user.get("temp_profile") or {}
+        role = user.get("role", "patient")
+
+        # 1. Activate User Email Verification
+        user_status = "active" if role == "patient" else "pending_approval"
         mongo.users.update_one(
             {"email": email},
-            {"$set": {"is_email_verified": True, "otp_code": None, "otp_expiry": None}}
+            {"$set": {
+                "is_email_verified": True,
+                "status": user_status,
+                "otp_code": None,
+                "otp_expiry": None
+            }}
         )
+
+        # 2. Insert into demographic collection ONLY after OTP is confirmed
+        if role == "patient":
+            existing_pat = mongo.patients.find_one({"user_id": user["id"]})
+            if not existing_pat:
+                balanced_doc = assign_least_loaded_doctor()
+                assigned_doc_id = balanced_doc["doctor_id"]
+                patient_doc = PatientModel.create(
+                    user_id=user["id"],
+                    full_name=user.get("full_name", "Patient"),
+                    age=temp.get("age", 50),
+                    gender=temp.get("gender", "Female"),
+                    phone=temp.get("phone", ""),
+                    diabetes_type=temp.get("diabetes_type", "Type 2"),
+                    diabetes_duration_years=temp.get("diabetes_duration_years", 5),
+                    assigned_doctor_id=assigned_doc_id
+                )
+                mongo.patients.insert_one(patient_doc)
+                mongo.users.update_one(
+                    {"email": email},
+                    {"$set": {
+                        "patient_id": patient_doc["id"],
+                        "assigned_doctor_id": assigned_doc_id,
+                        "age": temp.get("age", 50),
+                        "gender": temp.get("gender", "Female"),
+                        "phone": temp.get("phone", ""),
+                        "diabetes_type": temp.get("diabetes_type", "Type 2"),
+                        "diabetes_duration_years": temp.get("diabetes_duration_years", 5)
+                    }}
+                )
+
+        elif role == "doctor":
+            existing_doc = mongo.doctors.find_one({"user_id": user["id"]})
+            if not existing_doc:
+                doctor_doc = DoctorModel.create(
+                    user_id=user["id"],
+                    full_name=user.get("full_name", "Doctor"),
+                    specialization=temp.get("specialization") or "Senior Vitreo-Retina Specialist",
+                    license_number=temp.get("license_number") or f"MCI-{uuid.uuid4().hex[:6].upper()}",
+                    hospital_name=temp.get("hospital_name") or "District Eye Hospital",
+                    phone=temp.get("phone", "")
+                )
+                mongo.doctors.insert_one(doctor_doc)
+                mongo.users.update_one(
+                    {"email": email},
+                    {"$set": {
+                        "doctor_id": doctor_doc["id"],
+                        "specialization": doctor_doc["specialization"],
+                        "license_number": doctor_doc["license_number"],
+                        "hospital_name": doctor_doc["hospital_name"],
+                        "approval_status": "pending_approval"
+                    }}
+                )
 
         updated_user = mongo.users.find_one({"email": email})
         if updated_user.get("role") == "patient":
             p_doc = mongo.patients.find_one({"user_id": updated_user["id"]})
             if p_doc:
-                for k in ["age", "gender", "phone", "diabetes_type", "diabetes_duration_years"]:
+                for k in ["age", "gender", "phone", "diabetes_type", "diabetes_duration_years", "assigned_doctor_id"]:
                     updated_user[k] = p_doc.get(k)
         elif updated_user.get("role") == "doctor":
             d_doc = mongo.doctors.find_one({"user_id": updated_user["id"]})
