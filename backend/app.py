@@ -191,71 +191,23 @@ def create_app():
         if not username or not email or not password or not full_name:
             return jsonify({"error": "Username, email, password, and full name are required."}), 400
 
-        existing_user = mongo.users.find_one({"$or": [{"username": username}, {"email": email}]})
+        # Strict duplicate check: If email already exists, do not allow re-registration
+        existing_email_user = mongo.users.find_one({"email": email})
+        if existing_email_user:
+            return jsonify({
+                "status": "error",
+                "error": f"An account with email '{email}' already exists. Please sign in or use Forgot Password."
+            }), 409
+
+        existing_username_user = mongo.users.find_one({"username": username})
+        if existing_username_user:
+            return jsonify({
+                "status": "error",
+                "error": f"Username '{username}' is already taken. Please choose another username."
+            }), 409
+
         otp_code = AuthService.generate_otp()
         password_hash = generate_password_hash(password)
-
-        if existing_user:
-            # User is re-registering or updating credentials: renew details & generate fresh OTP
-            user_id = existing_user["id"]
-            mongo.users.update_one(
-                {"id": user_id},
-                {"$set": {
-                    "username": username,
-                    "email": email,
-                    "password_hash": password_hash,
-                    "full_name": full_name,
-                    "role": role,
-                    "otp_code": otp_code,
-                    "otp_expiry": (datetime.utcnow() + timedelta(minutes=15)).isoformat()
-                }}
-            )
-
-            if role == "patient":
-                mongo.patients.update_one(
-                    {"user_id": user_id},
-                    {"$set": {
-                        "full_name": full_name,
-                        "age": age,
-                        "gender": gender,
-                        "phone": phone,
-                        "diabetes_type": diabetes_type,
-                        "diabetes_duration_years": diabetes_duration
-                    }},
-                    upsert=True
-                )
-            elif role == "doctor":
-                mongo.doctors.update_one(
-                    {"user_id": user_id},
-                    {"$set": {
-                        "full_name": full_name,
-                        "specialization": specialization or "Senior Vitreo-Retina Specialist",
-                        "license_number": license_number or existing_user.get("license_number", "MCI-VERIFIED"),
-                        "hospital_name": hospital_name or "District Eye Hospital",
-                        "phone": phone,
-                        "approval_status": "pending_approval",
-                        "active_status": False
-                    }},
-                    upsert=True
-                )
-
-            updated_user = mongo.users.find_one({"id": user_id})
-            email_sent = AuthService.send_otp_email(email, otp_code, purpose="Registration Verification")
-            user_obj = type("UserObj", (), updated_user)()
-            token = AuthService.generate_jwt(user_obj)
-
-            reg_message = f"Account updated. Verification code sent to {email}."
-            if role == "doctor":
-                reg_message += " Note: Doctor accounts require Master Admin approval after email verification."
-
-            return jsonify({
-                "status": "success",
-                "message": reg_message,
-                "token": token,
-                "user": serialize_doc(updated_user),
-                "otp_sent": email_sent,
-                "dev_otp": otp_code
-            }), 200
 
         user_doc = UserModel.create(
             username=username,
