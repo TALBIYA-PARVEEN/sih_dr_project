@@ -112,7 +112,7 @@ class AuthService:
         return f"{random.randint(100000, 999999)}"
 
     @staticmethod
-    def _deliver_email(to_email, subject, text_body, html_body):
+    def _deliver_email(to_email, subject, text_body, html_body=None):
         """Synchronous high-reliability delivery to ensure Gunicorn completes the socket transmission."""
         mail_server = current_app.config.get("MAIL_SERVER", "smtp.gmail.com")
         mail_user = current_app.config.get("MAIL_USERNAME", "2k24.cs1q.2413756@gmail.com").strip()
@@ -126,19 +126,15 @@ class AuthService:
             from email.message import EmailMessage
             msg = EmailMessage()
             msg["Subject"] = subject
-            msg["From"] = f"NetraAI Verification <{mail_user}>"
+            msg["From"] = mail_user
             msg["To"] = to_email
-            msg["Reply-To"] = mail_user
-            msg["X-Priority"] = "1"
-            msg["X-MSMail-Priority"] = "High"
-            msg["Importance"] = "High"
             msg.set_content(text_body)
             if html_body:
                 msg.add_alternative(html_body, subtype="html")
 
             # Primary Attempt: Port 465 (SSL)
             try:
-                with smtplib.SMTP_SSL(mail_server, 465, timeout=5.0) as s:
+                with smtplib.SMTP_SSL(mail_server, 465, timeout=10.0) as s:
                     s.login(mail_user, mail_pass)
                     s.send_message(msg)
                 print(f"[EMAIL-SENT] Delivered '{subject}' to {to_email} via Port 465 (SSL)")
@@ -148,7 +144,7 @@ class AuthService:
 
             # Fallback Attempt: Port 587 (TLS)
             try:
-                with smtplib.SMTP(mail_server, 587, timeout=5.0) as s:
+                with smtplib.SMTP(mail_server, 587, timeout=10.0) as s:
                     s.ehlo()
                     s.starttls()
                     s.ehlo()
@@ -165,35 +161,22 @@ class AuthService:
 
     @staticmethod
     def send_otp_email(to_email, otp_code, purpose="verification"):
-        """Sends real email OTP via Gmail SMTP using multipart plain + HTML."""
-        subject = f"NetraAI Security Code: {otp_code} [Ref #{uuid.uuid4().hex[:6].upper()}]"
-        
-        html_body = f"""
-        <!DOCTYPE html>
-        <html>
-        <body style="font-family: Arial, sans-serif; background-color: #f8fafc; padding: 20px; color: #1e293b;">
-            <div style="max-width: 500px; margin: auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 30px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
-                <div style="text-align: center; margin-bottom: 20px;">
-                    <h2 style="color: #4338ca; margin: 0; font-size: 22px;">NetraAI Tele-Ophthalmology</h2>
-                    <p style="color: #64748b; font-size: 13px; margin-top: 4px;">National DR Screening & Diagnostics Network</p>
-                </div>
-                <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 15px 0;">
-                <p style="font-size: 14px; color: #334155;">Hello,</p>
-                <p style="font-size: 14px; color: #334155;">Your 6-digit verification code to complete your registration / login is:</p>
-                <div style="text-align: center; margin: 25px 0;">
-                    <span style="display: inline-block; font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #4338ca; background: #eef2ff; padding: 12px 24px; border-radius: 12px; border: 1px dashed #818cf8;">
-                        {otp_code}
-                    </span>
-                </div>
-                <p style="font-size: 12px; color: #64748b; text-align: center;">This code is valid for 15 minutes. Please do not share it with anyone.</p>
-                <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 20px 0;">
-                <p style="font-size: 11px; color: #94a3b8; text-align: center;">Smart India Hackathon (SIH 2026) • Rural Healthcare AI Deployment</p>
-            </div>
-        </body>
-        </html>
-        """
-
-        text_body = f"Your NetraAI Verification Code is: {otp_code}\n\nValid for 15 minutes.\nSmart India Hackathon 2026."
+        """Sends clean email OTP via Gmail SMTP."""
+        subject = f"Your NetraAI Verification Code: {otp_code}"
+        text_body = f"Hello,\n\nYour NetraAI verification code is: {otp_code}\n\nThis code is valid for 15 minutes.\n\nThank you,\nNetraAI Tele-Ophthalmology Team"
+        html_body = f"""<!DOCTYPE html>
+<html>
+<body style="font-family: Arial, sans-serif; background-color: #f8fafc; padding: 20px; color: #1e293b;">
+  <div style="max-width: 480px; margin: auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; text-align: center;">
+    <h3 style="color: #4338ca; margin-bottom: 12px;">NetraAI Tele-Ophthalmology</h3>
+    <p style="color: #475569; font-size: 14px;">Your 6-digit verification code is:</p>
+    <div style="display: inline-block; font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #4338ca; background: #eef2ff; padding: 12px 24px; border-radius: 10px; margin: 16px 0;">
+      {otp_code}
+    </div>
+    <p style="color: #94a3b8; font-size: 12px;">This code expires in 15 minutes. Please enter it on the registration screen.</p>
+  </div>
+</body>
+</html>"""
         return AuthService._deliver_email(to_email, subject, text_body, html_body)
 
     @staticmethod

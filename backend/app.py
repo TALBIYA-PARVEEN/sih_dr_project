@@ -276,8 +276,7 @@ def create_app():
             "message": reg_message,
             "token": token,
             "user": serialize_doc(user_doc),
-            "otp_sent": email_sent,
-            "dev_otp": otp_code
+            "otp_sent": email_sent
         }), 201
 
     @app.route("/api/auth/profile/<user_id>", methods=["PUT"])
@@ -339,8 +338,7 @@ def create_app():
         return jsonify({
             "status": "success",
             "message": f"Verification code sent to {email}. Please check your inbox / spam folder.",
-            "otp_sent": email_sent,
-            "dev_otp": otp_code
+            "otp_sent": email_sent
         })
 
     @app.route("/api/auth/verify-otp", methods=["POST"])
