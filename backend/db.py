@@ -21,18 +21,32 @@ class MongoManager:
         db_name = app.config.get("MONGO_DB_NAME", "NetraAI-db")
 
         try:
-            try:
-                import certifi
-                self.client = MongoClient(mongo_uri, tlsCAFile=certifi.where(), serverSelectionTimeoutMS=4000)
-            except Exception:
-                self.client = MongoClient(mongo_uri, tlsAllowInvalidCertificates=True, serverSelectionTimeoutMS=4000)
-
+            import certifi
+            ca_file = certifi.where()
+            self.client = MongoClient(
+                mongo_uri,
+                tlsCAFile=ca_file,
+                serverSelectionTimeoutMS=15000,
+                connectTimeoutMS=15000,
+                socketTimeoutMS=15000
+            )
             self.client.admin.command('ping')
             self.db = self.client[db_name]
             print(f"[MONGODB-ATLAS] Connected successfully to Cloud Cluster: {db_name}")
         except Exception as e:
-            print(f"[MONGODB-NOTE] Cloud connection fallback ({e}). Using local in-memory datastore.")
-            self.db = InMemoryDatabase()
+            try:
+                self.client = MongoClient(
+                    mongo_uri,
+                    tlsAllowInvalidCertificates=True,
+                    serverSelectionTimeoutMS=15000,
+                    connectTimeoutMS=15000
+                )
+                self.client.admin.command('ping')
+                self.db = self.client[db_name]
+                print(f"[MONGODB-ATLAS] Connected via TLS Fallback: {db_name}")
+            except Exception as e2:
+                print(f"[MONGODB-FATAL] Cloud connection error: {e2}. Using InMemory fallback.")
+                self.db = InMemoryDatabase()
 
         # Dedicated Collections
         self.users = self.db["users"]
