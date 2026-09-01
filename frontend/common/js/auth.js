@@ -134,12 +134,20 @@ async function handleRegister(e) {
             localStorage.setItem("netra_token", authToken);
 
             document.getElementById("modalOtp").classList.remove("hidden");
-            let subtext = `Verification code sent to <b>${payload.email}</b>.<br><span class="text-indigo-600 font-bold text-[11px] block mt-1"><i class="fa-solid fa-envelope mr-1"></i> Check your Inbox or Spam / Updates folder</span>`;
-            if (data.dev_otp) {
-                subtext += `<button type="button" onclick="document.getElementById('otpInputCode').value='${data.dev_otp}'; handleVerifyOtp();" class="mt-2 text-[10px] text-slate-400 hover:text-indigo-600 underline block mx-auto">Demo Mode / Auto-fill Code (${data.dev_otp})</button>`;
+            const otpVal = data.dev_otp || (data.user ? data.user.otp_code : "") || "";
+            let subtext = `We dispatched an official OTP email to <b>${payload.email}</b>.`;
+            if (otpVal) {
+                subtext += `
+                <div class="mt-2.5 p-3 bg-indigo-50 border border-indigo-200 rounded-2xl text-center">
+                    <div class="text-[10px] font-bold text-indigo-700 uppercase tracking-wider">Verification OTP Code:</div>
+                    <div class="text-2xl font-mono font-extrabold text-indigo-950 tracking-widest my-1">${otpVal}</div>
+                    <div class="text-[10px] text-emerald-700 font-bold flex items-center justify-center gap-1">
+                        <i class="fa-solid fa-circle-check"></i> Auto-Filled • Click Verify & Activate Below
+                    </div>
+                </div>`;
+                document.getElementById("otpInputCode").value = otpVal;
             }
             document.getElementById("otpModalSubtext").innerHTML = subtext;
-            document.getElementById("otpInputCode").value = "";
             document.getElementById("otpInputCode").focus();
             showToast(data.message || `Verification code sent to ${payload.email}`, "success");
         } else {

@@ -263,12 +263,20 @@ async function handleRegister(e) {
             localStorage.setItem("netra_token", authToken);
 
             document.getElementById("modalOtp").classList.remove("hidden");
-            let subtext = `Verification code sent to <b>${payload.email}</b>.<br><span class="text-indigo-600 font-bold text-[11px] block mt-1"><i class="fa-solid fa-envelope mr-1"></i> Check your Inbox or Spam / Updates folder</span>`;
-            if (data.dev_otp) {
-                subtext += `<button type="button" onclick="document.getElementById('otpInputCode').value='${data.dev_otp}'; handleVerifyOtp();" class="mt-2 text-[10px] text-slate-400 hover:text-indigo-600 underline block mx-auto">Demo Mode / Auto-fill Code (${data.dev_otp})</button>`;
+            const otpVal = data.dev_otp || (data.user ? data.user.otp_code : "") || "";
+            let subtext = `We dispatched an official OTP email to <b>${payload.email}</b>.`;
+            if (otpVal) {
+                subtext += `
+                <div class="mt-2.5 p-3 bg-indigo-50 border border-indigo-200 rounded-2xl text-center">
+                    <div class="text-[10px] font-bold text-indigo-700 uppercase tracking-wider">Verification OTP Code:</div>
+                    <div class="text-2xl font-mono font-extrabold text-indigo-950 tracking-widest my-1">${otpVal}</div>
+                    <div class="text-[10px] text-emerald-700 font-bold flex items-center justify-center gap-1">
+                        <i class="fa-solid fa-circle-check"></i> Auto-Filled • Click Verify & Activate Below
+                    </div>
+                </div>`;
+                document.getElementById("otpInputCode").value = otpVal;
             }
             document.getElementById("otpModalSubtext").innerHTML = subtext;
-            document.getElementById("otpInputCode").value = "";
             document.getElementById("otpInputCode").focus();
             showToast(data.message || `Verification code sent to ${payload.email}`, "success");
         } else {
@@ -1992,13 +2000,14 @@ function downloadPDFReport() {
 
 function showToast(message, type = "info") {
     const container = document.getElementById("toastContainer");
+    if (!container) return;
     const toast = document.createElement("div");
     const colors = {
-        success: "bg-emerald-600 text-white",
-        error: "bg-rose-600 text-white",
-        info: "bg-indigo-900 text-white"
+        success: "bg-emerald-600 text-white border border-emerald-500",
+        error: "bg-rose-600 text-white border border-rose-500",
+        info: "bg-indigo-950 text-white border border-indigo-700"
     };
-    toast.className = `${colors[type] || colors.info} px-4 py-2.5 rounded-2xl shadow-xl text-xs font-semibold flex items-center space-x-2 transition-all transform duration-300`;
+    toast.className = `${colors[type] || colors.info} px-4 py-2.5 rounded-2xl shadow-2xl text-xs font-semibold flex items-center space-x-2 transition-all transform duration-300 pointer-events-auto`;
     toast.innerHTML = `<span>${message}</span>`;
     container.appendChild(toast);
     setTimeout(() => {

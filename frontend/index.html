@@ -108,8 +108,8 @@
         </div>
     </header>
 
-    <!-- Notification Toast Popup -->
-    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 space-y-2"></div>
+    <!-- Notification Toast Popup (Highest Z-Index, Never Blurred) -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-[99999] space-y-2 pointer-events-none"></div>
 
     <!-- Main Container -->
     <main class="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6">
