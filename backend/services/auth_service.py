@@ -112,15 +112,22 @@ class AuthService:
         return f"{random.randint(100000, 999999)}"
 
     @staticmethod
+    @staticmethod
     def _deliver_email(to_email, subject, text_body, html_body=None):
-        """High-reliability delivery via HTTPS REST API (Resend/Brevo) with SMTP fallback."""
+        """High-reliability delivery via HTTPS REST API (Resend/Brevo) with fast SMTP fallback."""
         # 1. Primary Cloud Gateway: Resend HTTPS REST API (Port 443 - Never blocked on Render)
-        resend_api_key = current_app.config.get("RESEND_API_KEY") or os.environ.get("RESEND_API_KEY")
-        if resend_api_key and resend_api_key.strip():
+        resend_api_key = os.environ.get("RESEND_API_KEY", "").strip()
+        if not resend_api_key:
+            try:
+                resend_api_key = current_app.config.get("RESEND_API_KEY", "").strip()
+            except Exception:
+                pass
+
+        if resend_api_key:
             try:
                 import requests
                 headers = {
-                    "Authorization": f"Bearer {resend_api_key.strip()}",
+                    "Authorization": f"Bearer {resend_api_key}",
                     "Content-Type": "application/json"
                 }
                 payload = {
@@ -131,7 +138,7 @@ class AuthService:
                 }
                 if html_body:
                     payload["html"] = html_body
-                r = requests.post("https://api.resend.com/emails", json=payload, headers=headers, timeout=8.0)
+                r = requests.post("https://api.resend.com/emails", json=payload, headers=headers, timeout=5.0)
                 if r.status_code in [200, 201]:
                     print(f"[RESEND-HTTPS-SUCCESS] Delivered '{subject}' to {to_email} via Resend API!")
                     return True
@@ -141,12 +148,18 @@ class AuthService:
                 print(f"[RESEND-API-ERROR] {e_resend}")
 
         # 2. Secondary Cloud Gateway: Brevo HTTPS REST API (Port 443)
-        brevo_api_key = current_app.config.get("BREVO_API_KEY") or os.environ.get("BREVO_API_KEY")
-        if brevo_api_key and brevo_api_key.strip():
+        brevo_api_key = os.environ.get("BREVO_API_KEY", "").strip()
+        if not brevo_api_key:
+            try:
+                brevo_api_key = current_app.config.get("BREVO_API_KEY", "").strip()
+            except Exception:
+                pass
+
+        if brevo_api_key:
             try:
                 import requests
                 headers = {
-                    "api-key": brevo_api_key.strip(),
+                    "api-key": brevo_api_key,
                     "Content-Type": "application/json"
                 }
                 payload = {
@@ -157,17 +170,17 @@ class AuthService:
                 }
                 if html_body:
                     payload["htmlContent"] = html_body
-                r = requests.post("https://api.brevo.com/v3/smtp/email", json=payload, headers=headers, timeout=8.0)
+                r = requests.post("https://api.brevo.com/v3/smtp/email", json=payload, headers=headers, timeout=5.0)
                 if r.status_code in [200, 201]:
                     print(f"[BREVO-HTTPS-SUCCESS] Delivered '{subject}' to {to_email} via Brevo API!")
                     return True
             except Exception as e_brevo:
                 print(f"[BREVO-API-ERROR] {e_brevo}")
 
-        # 3. Standard SMTP (Works locally or on servers with unblocked ports)
-        mail_server = current_app.config.get("MAIL_SERVER", "smtp.gmail.com")
-        mail_user = current_app.config.get("MAIL_USERNAME", "2k24.cs1q.2413756@gmail.com").strip()
-        mail_pass = current_app.config.get("MAIL_PASSWORD", "tyhelznlhlknqowp").strip()
+        # 3. Standard SMTP (Local / VPS)
+        mail_server = os.environ.get("MAIL_SERVER", "smtp.gmail.com")
+        mail_user = os.environ.get("MAIL_USERNAME", "2k24.cs1q.2413756@gmail.com").strip()
+        mail_pass = os.environ.get("MAIL_PASSWORD", "tyhelznlhlknqowp").strip()
 
         if mail_user and mail_pass:
             try:
@@ -180,19 +193,19 @@ class AuthService:
                 if html_body:
                     msg.add_alternative(html_body, subtype="html")
 
-                # Primary Attempt: Port 465 (SSL)
+                # Fast port 465 attempt (2s timeout)
                 try:
-                    with smtplib.SMTP_SSL(mail_server, 465, timeout=8.0) as s:
+                    with smtplib.SMTP_SSL(mail_server, 465, timeout=2.0) as s:
                         s.login(mail_user, mail_pass)
                         s.send_message(msg)
                     print(f"[EMAIL-SENT] Delivered '{subject}' to {to_email} via Port 465 (SSL)")
                     return True
                 except Exception as e_ssl:
-                    print(f"[EMAIL-SSL-NOTE] Port 465 note: {e_ssl}")
+                    pass
 
-                # Fallback Attempt: Port 587 (TLS)
+                # Fast port 587 attempt (2s timeout)
                 try:
-                    with smtplib.SMTP(mail_server, 587, timeout=8.0) as s:
+                    with smtplib.SMTP(mail_server, 587, timeout=2.0) as s:
                         s.ehlo()
                         s.starttls()
                         s.ehlo()
@@ -201,7 +214,7 @@ class AuthService:
                     print(f"[EMAIL-SENT] Delivered '{subject}' to {to_email} via Port 587 (TLS)")
                     return True
                 except Exception as e_tls:
-                    print(f"[EMAIL-TLS-NOTE] Port 587 note: {e_tls}")
+                    pass
             except Exception as e:
                 print(f"[EMAIL-SMTP-ERROR] {e}")
 
@@ -209,7 +222,7 @@ class AuthService:
 
     @staticmethod
     def send_otp_email(to_email, otp_code, purpose="verification"):
-        """Sends clean email OTP via Gmail SMTP."""
+        """Sends clean email OTP via Resend HTTPS API / SMTP in a background worker."""
         subject = f"Your NetraAI Verification Code: {otp_code}"
         text_body = f"Hello,\n\nYour NetraAI verification code is: {otp_code}\n\nThis code is valid for 15 minutes.\n\nThank you,\nNetraAI Tele-Ophthalmology Team"
         html_body = f"""<!DOCTYPE html>
@@ -221,11 +234,15 @@ class AuthService:
     <div style="display: inline-block; font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #4338ca; background: #eef2ff; padding: 12px 24px; border-radius: 10px; margin: 16px 0;">
       {otp_code}
     </div>
-    <p style="color: #94a3b8; font-size: 12px;">This code expires in 15 minutes. Please enter it on the registration screen.</p>
+    <p style="color: #64748b; font-size: 12px;">This code is valid for 15 minutes. Please do not share it with anyone.</p>
   </div>
 </body>
 </html>"""
-        return AuthService._deliver_email(to_email, subject, text_body, html_body)
+        import threading
+        t = threading.Thread(target=AuthService._deliver_email, args=(to_email, subject, text_body, html_body))
+        t.daemon = True
+        t.start()
+        return True
 
     @staticmethod
     def send_doctor_approval_email(to_email, doctor_name, hospital_name="District Eye Hospital", license_number="MCI-VERIFIED"):
