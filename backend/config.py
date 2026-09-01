@@ -37,6 +37,11 @@ class Config:
     # Google OAuth 2.0 Client ID
     GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com")
 
+    # Resend & Brevo HTTPS REST API (Port 443 - Cloud Delivery)
+    RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
+    RESEND_FROM = os.environ.get("RESEND_FROM", "NetraAI Healthcare <onboarding@resend.dev>")
+    BREVO_API_KEY = os.environ.get("BREVO_API_KEY", "")
+
     # Email / SMTP Configuration for Real OTP Delivery
     MAIL_SERVER = os.environ.get("MAIL_SERVER", "smtp.gmail.com")
     MAIL_PORT = int(os.environ.get("MAIL_PORT", 587))

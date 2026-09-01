@@ -113,51 +113,99 @@ class AuthService:
 
     @staticmethod
     def _deliver_email(to_email, subject, text_body, html_body=None):
-        """Synchronous high-reliability delivery to ensure Gunicorn completes the socket transmission."""
+        """High-reliability delivery via HTTPS REST API (Resend/Brevo) with SMTP fallback."""
+        # 1. Primary Cloud Gateway: Resend HTTPS REST API (Port 443 - Never blocked on Render)
+        resend_api_key = current_app.config.get("RESEND_API_KEY") or os.environ.get("RESEND_API_KEY")
+        if resend_api_key and resend_api_key.strip():
+            try:
+                import requests
+                headers = {
+                    "Authorization": f"Bearer {resend_api_key.strip()}",
+                    "Content-Type": "application/json"
+                }
+                payload = {
+                    "from": os.environ.get("RESEND_FROM", "NetraAI Healthcare <onboarding@resend.dev>"),
+                    "to": [to_email],
+                    "subject": subject,
+                    "text": text_body
+                }
+                if html_body:
+                    payload["html"] = html_body
+                r = requests.post("https://api.resend.com/emails", json=payload, headers=headers, timeout=8.0)
+                if r.status_code in [200, 201]:
+                    print(f"[RESEND-HTTPS-SUCCESS] Delivered '{subject}' to {to_email} via Resend API!")
+                    return True
+                else:
+                    print(f"[RESEND-API-NOTE] Status {r.status_code}: {r.text}")
+            except Exception as e_resend:
+                print(f"[RESEND-API-ERROR] {e_resend}")
+
+        # 2. Secondary Cloud Gateway: Brevo HTTPS REST API (Port 443)
+        brevo_api_key = current_app.config.get("BREVO_API_KEY") or os.environ.get("BREVO_API_KEY")
+        if brevo_api_key and brevo_api_key.strip():
+            try:
+                import requests
+                headers = {
+                    "api-key": brevo_api_key.strip(),
+                    "Content-Type": "application/json"
+                }
+                payload = {
+                    "sender": {"name": "NetraAI Healthcare", "email": "2k24.cs1q.2413756@gmail.com"},
+                    "to": [{"email": to_email}],
+                    "subject": subject,
+                    "textContent": text_body
+                }
+                if html_body:
+                    payload["htmlContent"] = html_body
+                r = requests.post("https://api.brevo.com/v3/smtp/email", json=payload, headers=headers, timeout=8.0)
+                if r.status_code in [200, 201]:
+                    print(f"[BREVO-HTTPS-SUCCESS] Delivered '{subject}' to {to_email} via Brevo API!")
+                    return True
+            except Exception as e_brevo:
+                print(f"[BREVO-API-ERROR] {e_brevo}")
+
+        # 3. Standard SMTP (Works locally or on servers with unblocked ports)
         mail_server = current_app.config.get("MAIL_SERVER", "smtp.gmail.com")
         mail_user = current_app.config.get("MAIL_USERNAME", "2k24.cs1q.2413756@gmail.com").strip()
         mail_pass = current_app.config.get("MAIL_PASSWORD", "tyhelznlhlknqowp").strip()
 
-        if not mail_user or not mail_pass:
-            print(f"[DEV-FALLBACK] SMTP credentials not configured. Target: {to_email}")
-            return False
-
-        try:
-            from email.message import EmailMessage
-            msg = EmailMessage()
-            msg["Subject"] = subject
-            msg["From"] = mail_user
-            msg["To"] = to_email
-            msg.set_content(text_body)
-            if html_body:
-                msg.add_alternative(html_body, subtype="html")
-
-            # Primary Attempt: Port 465 (SSL)
+        if mail_user and mail_pass:
             try:
-                with smtplib.SMTP_SSL(mail_server, 465, timeout=10.0) as s:
-                    s.login(mail_user, mail_pass)
-                    s.send_message(msg)
-                print(f"[EMAIL-SENT] Delivered '{subject}' to {to_email} via Port 465 (SSL)")
-                return True
-            except Exception as e_ssl:
-                print(f"[EMAIL-SSL-NOTE] Port 465 failed: {e_ssl}. Trying Port 587 (TLS)...")
+                from email.message import EmailMessage
+                msg = EmailMessage()
+                msg["Subject"] = subject
+                msg["From"] = mail_user
+                msg["To"] = to_email
+                msg.set_content(text_body)
+                if html_body:
+                    msg.add_alternative(html_body, subtype="html")
 
-            # Fallback Attempt: Port 587 (TLS)
-            try:
-                with smtplib.SMTP(mail_server, 587, timeout=10.0) as s:
-                    s.ehlo()
-                    s.starttls()
-                    s.ehlo()
-                    s.login(mail_user, mail_pass)
-                    s.send_message(msg)
-                print(f"[EMAIL-SENT] Delivered '{subject}' to {to_email} via Port 587 (TLS)")
-                return True
-            except Exception as e_tls:
-                print(f"[EMAIL-TLS-ERROR] Port 587 failed: {e_tls}")
-                return False
-        except Exception as e:
-            print(f"[EMAIL-SMTP-FATAL] Failed to send email to {to_email}: {e}")
-            return False
+                # Primary Attempt: Port 465 (SSL)
+                try:
+                    with smtplib.SMTP_SSL(mail_server, 465, timeout=8.0) as s:
+                        s.login(mail_user, mail_pass)
+                        s.send_message(msg)
+                    print(f"[EMAIL-SENT] Delivered '{subject}' to {to_email} via Port 465 (SSL)")
+                    return True
+                except Exception as e_ssl:
+                    print(f"[EMAIL-SSL-NOTE] Port 465 note: {e_ssl}")
+
+                # Fallback Attempt: Port 587 (TLS)
+                try:
+                    with smtplib.SMTP(mail_server, 587, timeout=8.0) as s:
+                        s.ehlo()
+                        s.starttls()
+                        s.ehlo()
+                        s.login(mail_user, mail_pass)
+                        s.send_message(msg)
+                    print(f"[EMAIL-SENT] Delivered '{subject}' to {to_email} via Port 587 (TLS)")
+                    return True
+                except Exception as e_tls:
+                    print(f"[EMAIL-TLS-NOTE] Port 587 note: {e_tls}")
+            except Exception as e:
+                print(f"[EMAIL-SMTP-ERROR] {e}")
+
+        return False
 
     @staticmethod
     def send_otp_email(to_email, otp_code, purpose="verification"):
