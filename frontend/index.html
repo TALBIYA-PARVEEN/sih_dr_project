@@ -14,6 +14,26 @@
     <!-- Google Identity Services -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <link rel="stylesheet" href="css/style.css">
+    <script>
+        // Immediate DOM & Cache purge safeguard
+        (function() {
+            const currentBuild = "20260902_V7000";
+            if (localStorage.getItem("netra_build_ver") !== currentBuild) {
+                localStorage.setItem("netra_build_ver", currentBuild);
+                if ('caches' in window) {
+                    caches.keys().then(names => {
+                        for (let name of names) caches.delete(name);
+                    });
+                }
+            }
+            window.addEventListener("DOMContentLoaded", () => {
+                const oldPage = document.getElementById("pageModels");
+                if (oldPage) oldPage.remove();
+                const oldLink = document.getElementById("navLinkModels");
+                if (oldLink) oldLink.remove();
+            });
+        })();
+    </script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col antialiased">
 
@@ -2229,6 +2249,6 @@
     </footer>
 
     <!-- App JS -->
-    <script src="js/app.js?v=20260902_6000"></script>
+    <script src="js/app.js?v=20260902_V7000"></script>
 </body>
 </html>
