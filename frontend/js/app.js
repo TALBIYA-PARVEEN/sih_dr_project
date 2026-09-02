@@ -29,11 +29,6 @@ document.addEventListener("DOMContentLoaded", () => {
         navigateTo("home", false);
     }
 
-    // Restore active screening session if available on refresh
-    if (activeSessionId) {
-        restoreLastSession(activeSessionId);
-    }
-
     window.addEventListener("popstate", (event) => {
         if (event.state && event.state.page) {
             navigateTo(event.state.page, false);
@@ -918,33 +913,51 @@ function validateRetinaClientSide(imgElement) {
     try {
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
-        const w = 120, h = 120;
+        const w = 128, h = 128;
         canvas.width = w;
         canvas.height = h;
         ctx.drawImage(imgElement, 0, 0, w, h);
         const data = ctx.getImageData(0, 0, w, h).data;
         let rSum = 0, gSum = 0, bSum = 0, count = 0;
-        let diffSum = 0;
+        let gValues = [];
 
         for (let i = 0; i < data.length; i += 4) {
             const r = data[i], g = data[i+1], b = data[i+2];
             rSum += r; gSum += g; bSum += b; count++;
-            if (i >= 8) diffSum += Math.abs(g - data[i-4]);
+            gValues.push(g);
         }
 
         const rMean = rSum / count;
         const gMean = gSum / count;
         const bMean = bSum / count;
-        const avgVar = diffSum / count;
+
+        let gVar = 0;
+        for (let i = 0; i < gValues.length; i++) {
+            gVar += Math.pow(gValues[i] - gMean, 2);
+        }
+        const gStd = Math.sqrt(gVar / count);
+
+        // 4 corners calculation
+        const c1 = (data[0] + data[1] + data[2]) / 3;
+        const c2Idx = (w - 1) * 4;
+        const c2 = (data[c2Idx] + data[c2Idx+1] + data[c2Idx+2]) / 3;
+        const c3Idx = (h - 1) * w * 4;
+        const c3 = (data[c3Idx] + data[c3Idx+1] + data[c3Idx+2]) / 3;
+        const c4Idx = ((h - 1) * w + (w - 1)) * 4;
+        const c4 = (data[c4Idx] + data[c4Idx+1] + data[c4Idx+2]) / 3;
+        const cornersAvg = (c1 + c2 + c3 + c4) / 4;
 
         if (bMean >= rMean * 0.85 && bMean > 30) {
-            return { valid: false, reason: `Unnatural blue spectrum (Blue: ${bMean.toFixed(0)}, Red: ${rMean.toFixed(0)}). Non-retina photo detected.` };
+            return { valid: false, reason: `Unnatural blue spectrum (Blue: ${bMean.toFixed(0)}, Red: ${rMean.toFixed(0)}). Non-retinal photo detected.` };
         }
         if (rMean / Math.max(1, bMean) < 1.25 && bMean > 25) {
             return { valid: false, reason: "Color profile does not match retinal fundus reflectance." };
         }
-        if (avgVar < 2.2) {
-            return { valid: false, reason: "Plain / flat orange image detected without retinal blood vessel branches." };
+        if (gStd < 10.0) {
+            return { valid: false, reason: "Plain / uniform orange image without retinal blood vessel structure." };
+        }
+        if (cornersAvg > 45.0 && gStd < 22.0) {
+            return { valid: false, reason: "Standard rectangular everyday scene without circular fundus aperture." };
         }
         return { valid: true };
     } catch (e) {
@@ -1208,6 +1221,8 @@ async function runPatientScreening() {
         formData.append("patient_gender", currentUser.gender || "Female");
     }
 
+    const initPlaceholder = document.getElementById("screeningInitialState");
+    if (initPlaceholder) initPlaceholder.classList.add("hidden");
     document.getElementById("patientLoadingState").classList.remove("hidden");
     document.getElementById("rejectionCard").classList.add("hidden");
     document.getElementById("patientResultContainer").classList.add("hidden");
@@ -1221,6 +1236,7 @@ async function runPatientScreening() {
         document.getElementById("patientLoadingState").classList.add("hidden");
 
         if (result.status === "rejected" || result.status === "warning" || result.is_gradable === false || !res.ok) {
+            if (initPlaceholder) initPlaceholder.classList.add("hidden");
             const rejectionCard = document.getElementById("rejectionCard");
             if (rejectionCard) {
                 rejectionCard.classList.remove("hidden");
@@ -1262,6 +1278,10 @@ async function restoreLastSession(sessionId) {
 
 function renderPatientResults(data) {
     activeSessionId = data.id;
+    const initPlaceholder = document.getElementById("screeningInitialState");
+    if (initPlaceholder) initPlaceholder.classList.add("hidden");
+    const rejectionCard = document.getElementById("rejectionCard");
+    if (rejectionCard) rejectionCard.classList.add("hidden");
     document.getElementById("patientResultContainer").classList.remove("hidden");
 
     const qual = data.quality_assessment;
