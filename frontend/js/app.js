@@ -1156,11 +1156,18 @@ async function runPatientScreening() {
         document.getElementById("patientLoadingState").classList.add("hidden");
 
         if (result.status === "rejected" || result.status === "warning" || result.is_gradable === false || !res.ok) {
-            document.getElementById("rejectionCard").classList.remove("hidden");
+            const rejectionCard = document.getElementById("rejectionCard");
+            if (rejectionCard) {
+                rejectionCard.classList.remove("hidden");
+                rejectionCard.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
             document.getElementById("patientResultContainer").classList.add("hidden");
+            localStorage.removeItem("netra_active_session_id");
+            
             const reason = result.message || result.error || (result.quality_assessment ? result.quality_assessment.rejection_reason : "Image is not suitable for clinical grading. Please recapture an authentic eye fundus photograph.");
             document.getElementById("rejectionReasonText").innerHTML = `<b>Diagnostic Assessment:</b> ${reason}`;
             showToast("Scan Rejected: " + (result.message || "Please upload an authentic retinal photo."), "error");
+            alert("🚫 Scan Rejected (Non-Retinal or Ungradable Image)\n\n" + reason + "\n\nAction Required: Please recapture and upload an authentic retinal fundus photograph.");
             return;
         }
 
