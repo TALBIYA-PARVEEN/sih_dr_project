@@ -46,10 +46,10 @@ def assign_least_loaded_doctor():
     if not approved_doctors:
         return {
             "doctor_id": None,
-            "doctor_name": "District Specialist Pool",
-            "specialization": "Clinical Vitreo-Retina Pool",
-            "license_number": "N/A",
-            "hospital_name": "District Tele-Ophthalmology Network"
+            "doctor_name": None,
+            "specialization": None,
+            "license_number": None,
+            "hospital_name": None
         }
 
     # Calculate current load for each approved doctor
@@ -750,17 +750,11 @@ def create_app():
                 "phone": d.get("phone", "+91 9876543210"),
                 "rating": avg_rating,
                 "review_count": review_count,
-                "star_breakdown": {
-                    "star_5": star_5_pct,
-                    "star_4": star_4_pct,
-                    "star_3": star_3_pct,
-                    "star_2": star_2_pct,
-                    "star_1": star_1_pct
-                },
+                "star_breakdown": breakdown,
                 "reviews": reviews_data,
                 "active_queue_count": active_queue_count,
                 "is_currently_assigned": (doc_id == current_assigned_doc_id or d.get("user_id") == current_assigned_doc_id),
-                "badge": "Top Rated Specialist" if avg_rating >= 4.8 else "Verified Ophthalmologist"
+                "badge": "Top Rated Specialist" if avg_rating >= 4.8 and review_count > 0 else "Verified Ophthalmologist"
             })
 
         return jsonify({"status": "success", "doctors": doc_list})
@@ -1634,17 +1628,41 @@ def create_app():
         screening_id = data.get("screening_id")
 
         if not sender_id or not recipient_id or not content:
-            return jsonify({"error": "Sender, Recipient, and Content are required."}), 400
+            return jsonify({"status": "error", "error": "Sender, Recipient, and Content are required."}), 400
 
         sender = mongo.users.find_one({"id": sender_id})
+        if not sender:
+            return jsonify({"status": "error", "error": "Sender account not found."}), 404
+
+        # Recipient lookup (supports user_id, doctor.id, or patient.id)
         recipient = mongo.users.find_one({"id": recipient_id})
+        if not recipient:
+            doc_rec = mongo.doctors.find_one({"$or": [{"id": recipient_id}, {"user_id": recipient_id}]})
+            if doc_rec:
+                recipient = mongo.users.find_one({"id": doc_rec.get("user_id")})
+            else:
+                pat_rec = mongo.patients.find_one({"$or": [{"id": recipient_id}, {"user_id": recipient_id}]})
+                if pat_rec:
+                    recipient = mongo.users.find_one({"id": pat_rec.get("user_id")})
+
+        if not recipient:
+            return jsonify({
+                "status": "error",
+                "error": "Cannot send message: Recipient doctor does not exist. No registered ophthalmologists are available in the clinic network."
+            }), 400
+
+        if sender.get("role") == "patient" and recipient.get("role") != "doctor":
+            return jsonify({
+                "status": "error",
+                "error": "Patients can only send tele-consultation messages to registered ophthalmologists."
+            }), 400
 
         msg_doc = MessageModel.create(
-            sender_id=sender_id,
-            sender_name=sender["full_name"] if sender else "User",
-            sender_role=sender["role"] if sender else "user",
-            recipient_id=recipient_id,
-            recipient_name=recipient["full_name"] if recipient else "User",
+            sender_id=sender["id"],
+            sender_name=sender.get("full_name") or sender.get("username", "User"),
+            sender_role=sender.get("role", "user"),
+            recipient_id=recipient["id"],
+            recipient_name=recipient.get("full_name") or recipient.get("username", "Doctor"),
             content=content,
             screening_id=screening_id
         )

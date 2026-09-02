@@ -1636,16 +1636,30 @@ function renderDoctorsCards(doctors) {
     if (!grid) return;
     grid.innerHTML = "";
 
+    const activeName = document.getElementById("activeAssignedDocName");
+    const activeMeta = document.getElementById("activeAssignedDocMeta");
+
     if (doctors.length === 0) {
-        grid.innerHTML = `<div class="col-span-full text-center py-12 text-slate-400 text-xs">No matching ophthalmologists found in directory.</div>`;
+        if (activeName) activeName.innerText = "No Doctor Assigned (No Doctors in Network)";
+        if (activeMeta) activeMeta.innerText = "Please wait for an ophthalmologist to register and get approved by the admin.";
+        grid.innerHTML = `
+            <div class="col-span-full p-8 bg-amber-50/70 border border-amber-200 rounded-3xl text-center space-y-3">
+                <div class="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto text-lg shadow-xs">
+                    <i class="fa-solid fa-user-doctor"></i>
+                </div>
+                <h4 class="font-bold text-amber-900 text-sm">No Ophthalmologists Registered in Network Yet</h4>
+                <p class="text-xs text-amber-700 max-w-md mx-auto leading-relaxed">
+                    There are currently no approved eye specialists registered in the tele-ophthalmology network. 
+                    Once an ophthalmologist registers and is approved by the admin, their profile, ratings, and reviews will appear here.
+                </p>
+            </div>
+        `;
         return;
     }
 
     doctors.forEach(doc => {
         const isAssigned = doc.is_currently_assigned;
         if (isAssigned) {
-            const activeName = document.getElementById("activeAssignedDocName");
-            const activeMeta = document.getElementById("activeAssignedDocMeta");
             if (activeName) activeName.innerText = doc.full_name;
             if (activeMeta) activeMeta.innerText = `${doc.specialization} • ${doc.hospital_name}`;
         }
@@ -2260,15 +2274,83 @@ async function submitDoctorSignOff() {
 // -----------------------------------------------------------------------------
 async function loadPatientChat() {
     if (!currentUser) return;
+    const docNameEl = document.getElementById("patientAssignedDoctorName");
+    const input = document.getElementById("inputPatientMessage");
+    const btn = document.querySelector("#patientTabChatContent form button[type='submit']");
+    const stream = document.getElementById("patientChatMessagesStream");
+
+    // Check if approved doctors exist or if patient has assigned doctor
+    let assignedDoc = null;
+    try {
+        const dirRes = await fetch(`${API_BASE}/doctors/directory?patient_id=${currentUser.id}`);
+        const dirData = await dirRes.json();
+        const docs = dirData.doctors || [];
+
+        if (currentUser.assigned_doctor_id) {
+            assignedDoc = docs.find(d => d.id === currentUser.assigned_doctor_id || d.user_id === currentUser.assigned_doctor_id);
+        }
+        if (!assignedDoc && docs.length > 0) {
+            assignedDoc = docs[0];
+            currentUser.assigned_doctor_id = assignedDoc.id;
+            currentUser.assigned_doctor_name = assignedDoc.full_name;
+            localStorage.setItem("netra_user", JSON.stringify(currentUser));
+        }
+    } catch (e) {
+        console.error("loadPatientChat doctor check error", e);
+    }
+
+    if (!assignedDoc) {
+        if (docNameEl) docNameEl.innerText = "No Ophthalmologist Available";
+        if (input) {
+            input.disabled = true;
+            input.placeholder = "Messaging disabled: No ophthalmologist is currently registered in the clinic network.";
+            input.value = "";
+        }
+        if (btn) {
+            btn.disabled = true;
+            btn.classList.add("opacity-50", "cursor-not-allowed");
+        }
+        if (stream) {
+            stream.innerHTML = `
+                <div class="p-6 bg-amber-50 border border-amber-200 rounded-2xl text-center space-y-2">
+                    <div class="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto text-lg shadow-xs">
+                        <i class="fa-solid fa-user-doctor"></i>
+                    </div>
+                    <h4 class="font-bold text-amber-900 text-sm">No Ophthalmologists Registered Yet</h4>
+                    <p class="text-xs text-amber-700 max-w-md mx-auto leading-relaxed">
+                        There are currently no approved eye specialists registered in the tele-ophthalmology network. 
+                        Tele-consultation messaging will automatically unlock as soon as an ophthalmologist registers and is approved by the admin.
+                    </p>
+                </div>
+            `;
+        }
+        return;
+    }
+
+    // Doctor exists and is assigned
+    if (docNameEl) docNameEl.innerText = assignedDoc.full_name;
+    if (input) {
+        input.disabled = false;
+        input.placeholder = `Type your message to ${assignedDoc.full_name}...`;
+    }
+    if (btn) {
+        btn.disabled = false;
+        btn.classList.remove("opacity-50", "cursor-not-allowed");
+    }
+
     try {
         const res = await fetch(`${API_BASE}/messages/patient/${currentUser.id}`);
         const data = await res.json();
-        const stream = document.getElementById("patientChatMessagesStream");
         if (!stream) return;
         stream.innerHTML = "";
 
         if (!data.messages || data.messages.length === 0) {
-            stream.innerHTML = `<div class="text-xs text-slate-400 text-center py-10">No messages yet. When your examining doctor reviews your retina scan, their clinical directives & sign-off will appear here automatically.</div>`;
+            stream.innerHTML = `
+                <div class="text-xs text-slate-400 text-center py-10 space-y-1">
+                    <div class="font-semibold text-slate-600">Connected to ${assignedDoc.full_name}</div>
+                    <div>No messages yet. Send a query below to begin tele-consultation.</div>
+                </div>
+            `;
             return;
         }
 
@@ -2302,18 +2384,9 @@ async function handlePatientSendMessage(e) {
     if (!content) return;
 
     let recipientId = currentUser.assigned_doctor_id;
-    if (!recipientId || recipientId === "doc_demo") {
-        try {
-            const docRes = await fetch(`${API_BASE}/auth/doctors`);
-            const docData = await docRes.json();
-            if (docData.doctors && docData.doctors.length > 0) {
-                recipientId = docData.doctors[0].user_id || docData.doctors[0].id;
-            } else {
-                recipientId = "doctor";
-            }
-        } catch (e) {
-            recipientId = "doctor";
-        }
+    if (!recipientId) {
+        showToast("Cannot send message: No ophthalmologist is registered or assigned in the network yet.", "warning");
+        return;
     }
 
     try {
