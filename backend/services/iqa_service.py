@@ -10,18 +10,18 @@ class ImageQualityAssessmentService:
        - Multi-scale Green Channel CLAHE + Morphological Black-Hat filter extracts dark tubular blood vessels.
        - Connected-component analysis measures vessel elongation, total vascular area, and maximum branch span.
        - Confirms genuine retinal scans (Color fundus, Red-Free, Macula-centered, Optic-Disc centered).
-       - Accurately rejects non-retinal objects (oranges, citrus fruits, orange juice, sunsets, selfies, random scenes).
+       - Accurately rejects all non-retinal objects (sliced oranges, peeled oranges, citrus fruits, orange juice, sunsets, selfies, random scenes).
        
     2. Optical Degradation & Quality Gates:
-       - Rejects pitch-dark / underexposed captures (< 6.0)
-       - Rejects overexposed / flash glare captures (> 248.0)
-       - Rejects flat zero-contrast synthetic images (Std Dev < 4.0)
-       - Rejects unnatural non-retinal blue outdoor scenes (B > R * 1.35 and B > 65.0)
+       - Rejects pitch-dark / underexposed captures (< 6.0) -> Rejection Reason: "Please capture photo again"
+       - Rejects overexposed / flash glare captures (> 220.0) -> Rejection Reason: "Please capture photo again"
+       - Rejects severely blurred / out-of-focus captures (Sharpness < 3.5) -> Rejection Reason: "Please capture photo again"
+       - Accepts GOOD (score >= 70) and AVERAGE (BORDERLINE / MEDIUM, score < 70) genuine scans for AI grading.
        
-    3. Actionable Rejection Directives:
-       - Returns clear human-readable guidance to the clinician / patient.
+    3. Actionable Directives:
+       - Returns clear, human-readable guidance to the clinician / patient instructing them to retake the scan if quality is poor.
     """
-    def __init__(self, blur_threshold=10.0, min_brightness=15.0, max_brightness=240.0, min_fov_ratio=0.10):
+    def __init__(self, blur_threshold=3.5, min_brightness=18.0, max_brightness=220.0, min_fov_ratio=0.10):
         self.blur_threshold = blur_threshold
         self.min_brightness = min_brightness
         self.max_brightness = max_brightness
@@ -52,7 +52,7 @@ class ImageQualityAssessmentService:
                 "brightness_score": 0.0,
                 "contrast_score": 0.0,
                 "fov_ratio": 0.0,
-                "rejection_reason": f"Image resolution is too low ({w}x{h}px). Minimum 200x200px required for clinical grading."
+                "rejection_reason": f"Image resolution is too low ({w}x{h}px). Minimum 200x200px required for clinical grading. Please capture photo again."
             }
 
         # Color channels extraction
@@ -84,7 +84,7 @@ class ImageQualityAssessmentService:
                 "brightness_score": round(overall_mean, 1),
                 "contrast_score": round(contrast, 1),
                 "fov_ratio": 0.0,
-                "rejection_reason": "Scan is completely dark / underexposed. Please retake the retina photograph with proper fundus illumination."
+                "rejection_reason": "Scan is completely dark / underexposed. Please increase illumination and capture photo again."
             }
 
         # Check 2: Completely white / washed out image
@@ -97,10 +97,10 @@ class ImageQualityAssessmentService:
                 "brightness_score": round(overall_mean, 1),
                 "contrast_score": round(contrast, 1),
                 "fov_ratio": 1.0,
-                "rejection_reason": "Scan is completely overexposed / washed out. Please retake the retina photograph with balanced flash illumination."
+                "rejection_reason": "Scan is completely overexposed / washed out. Please balance lighting and capture photo again."
             }
 
-        # Check 3: Extreme non-retinal blue landscape/sky dominance (Retina is warm red or grayscale red-free, never pure blue)
+        # Check 3: Extreme non-retinal blue landscape/sky dominance
         if b_mean > (r_mean * 1.35) and b_mean > 65.0 and r_mean < 50.0:
             return {
                 "quality_label": "NOT A RETINA IMAGE",
@@ -139,6 +139,11 @@ class ImageQualityAssessmentService:
         fov_eroded = cv2.erode(fov_mask, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9)))
         if np.count_nonzero(fov_eroded) < 100:
             fov_eroded = fov_mask
+
+        active_gray = gray[fov_mask > 0] if retinal_pixels > 200 else gray.flatten()
+        active_bright = float(np.mean(active_gray))
+        active_contrast = float(np.std(active_gray))
+        active_blur = float(np.var(laplacian[fov_mask > 0])) if retinal_pixels > 200 else blur_score
 
         # -------------------------------------------------------------
         # 5. Multi-Scale Green Channel Vascular Tree Extraction
@@ -188,7 +193,7 @@ class ImageQualityAssessmentService:
                     max_span = diag
 
         # A genuine retinal image MUST possess branching vascular arcades
-        # Non-retinal objects (oranges, citrus fruits, orange juice, sunsets, selfies) have near-zero elongated vessels
+        # Non-retinal objects (sliced oranges, peeled oranges, orange juice, sunsets, selfies) have near-zero elongated vessels
         has_vascular_tree = (elongated_vessels >= 5 and max_span >= 22.0) or (total_vessel_area >= 300 and max_span >= 20.0)
 
         if not has_vascular_tree:
@@ -200,21 +205,76 @@ class ImageQualityAssessmentService:
                 "brightness_score": round(overall_mean, 1),
                 "contrast_score": round(contrast, 1),
                 "fov_ratio": fov_ratio,
-                "rejection_reason": f"Non-retinal image detected: Missing branching retinal blood vessels (Vessels: {elongated_vessels}, Max span: {max_span:.1f}px). An authentic retinal photograph must display continuous blood vessels radiating across the fundus. Please upload an authentic eye fundus scan."
+                "rejection_reason": f"Non-retinal image detected: Missing continuous branching retinal blood vessels (Vessels: {elongated_vessels}, Max span: {max_span:.1f}px). An authentic retinal photograph must display branching blood vessels radiating across the fundus. Please upload an authentic eye fundus photograph."
             }
 
         # -------------------------------------------------------------
-        # 6. Gradable Retina Image Quality Calculation (0 - 100)
+        # 6. Quality Assessment for Genuine Retinas:
         # -------------------------------------------------------------
-        norm_sharpness = min(100.0, (blur_score / 35.0) * 100.0)
-        norm_bright = max(0.0, 100.0 - abs(overall_mean - 110.0) * 0.75)
-        norm_contrast = min(100.0, (contrast / 35.0) * 100.0)
+        # Gate A: Severe Blur / Out of Focus (Sharpness < 3.5)
+        if active_blur < 3.5:
+            return {
+                "quality_label": "POOR (UNGRADABLE)",
+                "quality_score": 20.0,
+                "is_gradable": False,
+                "blur_score": round(active_blur, 1),
+                "brightness_score": round(active_bright, 1),
+                "contrast_score": round(active_contrast, 1),
+                "fov_ratio": fov_ratio,
+                "rejection_reason": f"Retina photograph is severely blurred / out of focus (Sharpness score: {active_blur:.1f}). Please steady the fundus camera, focus on the retina, and capture photo again."
+            }
+
+        # Gate B: Severe Underexposure / Darkness (Brightness < 18.0)
+        if active_bright < 18.0:
+            return {
+                "quality_label": "POOR (UNGRADABLE)",
+                "quality_score": 25.0,
+                "is_gradable": False,
+                "blur_score": round(active_blur, 1),
+                "brightness_score": round(active_bright, 1),
+                "contrast_score": round(active_contrast, 1),
+                "fov_ratio": fov_ratio,
+                "rejection_reason": f"Retina photograph is severely underexposed / too dark (Brightness score: {active_bright:.1f}). Please increase camera flash illumination and capture photo again."
+            }
+
+        # Gate C: Severe Flash Glare / Overexposure (Brightness > 220.0)
+        if active_bright > 220.0:
+            return {
+                "quality_label": "POOR (UNGRADABLE)",
+                "quality_score": 25.0,
+                "is_gradable": False,
+                "blur_score": round(active_blur, 1),
+                "brightness_score": round(active_bright, 1),
+                "contrast_score": round(active_contrast, 1),
+                "fov_ratio": fov_ratio,
+                "rejection_reason": f"Excessive flash glare / overexposure detected across the retina (Brightness score: {active_bright:.1f}). Please balance lighting and capture photo again."
+            }
+
+        # Gate D: Low Optical Contrast (Contrast < 6.0)
+        if active_contrast < 6.0:
+            return {
+                "quality_label": "POOR (UNGRADABLE)",
+                "quality_score": 30.0,
+                "is_gradable": False,
+                "blur_score": round(active_blur, 1),
+                "brightness_score": round(active_bright, 1),
+                "contrast_score": round(active_contrast, 1),
+                "fov_ratio": fov_ratio,
+                "rejection_reason": "Optical contrast is too low to grade diabetic lesions. Please steady camera and capture photo again."
+            }
+
+        # -------------------------------------------------------------
+        # Continuous Quality Score Calculation (GOOD vs AVERAGE)
+        # -------------------------------------------------------------
+        norm_sharpness = min(100.0, (active_blur / 35.0) * 100.0)
+        norm_bright = max(0.0, 100.0 - abs(active_bright - 110.0) * 0.75)
+        norm_contrast = min(100.0, (active_contrast / 35.0) * 100.0)
         norm_vessels = min(100.0, (elongated_vessels / 40.0) * 100.0)
 
         quality_score = float(0.35 * norm_sharpness + 0.25 * norm_bright + 0.20 * norm_contrast + 0.20 * norm_vessels)
-        quality_score = round(max(60.0, min(99.0, quality_score)), 1)
+        quality_score = round(max(55.0, min(99.0, quality_score)), 1)
 
-        if quality_score >= 72.0 and blur_score >= 15.0:
+        if quality_score >= 70.0 and active_blur >= 15.0:
             quality_label = "GOOD"
         else:
             quality_label = "BORDERLINE / MEDIUM"
@@ -223,9 +283,9 @@ class ImageQualityAssessmentService:
             "quality_label": quality_label,
             "quality_score": quality_score,
             "is_gradable": True,
-            "blur_score": round(blur_score, 2),
-            "brightness_score": round(overall_mean, 2),
-            "contrast_score": round(contrast, 2),
+            "blur_score": round(active_blur, 2),
+            "brightness_score": round(active_bright, 2),
+            "contrast_score": round(active_contrast, 2),
             "fov_ratio": fov_ratio,
             "rejection_reason": None
         }

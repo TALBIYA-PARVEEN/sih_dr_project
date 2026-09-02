@@ -1345,10 +1345,12 @@ async function runPatientScreening() {
             document.getElementById("patientResultContainer").classList.add("hidden");
             localStorage.removeItem("netra_active_session_id");
             
-            const reason = result.message || result.error || (result.quality_assessment ? result.quality_assessment.rejection_reason : "Image is not suitable for clinical grading. Please recapture an authentic eye fundus photograph.");
+            const reason = result.message || result.error || (result.quality_assessment ? result.quality_assessment.rejection_reason : "Image is not suitable for clinical grading. Please capture an authentic eye fundus photograph.");
             document.getElementById("rejectionReasonText").innerHTML = `<b>Diagnostic Assessment:</b> ${reason}`;
-            showToast("Scan Rejected: " + (result.message || "Please upload an authentic retinal photo."), "error");
-            alert("🚫 Scan Rejected (Non-Retinal or Ungradable Image)\n\n" + reason + "\n\nAction Required: Please recapture and upload an authentic retinal fundus photograph.");
+            const isNonRetina = reason.toLowerCase().includes("non-retinal");
+            const alertTitle = isNonRetina ? "🚫 Scan Rejected (Non-Retinal Image Detected)" : "⚠️ Image Quality Insufficient (Please Capture Photo Again)";
+            showToast(isNonRetina ? "🚫 Non-Retinal Image Detected" : "⚠️ Poor Quality: Please Retake Photo", "error");
+            alert(`${alertTitle}\n\n${reason}\n\nAction Required: Please steady the fundus camera, balance illumination, and capture photo again.`);
             return;
         }
 
@@ -2076,8 +2078,10 @@ async function handleDoctorScreeningSubmit(e) {
 
         if (result.status === "rejected" || result.is_gradable === false || !res.ok) {
             const reason = result.message || result.error || (result.quality_assessment ? result.quality_assessment.rejection_reason : "The uploaded image is not a valid retina scan or is ungradable.");
-            showToast("Quality Assessment Failed: " + reason, "error");
-            alert("Scan Rejected (Non-Retinal or Ungradable Image)\n\n" + reason + "\n\nAction Required: Please recapture and upload an authentic retinal fundus photograph.");
+            const isNonRetina = reason.toLowerCase().includes("non-retinal");
+            const alertTitle = isNonRetina ? "🚫 Scan Rejected (Non-Retinal Image Detected)" : "⚠️ Image Quality Insufficient (Please Capture Photo Again)";
+            showToast(isNonRetina ? "🚫 Non-Retinal Image Detected" : "⚠️ Poor Quality: Please Retake Photo", "error");
+            alert(`${alertTitle}\n\n${reason}\n\nAction Required: Please steady the fundus camera, balance illumination, and capture photo again.`);
             return;
         }
 
