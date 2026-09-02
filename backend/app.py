@@ -146,8 +146,15 @@ def create_app():
         return "." in filename and filename.rsplit(".", 1)[1].lower() in app.config["ALLOWED_EXTENSIONS"]
 
     # --------------------------------------------------------------------------
-    # 0. Root Page
+    # 0. Root Page & Cache Control
     # --------------------------------------------------------------------------
+    @app.after_request
+    def add_no_cache_headers(response):
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
+
     @app.route("/", methods=["GET"])
     def index():
         index_file = os.path.join(frontend_dir, "index.html")
