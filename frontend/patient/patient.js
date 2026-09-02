@@ -136,6 +136,87 @@ function setupPatientDropZone() {
     };
 }
 
+function validateRetinaClientSide(imgElement) {
+    try {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        const w = 128, h = 128;
+        canvas.width = w;
+        canvas.height = h;
+        ctx.drawImage(imgElement, 0, 0, w, h);
+        const data = ctx.getImageData(0, 0, w, h).data;
+        let rSum = 0, gSum = 0, bSum = 0, count = 0;
+        let gValues = [];
+
+        for (let i = 0; i < data.length; i += 4) {
+            const r = data[i], g = data[i+1], b = data[i+2];
+            if ((r + g + b) / 3 > 20) {
+                rSum += r; gSum += g; bSum += b; count++;
+                gValues.push(g);
+            }
+        }
+
+        if (count < 200) {
+            return { valid: false, reason: "Image is too dark or empty." };
+        }
+
+        const rMean = rSum / count;
+        const gMean = gSum / count;
+        const bMean = bSum / count;
+
+        let gVar = 0;
+        for (let i = 0; i < gValues.length; i++) {
+            gVar += Math.pow(gValues[i] - gMean, 2);
+        }
+        const gStd = Math.sqrt(gVar / count);
+
+        // 4 corners calculation (Fundus camera always has black borders)
+        const c1 = (data[0] + data[1] + data[2]) / 3;
+        const c2Idx = (w - 1) * 4;
+        const c2 = (data[c2Idx] + data[c2Idx+1] + data[c2Idx+2]) / 3;
+        const c3Idx = (h - 1) * w * 4;
+        const c3 = (data[c3Idx] + data[c3Idx+1] + data[c3Idx+2]) / 3;
+        const c4Idx = ((h - 1) * w + (w - 1)) * 4;
+        const c4 = (data[c4Idx] + data[c4Idx+1] + data[c4Idx+2]) / 3;
+        const cornersAvg = (c1 + c2 + c3 + c4) / 4;
+
+        if (cornersAvg > 35.0) {
+            return { valid: false, reason: `Rectangular scene / screenshot without circular fundus aperture (Corner brightness: ${cornersAvg.toFixed(0)}).` };
+        }
+
+        if (bMean >= rMean * 0.85 && bMean > 30) {
+            return { valid: false, reason: `Unnatural blue spectrum (Blue: ${bMean.toFixed(0)}, Red: ${rMean.toFixed(0)}). Non-retinal photo detected.` };
+        }
+        if (rMean / Math.max(1, bMean) < 1.25 && bMean > 25) {
+            return { valid: false, reason: "Color profile does not match retinal fundus reflectance." };
+        }
+
+        // Local Green Channel Variation inside internal retinal parenchyma
+        let diffSum = 0, edgeCount = 0;
+        for (let y = 16; y < h - 16; y++) {
+            for (let x = 16; x < w - 16; x++) {
+                const idx = (y * w + x) * 4;
+                const r = data[idx], g = data[idx+1], b = data[idx+2];
+                if ((r + g + b) / 3 > 25) {
+                    const gRight = data[(y * w + (x + 1)) * 4 + 1];
+                    const gDown = data[((y + 1) * w + x) * 4 + 1];
+                    diffSum += Math.abs(g - gRight) + Math.abs(g - gDown);
+                    edgeCount += 2;
+                }
+            }
+        }
+
+        const localGreenVar = edgeCount > 0 ? (diffSum / edgeCount) : 0;
+        if (localGreenVar < 3.5 || gStd < 8.0) {
+            return { valid: false, reason: "Plain / uniform orange image without branching retinal blood vessels." };
+        }
+
+        return { valid: true };
+    } catch (e) {
+        return { valid: true };
+    }
+}
+
 function handlePatientFileSelect(file) {
     selectedPatientFile = file;
     const previewContainer = document.getElementById("patientPreviewContainer");
