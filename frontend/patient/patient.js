@@ -3,6 +3,61 @@
 let selectedPatientFile = null;
 let activeSessionId = null;
 
+function validateRetinaClientSide(imgElement) {
+    try {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        const w = 128, h = 128;
+        canvas.width = w;
+        canvas.height = h;
+        ctx.drawImage(imgElement, 0, 0, w, h);
+        const data = ctx.getImageData(0, 0, w, h).data;
+        let rSum = 0, gSum = 0, bSum = 0, count = 0;
+        let gValues = [];
+
+        for (let i = 0; i < data.length; i += 4) {
+            const r = data[i], g = data[i+1], b = data[i+2];
+            rSum += r; gSum += g; bSum += b; count++;
+            gValues.push(g);
+        }
+
+        const rMean = rSum / count;
+        const gMean = gSum / count;
+        const bMean = bSum / count;
+
+        let gVar = 0;
+        for (let i = 0; i < gValues.length; i++) {
+            gVar += Math.pow(gValues[i] - gMean, 2);
+        }
+        const gStd = Math.sqrt(gVar / count);
+
+        const c1 = (data[0] + data[1] + data[2]) / 3;
+        const c2Idx = (w - 1) * 4;
+        const c2 = (data[c2Idx] + data[c2Idx+1] + data[c2Idx+2]) / 3;
+        const c3Idx = (h - 1) * w * 4;
+        const c3 = (data[c3Idx] + data[c3Idx+1] + data[c3Idx+2]) / 3;
+        const c4Idx = ((h - 1) * w + (w - 1)) * 4;
+        const c4 = (data[c4Idx] + data[c4Idx+1] + data[c4Idx+2]) / 3;
+        const cornersAvg = (c1 + c2 + c3 + c4) / 4;
+
+        if (bMean >= rMean * 0.85 && bMean > 30) {
+            return { valid: false, reason: `Unnatural blue spectrum (Blue: ${bMean.toFixed(0)}, Red: ${rMean.toFixed(0)}). Non-retinal photo detected.` };
+        }
+        if (rMean / Math.max(1, bMean) < 1.25 && bMean > 25) {
+            return { valid: false, reason: "Color profile does not match retinal fundus reflectance." };
+        }
+        if (gStd < 10.0) {
+            return { valid: false, reason: "Plain / uniform orange image without retinal blood vessel structure." };
+        }
+        if (cornersAvg > 45.0 && gStd < 22.0) {
+            return { valid: false, reason: "Standard rectangular everyday scene without circular fundus aperture." };
+        }
+        return { valid: true };
+    } catch (e) {
+        return { valid: true };
+    }
+}
+
 function initPatientPortal() {
     updatePatientProfileUI();
     setupPatientDropZone();
@@ -91,6 +146,13 @@ function handlePatientFileSelect(file) {
         imgPreview.src = URL.createObjectURL(file);
         if (namePreview) namePreview.innerText = `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
         previewContainer.classList.remove("hidden");
+        imgPreview.onload = () => {
+            const check = validateRetinaClientSide(imgPreview);
+            if (!check.valid) {
+                showToast("⚠️ Non-Retinal Image: " + check.reason, "error");
+                alert("🚫 Scan Rejected (Non-Retinal Image Detected)\n\n" + check.reason + "\n\nAction Required: Please recapture and upload an authentic eye fundus photograph.");
+            }
+        };
     }
 }
 
@@ -99,6 +161,16 @@ async function handlePatientScreeningSubmit(e) {
     if (!selectedPatientFile) {
         showToast("Please select a retinal fundus image.", "warning");
         return;
+    }
+
+    const imgPreview = document.getElementById("patientImgPreview");
+    if (imgPreview && imgPreview.complete && imgPreview.naturalWidth > 0) {
+        const check = validateRetinaClientSide(imgPreview);
+        if (!check.valid) {
+            showToast("🚫 Rejected: " + check.reason, "error");
+            alert("🚫 Scan Rejected (Non-Retinal Image Detected)\n\n" + check.reason + "\n\nAction Required: Please recapture and upload an authentic eye fundus photograph.");
+            return;
+        }
     }
 
     const submitBtn = document.getElementById("btnPatientScreenSubmit");

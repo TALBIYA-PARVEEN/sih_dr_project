@@ -68,10 +68,27 @@ function navigateTo(pageId, pushState = true) {
     if (pageId === "doctor") loadDoctorQueue();
     if (pageId === "admin") loadAdminDashboard();
     if (pageId === "login") setTimeout(initOfficialGoogleSignIn, 150);
-    if (pageId === "patient" && currentUser) {
-        updatePatientProfileUI();
-        loadPatientHistory();
-        loadPatientChat();
+    if (pageId === "patient") {
+        const resCont = document.getElementById("patientResultContainer");
+        const initPlace = document.getElementById("screeningInitialState");
+        const rejCard = document.getElementById("rejectionCard");
+        const loadState = document.getElementById("patientLoadingState");
+        const prevCont = document.getElementById("previewContainer");
+        const fileInput = document.getElementById("fileInput");
+        
+        if (resCont) resCont.classList.add("hidden");
+        if (rejCard) rejCard.classList.add("hidden");
+        if (loadState) loadState.classList.add("hidden");
+        if (initPlace) initPlace.classList.remove("hidden");
+        if (prevCont) prevCont.classList.add("hidden");
+        if (fileInput) fileInput.value = "";
+        selectedFile = null;
+
+        if (currentUser) {
+            updatePatientProfileUI();
+            loadPatientHistory();
+            loadPatientChat();
+        }
     }
     window.scrollTo({ top: 0, behavior: "smooth" });
 }
@@ -976,7 +993,18 @@ function handleFileSelect(file) {
         preview.onload = () => {
             const check = validateRetinaClientSide(preview);
             if (!check.valid) {
-                showToast("⚠️ Warning: " + check.reason + " (Please upload an authentic eye fundus scan).", "warning");
+                const rejectionCard = document.getElementById("rejectionCard");
+                if (rejectionCard) {
+                    rejectionCard.classList.remove("hidden");
+                    rejectionCard.scrollIntoView({ behavior: "smooth", block: "center" });
+                }
+                const initPlaceholder = document.getElementById("screeningInitialState");
+                if (initPlaceholder) initPlaceholder.classList.add("hidden");
+                document.getElementById("patientResultContainer").classList.add("hidden");
+                const reason = "Non-retinal image detected: " + check.reason;
+                document.getElementById("rejectionReasonText").innerHTML = `<b>Diagnostic Assessment:</b> ${reason} <br><span class="text-amber-800 font-semibold mt-1 inline-block">Please recapture and upload an authentic retinal fundus photograph.</span>`;
+                showToast("⚠️ Non-Retinal Image: " + check.reason, "error");
+                alert("🚫 Scan Rejected (Non-Retinal Image Detected)\n\n" + reason + "\n\nAction Required: Please recapture and upload an authentic eye fundus photograph.");
             }
         };
     };
@@ -992,10 +1020,12 @@ function handleDoctorFileSelect(file) {
         const preview = document.getElementById("docImgPreview");
         if (preview) {
             preview.src = e.target.result;
+            document.getElementById("docPreviewContainer").classList.remove("hidden");
             preview.onload = () => {
                 const check = validateRetinaClientSide(preview);
                 if (!check.valid) {
-                    showToast("⚠️ Warning: " + check.reason + " (Please upload an authentic eye fundus scan).", "warning");
+                    showToast("Quality Assessment Warning: " + check.reason, "warning");
+                    alert("🚫 Non-Retinal Image Detected\n\n" + check.reason + "\n\nPlease upload an authentic clinical fundus scan.");
                 }
             };
         }
