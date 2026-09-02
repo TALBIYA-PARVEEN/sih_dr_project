@@ -8,7 +8,8 @@ const API_BASE = (window.location.hostname === "localhost" || window.location.ho
 // Reactive State
 let currentUser = JSON.parse(localStorage.getItem("netra_user") || "null");
 let authToken = localStorage.getItem("netra_token") || null;
-let activeSessionId = localStorage.getItem("netra_active_session_id") || null;
+let activeSessionId = null;
+localStorage.removeItem("netra_active_session_id");
 let navigationHistory = ["home"];
 let selectedFile = null;
 let doctorQueue = [];
@@ -816,6 +817,16 @@ function switchPatientTab(tab) {
     } else {
         tabScreening.className = "px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-sm transition";
         contentScreening.classList.remove("hidden");
+        if (!activeSessionId) {
+            const resCont = document.getElementById("patientResultContainer");
+            const initPlace = document.getElementById("screeningInitialState");
+            const rejCard = document.getElementById("rejectionCard");
+            const loadState = document.getElementById("patientLoadingState");
+            if (resCont) resCont.classList.add("hidden");
+            if (rejCard) rejCard.classList.add("hidden");
+            if (loadState) loadState.classList.add("hidden");
+            if (initPlace) initPlace.classList.remove("hidden");
+        }
     }
 }
 
