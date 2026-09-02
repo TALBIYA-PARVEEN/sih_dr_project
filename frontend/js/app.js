@@ -1578,6 +1578,45 @@ async function handleDoctorReviewSubmit(e) {
 // -----------------------------------------------------------------------------
 // 7C. Verified Ophthalmologists Directory & 2nd Opinion Workflow
 // -----------------------------------------------------------------------------
+let allDoctorsDirectoryData = [];
+let activeDoctorFilter = "all";
+
+function setDoctorFilter(filterType) {
+    activeDoctorFilter = filterType;
+    const btnAll = document.getElementById("btnFilterDocAll");
+    const btnTop = document.getElementById("btnFilterDocTop");
+    const btnFast = document.getElementById("btnFilterDocFast");
+
+    if (btnAll) btnAll.className = filterType === "all" ? "px-3 py-1.5 rounded-lg bg-slate-800 text-white font-bold transition" : "px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition";
+    if (btnTop) btnTop.className = filterType === "top" ? "px-3 py-1.5 rounded-lg bg-amber-500 text-white font-bold transition" : "px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition";
+    if (btnFast) btnFast.className = filterType === "fast" ? "px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-bold transition" : "px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition";
+
+    filterDoctorsList();
+}
+
+function filterDoctorsList() {
+    const searchInput = document.getElementById("inputSearchDoctors");
+    const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
+
+    let list = [...allDoctorsDirectoryData];
+
+    if (query) {
+        list = list.filter(d => 
+            (d.full_name && d.full_name.toLowerCase().includes(query)) ||
+            (d.specialization && d.specialization.toLowerCase().includes(query)) ||
+            (d.hospital_name && d.hospital_name.toLowerCase().includes(query))
+        );
+    }
+
+    if (activeDoctorFilter === "top") {
+        list = list.filter(d => (d.rating || 0) >= 4.8);
+    } else if (activeDoctorFilter === "fast") {
+        list = list.filter(d => (d.active_queue_count || 0) <= 2);
+    }
+
+    renderDoctorsCards(list);
+}
+
 async function loadDoctorsDirectory() {
     const grid = document.getElementById("patientDoctorsDirectoryGrid");
     if (!grid) return;
@@ -1586,85 +1625,147 @@ async function loadDoctorsDirectory() {
         const patientId = currentUser ? currentUser.id : "";
         const res = await fetch(`${API_BASE}/doctors/directory?patient_id=${patientId}`);
         const data = await res.json();
-        const doctors = data.doctors || [];
-
-        grid.innerHTML = "";
-        if (doctors.length === 0) {
-            grid.innerHTML = `<div class="col-span-full text-center py-12 text-slate-400 text-xs">No verified ophthalmologists currently registered in directory.</div>`;
-            return;
-        }
-
-        doctors.forEach(doc => {
-            const isAssigned = doc.is_currently_assigned;
-            if (isAssigned) {
-                const activeName = document.getElementById("activeAssignedDocName");
-                const activeMeta = document.getElementById("activeAssignedDocMeta");
-                if (activeName) activeName.innerText = doc.full_name;
-                if (activeMeta) activeMeta.innerText = `${doc.specialization} • ${doc.hospital_name}`;
-            }
-
-            const starsCount = Math.min(5, Math.max(1, Math.round(doc.rating || 5)));
-            const starsHtml = "★".repeat(starsCount) + "☆".repeat(5 - starsCount);
-
-            const card = document.createElement("div");
-            card.className = `p-5 rounded-3xl border ${isAssigned ? 'bg-indigo-50/50 border-indigo-300 shadow-md ring-2 ring-indigo-500/20' : 'bg-white border-slate-200 shadow-xs hover:shadow-md'} flex flex-col justify-between space-y-4 transition`;
-            
-            card.innerHTML = `
-                <div class="space-y-3">
-                    <div class="flex items-start justify-between">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-12 h-12 rounded-2xl ${isAssigned ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-indigo-700'} flex items-center justify-center font-bold text-lg shadow-xs">
-                                <i class="fa-solid fa-user-doctor"></i>
-                            </div>
-                            <div>
-                                <h4 class="font-bold text-slate-800 text-sm flex items-center">
-                                    ${doc.full_name}
-                                    <i class="fa-solid fa-circle-check text-emerald-500 text-xs ml-1.5" title="MCI Verified Ophthalmologist"></i>
-                                </h4>
-                                <span class="text-[11px] font-semibold text-indigo-600 block">${doc.specialization}</span>
-                                <span class="text-[10px] text-slate-400 block">${doc.hospital_name}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="flex items-center justify-between text-xs pt-2 border-t border-slate-100">
-                        <div class="flex items-center space-x-1 text-amber-500 font-bold">
-                            <span>${doc.rating}</span>
-                            <span class="text-amber-400 text-xs tracking-tighter">${starsHtml}</span>
-                            <span class="text-slate-400 text-[10px]">(${doc.review_count} reviews)</span>
-                        </div>
-                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${doc.active_queue_count <= 2 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">
-                            ${doc.active_queue_count} in queue
-                        </span>
-                    </div>
-
-                    ${doc.recent_reviews && doc.recent_reviews.length > 0 ? `
-                        <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-[11px] text-slate-600 italic">
-                            "${doc.recent_reviews[0].comment.substring(0, 75)}..."
-                            <span class="block not-italic font-bold text-[10px] text-slate-400 mt-1">— ${doc.recent_reviews[0].patient_name}</span>
-                        </div>
-                    ` : ''}
-                </div>
-
-                <div class="pt-2 border-t border-slate-100">
-                    ${isAssigned ? `
-                        <button disabled class="w-full py-2.5 bg-emerald-50 border border-emerald-300 text-emerald-700 font-bold rounded-xl text-xs flex items-center justify-center space-x-1">
-                            <i class="fa-solid fa-check"></i>
-                            <span>Currently Active Assigned Doctor</span>
-                        </button>
-                    ` : `
-                        <button onclick="requestSecondOpinion('${doc.id}', '${doc.full_name}')" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs shadow-xs transition flex items-center justify-center space-x-1.5">
-                            <i class="fa-solid fa-user-plus"></i>
-                            <span>Request 2nd Opinion / Switch Care</span>
-                        </button>
-                    `}
-                </div>
-            `;
-            grid.appendChild(card);
-        });
+        allDoctorsDirectoryData = data.doctors || [];
+        filterDoctorsList();
     } catch (e) {
         console.error("loadDoctorsDirectory error:", e);
     }
+}
+
+function renderDoctorsCards(doctors) {
+    const grid = document.getElementById("patientDoctorsDirectoryGrid");
+    if (!grid) return;
+    grid.innerHTML = "";
+
+    if (doctors.length === 0) {
+        grid.innerHTML = `<div class="col-span-full text-center py-12 text-slate-400 text-xs">No matching ophthalmologists found in directory.</div>`;
+        return;
+    }
+
+    doctors.forEach(doc => {
+        const isAssigned = doc.is_currently_assigned;
+        if (isAssigned) {
+            const activeName = document.getElementById("activeAssignedDocName");
+            const activeMeta = document.getElementById("activeAssignedDocMeta");
+            if (activeName) activeName.innerText = doc.full_name;
+            if (activeMeta) activeMeta.innerText = `${doc.specialization} • ${doc.hospital_name}`;
+        }
+
+        const starsCount = Math.min(5, Math.max(1, Math.round(doc.rating || 5)));
+        const starsHtml = "★".repeat(starsCount) + "☆".repeat(5 - starsCount);
+
+        const card = document.createElement("div");
+        card.className = `p-5 rounded-3xl border ${isAssigned ? 'bg-indigo-50/40 border-indigo-400 shadow-lg ring-2 ring-indigo-500/20' : 'bg-white border-slate-200 shadow-sm hover:shadow-md'} flex flex-col justify-between space-y-4 transition`;
+        
+        // Amazon/Flipkart style review cards
+        const reviews = doc.reviews || [];
+        const reviewsHtml = reviews.slice(0, 2).map(r => `
+            <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100 text-xs space-y-1">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-1.5 text-amber-500 font-bold text-[11px]">
+                        <span>${"★".repeat(r.rating || 5)}</span>
+                        <span class="text-slate-800 font-semibold ml-1">${r.patient_name}</span>
+                    </div>
+                    <span class="text-[9px] text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded font-semibold">✓ Verified Patient</span>
+                </div>
+                <p class="text-slate-600 text-[11px] leading-relaxed italic">"${r.comment}"</p>
+            </div>
+        `).join("");
+
+        card.innerHTML = `
+            <div class="space-y-4">
+                <!-- Header -->
+                <div class="flex items-start justify-between gap-3">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-14 h-14 rounded-2xl ${isAssigned ? 'bg-indigo-600 text-white' : 'bg-gradient-to-br from-indigo-500 to-indigo-700 text-white'} flex items-center justify-center font-bold text-xl shadow-sm flex-shrink-0">
+                            <i class="fa-solid fa-user-doctor"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center space-x-1.5">
+                                <h4 class="font-bold text-slate-800 text-base">${doc.full_name}</h4>
+                                <i class="fa-solid fa-circle-check text-emerald-500 text-xs" title="MCI Verified Doctor"></i>
+                            </div>
+                            <span class="text-xs font-semibold text-indigo-600 block">${doc.specialization}</span>
+                            <span class="text-[11px] text-slate-500 block">${doc.hospital_name}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Amazon / Flipkart Star Rating Summary -->
+                <div class="bg-amber-50/60 p-3 rounded-2xl border border-amber-200/80 space-y-1.5">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-lg font-black text-slate-800">${doc.rating}</span>
+                            <div class="text-amber-400 text-sm tracking-tight">${starsHtml}</div>
+                            <span class="text-xs text-indigo-700 font-bold hover:underline cursor-pointer">(${doc.review_count} ratings)</span>
+                        </div>
+                        <span class="text-[10px] font-bold px-2.5 py-0.5 rounded-full ${doc.active_queue_count <= 2 ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">
+                            ${doc.active_queue_count} pending
+                        </span>
+                    </div>
+
+                    <!-- 5-Star Breakdown Progress Bar -->
+                    <div class="space-y-1 pt-1 text-[10px] text-slate-600">
+                        <div class="flex items-center space-x-2">
+                            <span class="w-8 font-semibold">5 Star</span>
+                            <div class="flex-1 bg-amber-200/50 h-2 rounded-full overflow-hidden">
+                                <div class="bg-amber-400 h-full rounded-full" style="width: 85%;"></div>
+                            </div>
+                            <span class="w-6 text-right font-bold text-slate-500">85%</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="w-8 font-semibold">4 Star</span>
+                            <div class="flex-1 bg-amber-200/50 h-2 rounded-full overflow-hidden">
+                                <div class="bg-amber-400 h-full rounded-full" style="width: 12%;"></div>
+                            </div>
+                            <span class="w-6 text-right font-bold text-slate-500">12%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Verified Customer Reviews -->
+                <div class="space-y-2">
+                    <div class="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center justify-between">
+                        <span>Patient Reviews & Comments</span>
+                        <span class="text-indigo-600 text-[10px] lowercase font-semibold">Top verified feedback</span>
+                    </div>
+                    ${reviewsHtml || '<div class="text-xs text-slate-400 italic">No written reviews yet. Be the first to review!</div>'}
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="pt-3 border-t border-slate-100 space-y-2">
+                ${isAssigned ? `
+                    <button disabled class="w-full py-2.5 bg-emerald-600 text-white font-bold rounded-xl text-xs flex items-center justify-center space-x-1.5 shadow-sm">
+                        <i class="fa-solid fa-circle-check"></i>
+                        <span>Your Selected Consulting Doctor</span>
+                    </button>
+                ` : `
+                    <button onclick="requestSecondOpinion('${doc.id}', '${doc.full_name}')" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs shadow-md transition flex items-center justify-center space-x-1.5">
+                        <i class="fa-solid fa-user-check"></i>
+                        <span>Select as My Consulting Doctor</span>
+                    </button>
+                `}
+                <button onclick="openDoctorChatDirectly('${doc.id}', '${doc.full_name}')" class="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition flex items-center justify-center space-x-1.5 border border-slate-200">
+                    <i class="fa-solid fa-comment-dots text-indigo-600"></i>
+                    <span>Direct Tele-Consultation Message</span>
+                </button>
+            </div>
+        `;
+        grid.appendChild(card);
+    });
+}
+
+function openDoctorChatDirectly(doctorId, doctorName) {
+    if (!currentUser) {
+        showToast("Please log in to message this specialist.", "warning");
+        return;
+    }
+    currentUser.assigned_doctor_id = doctorId;
+    currentUser.assigned_doctor_name = doctorName;
+    localStorage.setItem("netra_user", JSON.stringify(currentUser));
+    switchPatientTab("chat");
+    showToast(`Connected to ${doctorName} in Messages!`, "success");
 }
 
 async function requestSecondOpinion(doctorId, doctorName) {
@@ -1907,10 +2008,26 @@ async function handleDoctorScreeningSubmit(e) {
     }
 }
 
+let doctorQueueScope = "all";
+
+function setDoctorQueueScope(scope) {
+    doctorQueueScope = scope;
+    const btnAll = document.getElementById("btnQueueScopeAll");
+    const btnMy = document.getElementById("btnQueueScopeMy");
+    if (scope === "all") {
+        if (btnAll) btnAll.className = "flex-1 py-1.5 rounded-lg bg-emerald-600 text-white font-bold transition shadow-xs";
+        if (btnMy) btnMy.className = "flex-1 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition";
+    } else {
+        if (btnMy) btnMy.className = "flex-1 py-1.5 rounded-lg bg-emerald-600 text-white font-bold transition shadow-xs";
+        if (btnAll) btnAll.className = "flex-1 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition";
+    }
+    loadDoctorQueue();
+}
+
 async function loadDoctorQueue() {
     const docId = currentUser && currentUser.role === "doctor" ? currentUser.id : "all";
     try {
-        const res = await fetch(`${API_BASE}/doctor/queue/${docId}`);
+        const res = await fetch(`${API_BASE}/doctor/queue/${docId}?scope=${doctorQueueScope}`);
         const data = await res.json();
         doctorQueue = data.screenings || [];
         document.getElementById("doctorQueueCount").innerText = doctorQueue.length;
@@ -1919,7 +2036,7 @@ async function loadDoctorQueue() {
         list.innerHTML = "";
 
         if (doctorQueue.length === 0) {
-            list.innerHTML = `<div class="text-xs text-slate-400 text-center py-6">All assigned patient scans have been clinically validated! No pending scans in queue.</div>`;
+            list.innerHTML = `<div class="text-xs text-slate-400 text-center py-6">No pending patient scans found in queue.</div>`;
             document.getElementById("doctorStationEmpty").classList.remove("hidden");
             document.getElementById("doctorStationContent").classList.add("hidden");
             currentDoctorSession = null;
