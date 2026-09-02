@@ -398,10 +398,6 @@ async function handleRegister(e) {
 
         if (data.status === "success") {
             tempRegisterEmail = payload.email;
-            currentUser = data.user;
-            authToken = data.token;
-            localStorage.setItem("netra_user", JSON.stringify(currentUser));
-            localStorage.setItem("netra_token", authToken);
 
             // Open OTP modal only on SUCCESS
             const modal = document.getElementById("modalOtp");

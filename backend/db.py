@@ -57,6 +57,7 @@ class MongoManager:
         self.reports = self.db["reports"]
         self.messages = self.db["messages"]
         self.doctor_reviews = self.db["doctor_reviews"]
+        self.temp_registrations = self.db["temp_registrations"]
 
         try:
             self.users.create_index("username", unique=True)

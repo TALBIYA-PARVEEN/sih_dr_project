@@ -212,7 +212,7 @@ def create_app():
                     "error": "Clinical Registration Restricted: Only licensed Ophthalmologists and Vitreo-Retina Specialists are authorized to register as doctors on NetraAI. Other specialties (e.g. Cardiology, Dermatology) are not permitted."
                 }), 422
 
-        # Strict duplicate check: If email already exists, do not allow re-registration
+        # Strict duplicate check: If email already exists in users, do not allow re-registration
         existing_email_user = mongo.users.find_one({"email": email})
         if existing_email_user:
             return jsonify({
@@ -230,34 +230,33 @@ def create_app():
         otp_code = AuthService.generate_otp()
         password_hash = generate_password_hash(password)
 
-        user_doc = UserModel.create(
-            username=username,
-            email=email,
-            password_hash=password_hash,
-            full_name=full_name,
-            role=role,
-            is_email_verified=False,
-            otp_code=otp_code
-        )
-        # Store pending profile data inside user_doc, DO NOT insert into mongo.patients or mongo.doctors until OTP verification
-        user_doc["temp_profile"] = {
-            "age": age,
-            "gender": gender,
-            "phone": phone,
-            "diabetes_type": diabetes_type,
-            "diabetes_duration_years": diabetes_duration,
-            "specialization": specialization or "Senior Vitreo-Retina Specialist",
-            "license_number": license_number or f"MCI-{uuid.uuid4().hex[:6].upper()}",
-            "hospital_name": hospital_name or "District Eye Hospital"
+        temp_doc = {
+            "id": str(uuid.uuid4()),
+            "username": username,
+            "email": email,
+            "password_hash": password_hash,
+            "full_name": full_name,
+            "role": role,
+            "temp_profile": {
+                "age": age,
+                "gender": gender,
+                "phone": phone,
+                "diabetes_type": diabetes_type,
+                "diabetes_duration_years": diabetes_duration,
+                "specialization": specialization or "Senior Vitreo-Retina Specialist",
+                "license_number": license_number or f"MCI-{uuid.uuid4().hex[:6].upper()}",
+                "hospital_name": hospital_name or "District Eye Hospital"
+            },
+            "otp_code": otp_code,
+            "otp_expiry": (datetime.utcnow() + timedelta(minutes=15)).isoformat(),
+            "created_at": datetime.utcnow().isoformat()
         }
-        user_doc["otp_expiry"] = (datetime.utcnow() + timedelta(minutes=15)).isoformat()
-        mongo.users.insert_one(user_doc)
+        # Store in temp_registrations ONLY - DO NOT touch mongo.users until OTP is verified
+        if hasattr(mongo, "temp_registrations"):
+            mongo.temp_registrations.update_one({"email": email}, {"$set": temp_doc}, upsert=True)
 
         email_sent = AuthService.send_otp_email(email, otp_code, purpose="Registration Verification")
 
-        user_obj = type("UserObj", (), user_doc)()
-        token = AuthService.generate_jwt(user_obj)
-        
         reg_message = f"Verification code sent to {email}."
         if role == "doctor":
             reg_message += " Note: Your doctor account will require Master Admin approval after email verification."
@@ -265,8 +264,14 @@ def create_app():
         return jsonify({
             "status": "success",
             "message": reg_message,
-            "token": token,
-            "user": serialize_doc(user_doc),
+            "email": email,
+            "user": {
+                "username": username,
+                "email": email,
+                "full_name": full_name,
+                "role": role,
+                "is_email_verified": False
+            },
             "otp_sent": email_sent
         }), 201
 
@@ -312,8 +317,28 @@ def create_app():
     def send_otp():
         data = request.get_json() or {}
         email = data.get("email", "").strip().lower()
-        user = mongo.users.find_one({"email": email})
+        if not email:
+            return jsonify({"error": "Email is required."}), 400
 
+        # Check pending registration first
+        temp_reg = mongo.temp_registrations.find_one({"email": email}) if hasattr(mongo, "temp_registrations") else None
+        if temp_reg:
+            otp_code = AuthService.generate_otp()
+            mongo.temp_registrations.update_one(
+                {"email": email},
+                {"$set": {
+                    "otp_code": otp_code,
+                    "otp_expiry": (datetime.utcnow() + timedelta(minutes=15)).isoformat()
+                }}
+            )
+            email_sent = AuthService.send_otp_email(email, otp_code, purpose="Registration Verification")
+            return jsonify({
+                "status": "success",
+                "message": f"Verification code sent to {email}. Please check your inbox / spam folder.",
+                "otp_sent": email_sent
+            })
+
+        user = mongo.users.find_one({"email": email})
         if not user:
             return jsonify({"error": "No account found with this email address."}), 404
 
@@ -338,9 +363,136 @@ def create_app():
         email = data.get("email", "").strip().lower()
         otp = str(data.get("otp", "")).strip()
 
+        # 1. Check if this is a pending registration in temp_registrations
+        temp_reg = mongo.temp_registrations.find_one({"email": email}) if hasattr(mongo, "temp_registrations") else None
+        if temp_reg:
+            stored_otp = str(temp_reg.get("otp_code", "")).strip()
+            if not stored_otp or stored_otp != otp:
+                return jsonify({"error": "Invalid verification code. Please enter the 6-digit code sent to your email."}), 400
+
+            expiry_str = temp_reg.get("otp_expiry")
+            if expiry_str:
+                try:
+                    expiry_dt = datetime.fromisoformat(expiry_str)
+                    if datetime.utcnow() > expiry_dt:
+                        return jsonify({"error": "Verification code has expired. Please click 'Resend Code' to get a new code."}), 400
+                except Exception:
+                    pass
+
+            role = temp_reg.get("role", "patient")
+            temp = temp_reg.get("temp_profile") or {}
+            user_status = "active" if role == "patient" else "pending_approval"
+
+            # Check if user already exists (safeguard)
+            existing_user = mongo.users.find_one({"$or": [{"email": email}, {"username": temp_reg["username"]}]})
+            if existing_user:
+                user_doc = existing_user
+                mongo.users.update_one(
+                    {"_id": existing_user["_id"]},
+                    {"$set": {
+                        "is_email_verified": True,
+                        "status": user_status,
+                        "full_name": temp_reg["full_name"],
+                        "password_hash": temp_reg["password_hash"],
+                        "role": role
+                    }}
+                )
+            else:
+                user_doc = UserModel.create(
+                    username=temp_reg["username"],
+                    email=temp_reg["email"],
+                    password_hash=temp_reg["password_hash"],
+                    full_name=temp_reg["full_name"],
+                    role=role,
+                    is_email_verified=True,
+                    otp_code=None
+                )
+                user_doc["status"] = user_status
+                mongo.users.insert_one(user_doc)
+
+            # Insert into demographic collection ONLY after OTP is confirmed
+            if role == "patient":
+                existing_pat = mongo.patients.find_one({"user_id": user_doc["id"]})
+                if not existing_pat:
+                    balanced_doc = assign_least_loaded_doctor()
+                    assigned_doc_id = balanced_doc["doctor_id"]
+                    patient_doc = PatientModel.create(
+                        user_id=user_doc["id"],
+                        full_name=user_doc.get("full_name", "Patient"),
+                        age=temp.get("age", 50),
+                        gender=temp.get("gender", "Female"),
+                        phone=temp.get("phone", ""),
+                        diabetes_type=temp.get("diabetes_type", "Type 2"),
+                        diabetes_duration_years=temp.get("diabetes_duration_years", 5),
+                        assigned_doctor_id=assigned_doc_id
+                    )
+                    mongo.patients.insert_one(patient_doc)
+                    mongo.users.update_one(
+                        {"id": user_doc["id"]},
+                        {"$set": {
+                            "patient_id": patient_doc["id"],
+                            "assigned_doctor_id": assigned_doc_id,
+                            "age": temp.get("age", 50),
+                            "gender": temp.get("gender", "Female"),
+                            "phone": temp.get("phone", ""),
+                            "diabetes_type": temp.get("diabetes_type", "Type 2"),
+                            "diabetes_duration_years": temp.get("diabetes_duration_years", 5)
+                        }}
+                    )
+
+            elif role == "doctor":
+                existing_doc = mongo.doctors.find_one({"user_id": user_doc["id"]})
+                if not existing_doc:
+                    doctor_doc = DoctorModel.create(
+                        user_id=user_doc["id"],
+                        full_name=user_doc.get("full_name", "Doctor"),
+                        specialization=temp.get("specialization") or "Senior Vitreo-Retina Specialist",
+                        license_number=temp.get("license_number") or f"MCI-{uuid.uuid4().hex[:6].upper()}",
+                        hospital_name=temp.get("hospital_name") or "District Eye Hospital",
+                        email=email,
+                        phone=temp.get("phone", "")
+                    )
+                    mongo.doctors.insert_one(doctor_doc)
+                    mongo.users.update_one(
+                        {"id": user_doc["id"]},
+                        {"$set": {
+                            "doctor_id": doctor_doc["id"],
+                            "specialization": doctor_doc["specialization"],
+                            "license_number": doctor_doc["license_number"],
+                            "hospital_name": doctor_doc["hospital_name"],
+                            "phone": doctor_doc["phone"],
+                            "approval_status": "pending_approval"
+                        }}
+                    )
+
+            # Purge from temp_registrations
+            mongo.temp_registrations.delete_one({"email": email})
+
+            updated_user = mongo.users.find_one({"id": user_doc["id"]})
+            if updated_user.get("role") == "patient":
+                p_doc = mongo.patients.find_one({"user_id": updated_user["id"]})
+                if p_doc:
+                    for k in ["age", "gender", "phone", "diabetes_type", "diabetes_duration_years", "assigned_doctor_id"]:
+                        updated_user[k] = p_doc.get(k)
+            elif updated_user.get("role") == "doctor":
+                d_doc = mongo.doctors.find_one({"user_id": updated_user["id"]})
+                if d_doc:
+                    for k in ["specialization", "license_number", "hospital_name", "phone", "approval_status"]:
+                        updated_user[k] = d_doc.get(k)
+
+            user_obj = type("UserObj", (), updated_user)()
+            token = AuthService.generate_jwt(user_obj)
+            return jsonify({
+                "status": "success",
+                "message": "Email verified and registration completed successfully.",
+                "token": token,
+                "user": serialize_doc(updated_user)
+            })
+
+        # 2. Existing user OTP verification (Password reset / Re-verification)
         user = mongo.users.find_one({"email": email})
         if not user:
-            return jsonify({"error": "User not found with this email address."}), 404
+            return jsonify({"error": "No account found with this email address."}), 404
 
         stored_otp = str(user.get("otp_code", "")).strip()
         if not stored_otp or stored_otp != otp:
@@ -355,92 +507,21 @@ def create_app():
             except Exception:
                 pass
 
-        temp = user.get("temp_profile") or {}
-        role = user.get("role", "patient")
-
-        # 1. Activate User Email Verification
-        user_status = "active" if role == "patient" else "pending_approval"
         mongo.users.update_one(
             {"email": email},
             {"$set": {
                 "is_email_verified": True,
-                "status": user_status,
                 "otp_code": None,
                 "otp_expiry": None
             }}
         )
 
-        # 2. Insert into demographic collection ONLY after OTP is confirmed
-        if role == "patient":
-            existing_pat = mongo.patients.find_one({"user_id": user["id"]})
-            if not existing_pat:
-                balanced_doc = assign_least_loaded_doctor()
-                assigned_doc_id = balanced_doc["doctor_id"]
-                patient_doc = PatientModel.create(
-                    user_id=user["id"],
-                    full_name=user.get("full_name", "Patient"),
-                    age=temp.get("age", 50),
-                    gender=temp.get("gender", "Female"),
-                    phone=temp.get("phone", ""),
-                    diabetes_type=temp.get("diabetes_type", "Type 2"),
-                    diabetes_duration_years=temp.get("diabetes_duration_years", 5),
-                    assigned_doctor_id=assigned_doc_id
-                )
-                mongo.patients.insert_one(patient_doc)
-                mongo.users.update_one(
-                    {"email": email},
-                    {"$set": {
-                        "patient_id": patient_doc["id"],
-                        "assigned_doctor_id": assigned_doc_id,
-                        "age": temp.get("age", 50),
-                        "gender": temp.get("gender", "Female"),
-                        "phone": temp.get("phone", ""),
-                        "diabetes_type": temp.get("diabetes_type", "Type 2"),
-                        "diabetes_duration_years": temp.get("diabetes_duration_years", 5)
-                    }}
-                )
-
-        elif role == "doctor":
-            existing_doc = mongo.doctors.find_one({"user_id": user["id"]})
-            if not existing_doc:
-                doctor_doc = DoctorModel.create(
-                    user_id=user["id"],
-                    full_name=user.get("full_name", "Doctor"),
-                    specialization=temp.get("specialization") or "Senior Vitreo-Retina Specialist",
-                    license_number=temp.get("license_number") or f"MCI-{uuid.uuid4().hex[:6].upper()}",
-                    hospital_name=temp.get("hospital_name") or "District Eye Hospital",
-                    email=email,
-                    phone=temp.get("phone", "")
-                )
-                mongo.doctors.insert_one(doctor_doc)
-                mongo.users.update_one(
-                    {"email": email},
-                    {"$set": {
-                        "doctor_id": doctor_doc["id"],
-                        "specialization": doctor_doc["specialization"],
-                        "license_number": doctor_doc["license_number"],
-                        "hospital_name": doctor_doc["hospital_name"],
-                        "approval_status": "pending_approval"
-                    }}
-                )
-
         updated_user = mongo.users.find_one({"email": email})
-        if updated_user.get("role") == "patient":
-            p_doc = mongo.patients.find_one({"user_id": updated_user["id"]})
-            if p_doc:
-                for k in ["age", "gender", "phone", "diabetes_type", "diabetes_duration_years", "assigned_doctor_id"]:
-                    updated_user[k] = p_doc.get(k)
-        elif updated_user.get("role") == "doctor":
-            d_doc = mongo.doctors.find_one({"user_id": updated_user["id"]})
-            if d_doc:
-                for k in ["specialization", "license_number", "hospital_name", "phone", "approval_status"]:
-                    updated_user[k] = d_doc.get(k)
-
         user_obj = type("UserObj", (), updated_user)()
         token = AuthService.generate_jwt(user_obj)
         return jsonify({
             "status": "success",
-            "message": "Email verified successfully.",
+            "message": "Verification code confirmed successfully.",
             "token": token,
             "user": serialize_doc(updated_user)
         })
