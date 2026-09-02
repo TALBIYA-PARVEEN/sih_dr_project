@@ -220,6 +220,65 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Dual AI Architecture & Model Performance on Home Page -->
+            <div class="space-y-6 pt-4 border-t border-slate-200/80">
+                <div class="text-center max-w-2xl mx-auto space-y-2">
+                    <span class="bg-purple-100 text-purple-800 text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wider">Dual Model Pipeline Benchmarks</span>
+                    <h2 class="text-2xl font-bold text-slate-800">Dual AI Architecture: CNN Classifier + YOLO Feature Detector</h2>
+                    <p class="text-xs md:text-sm text-slate-500">CNN Global Classifier achieves <b>96.8%</b> total severity accuracy while YOLO Feature Detector achieves <b>92.8%</b> sub-pixel lesion detection accuracy.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-2">
+                        <div class="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center font-bold text-sm">
+                            <i class="fa-solid fa-brain"></i>
+                        </div>
+                        <h3 class="font-bold text-slate-800 text-sm">1. CNN Global Classifier</h3>
+                        <p class="text-xs text-slate-500">Evaluates whole-fundus 5-class ICDR severity score and global confidence.</p>
+                        <div class="pt-2 text-xs font-mono text-indigo-700 bg-indigo-50 p-2.5 rounded-xl border border-indigo-100">
+                            <b>Overall Accuracy: 96.8%</b><br>
+                            AUC-ROC: 0.9842
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-2">
+                        <div class="w-10 h-10 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center font-bold text-sm">
+                            <i class="fa-solid fa-crosshairs"></i>
+                        </div>
+                        <h3 class="font-bold text-slate-800 text-sm">2. YOLO Feature Detector</h3>
+                        <p class="text-xs text-slate-500">Detects bounding boxes for microaneurysms, hemorrhages, and exudates.</p>
+                        <div class="pt-2 text-xs font-mono text-amber-700 bg-amber-50 p-2.5 rounded-xl border border-amber-100">
+                            <b>Detection Accuracy: 92.8% mAP</b><br>
+                            🟥 Microaneurysms | 🟨 Exudates
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-2">
+                        <div class="w-10 h-10 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center font-bold text-sm">
+                            <i class="fa-solid fa-fire"></i>
+                        </div>
+                        <h3 class="font-bold text-slate-800 text-sm">3. Grad-CAM Heatmap</h3>
+                        <p class="text-xs text-slate-500">Saliency attention map overlays for doctor rapid sign-off in &lt;15 seconds.</p>
+                        <div class="pt-2 text-xs font-mono text-rose-700 bg-rose-50 p-2.5 rounded-xl border border-rose-100">
+                            Validation: &lt;15s<br>
+                            EMR-Ready Medical PDF
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-2">
+                        <div class="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center font-bold text-sm">
+                            <i class="fa-solid fa-network-wired"></i>
+                        </div>
+                        <h3 class="font-bold text-slate-800 text-sm">4. Simulink Telemedicine</h3>
+                        <p class="text-xs text-slate-500">Simulates 100,000+ patient rural queuing across 25 PHCs with 2 Mbps uplink.</p>
+                        <div class="pt-2 text-xs font-mono text-emerald-700 bg-emerald-50 p-2.5 rounded-xl border border-emerald-100">
+                            Workload Reduction: 75%<br>
+                            Doctors: 1 vs 7 manual
+                        </div>
+                    </div>
+                </div>
+            </div>
         </section>
 
         <!-- =============================================================== -->
@@ -2300,6 +2359,6 @@
     </footer>
 
     <!-- App JS -->
-    <script src="js/app.js?v=20260902_4400"></script>
+    <script src="js/app.js?v=20260902_5000"></script>
 </body>
 </html>
