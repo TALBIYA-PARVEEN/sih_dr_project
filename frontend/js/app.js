@@ -921,13 +921,58 @@ function setupUploadHandlers() {
     }
 }
 
+function validateRetinaClientSide(imgElement) {
+    try {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        const w = 120, h = 120;
+        canvas.width = w;
+        canvas.height = h;
+        ctx.drawImage(imgElement, 0, 0, w, h);
+        const data = ctx.getImageData(0, 0, w, h).data;
+        let rSum = 0, gSum = 0, bSum = 0, count = 0;
+        let diffSum = 0;
+
+        for (let i = 0; i < data.length; i += 4) {
+            const r = data[i], g = data[i+1], b = data[i+2];
+            rSum += r; gSum += g; bSum += b; count++;
+            if (i >= 8) diffSum += Math.abs(g - data[i-4]);
+        }
+
+        const rMean = rSum / count;
+        const gMean = gSum / count;
+        const bMean = bSum / count;
+        const avgVar = diffSum / count;
+
+        if (bMean >= rMean * 0.85 && bMean > 30) {
+            return { valid: false, reason: `Unnatural blue spectrum (Blue: ${bMean.toFixed(0)}, Red: ${rMean.toFixed(0)}). Non-retina photo detected.` };
+        }
+        if (rMean / Math.max(1, bMean) < 1.25 && bMean > 25) {
+            return { valid: false, reason: "Color profile does not match retinal fundus reflectance." };
+        }
+        if (avgVar < 2.2) {
+            return { valid: false, reason: "Plain / flat orange image detected without retinal blood vessel branches." };
+        }
+        return { valid: true };
+    } catch (e) {
+        return { valid: true };
+    }
+}
+
 function handleFileSelect(file) {
     selectedFile = file;
     document.getElementById("fileNamePreview").innerText = file.name;
     const reader = new FileReader();
     reader.onload = (e) => {
-        document.getElementById("imgPreview").src = e.target.result;
+        const preview = document.getElementById("imgPreview");
+        preview.src = e.target.result;
         document.getElementById("previewContainer").classList.remove("hidden");
+        preview.onload = () => {
+            const check = validateRetinaClientSide(preview);
+            if (!check.valid) {
+                showToast("⚠️ Warning: " + check.reason + " (Please upload an authentic eye fundus scan).", "warning");
+            }
+        };
     };
     reader.readAsDataURL(file);
 }
@@ -939,7 +984,15 @@ function handleDoctorFileSelect(file) {
     const reader = new FileReader();
     reader.onload = (e) => {
         const preview = document.getElementById("docImgPreview");
-        if (preview) preview.src = e.target.result;
+        if (preview) {
+            preview.src = e.target.result;
+            preview.onload = () => {
+                const check = validateRetinaClientSide(preview);
+                if (!check.valid) {
+                    showToast("⚠️ Warning: " + check.reason + " (Please upload an authentic eye fundus scan).", "warning");
+                }
+            };
+        }
         const container = document.getElementById("docPreviewContainer");
         if (container) container.classList.remove("hidden");
     };

@@ -123,7 +123,14 @@ async function handlePatientScreeningSubmit(e) {
         submitBtn.disabled = false;
         submitBtn.innerHTML = origBtnText;
 
-        if (result.status === "success" || result.status === "warning") {
+        if (result.status === "rejected" || result.is_gradable === false || !res.ok) {
+            const reason = result.message || result.error || (result.quality_assessment ? result.quality_assessment.rejection_reason : "Image is not a valid retina scan or is ungradable.");
+            showToast("Scan Rejected: " + reason, "error");
+            alert("🚫 Scan Rejected (Non-Retinal or Ungradable Image)\n\n" + reason + "\n\nAction Required: Please recapture and upload an authentic retinal fundus photograph.");
+            return;
+        }
+
+        if (result.status === "success") {
             activeSessionId = result.session_id;
             renderScreeningResults(result.data);
             showToast("Screening analyzed & uploaded to your doctor's review queue!", "success");
