@@ -1004,6 +1004,34 @@ function validateRetinaClientSide(imgElement) {
             return { valid: false, reason: "Color profile does not match retinal fundus reflectance." };
         }
 
+        // Biophysics Check: Hemoglobin absorption (True retina absorbs green, G <= 132; Orange juice reflects yellow-green, G > 132)
+        if (gMean > 132.0) {
+            return { valid: false, reason: `Abnormal green spectrum reflectance without ocular hemoglobin absorption (Green mean: ${gMean.toFixed(0)}, Orange juice / drink detected).` };
+        }
+        if (rMean / Math.max(1, gMean) < 1.25) {
+            return { valid: false, reason: "Insufficient choroidal red reflectance." };
+        }
+
+        // Geometry Check: Active bounding box aspect ratio
+        let minX = w, maxX = 0, minY = h, maxY = 0;
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                const idx = (y * w + x) * 4;
+                if ((data[idx] + data[idx+1] + data[idx+2]) / 3 > 20) {
+                    if (x < minX) minX = x;
+                    if (x > maxX) maxX = x;
+                    if (y < minY) minY = y;
+                    if (y > maxY) maxY = y;
+                }
+            }
+        }
+        const activeW = maxX - minX;
+        const activeH = maxY - minY;
+        const activeAspect = Math.max(activeW, activeH) / Math.max(1, Math.min(activeW, activeH));
+        if (activeAspect > 1.38) {
+            return { valid: false, reason: `Elongated non-retinal object shape (Aspect: ${activeAspect.toFixed(2)}, Glass / bottle / drink detected).` };
+        }
+
         // Local Green Channel Variation inside internal retinal parenchyma (excluding outer boundary)
         let diffSum = 0, edgeCount = 0;
         for (let y = 16; y < h - 16; y++) {

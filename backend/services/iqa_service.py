@@ -158,6 +158,18 @@ class ImageQualityAssessmentService:
                 "rejection_reason": "Pupil occlusion or partial field: Retinal field of view is too small (<8%). Please align patient pupil and recapture."
             }
 
+        # Active FOV Geometry (Aspect Ratio & Convex Solidity)
+        cnts, _ = cv2.findContours(fov_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        main_cnt = max(cnts, key=cv2.contourArea) if cnts else None
+        if main_cnt is not None:
+            bx, by, bw, bh = cv2.boundingRect(main_cnt)
+            fov_aspect_ratio = max(bw, bh) / max(1.0, float(min(bw, bh)))
+            hull = cv2.convexHull(main_cnt)
+            solidity = cv2.contourArea(main_cnt) / max(1.0, cv2.contourArea(hull))
+        else:
+            fov_aspect_ratio = 1.0
+            solidity = 1.0
+
         # Check image corners
         c1 = float(np.mean(gray[:max(5, int(h * 0.05)), :max(5, int(w * 0.05))]))
         c2 = float(np.mean(gray[:max(5, int(h * 0.05)), -max(5, int(w * 0.05)):]))
@@ -174,10 +186,16 @@ class ImageQualityAssessmentService:
             contrast = float(np.std(active_gray))
             laplacian = cv2.Laplacian(gray, cv2.CV_64F)
             blur_score = float(np.var(laplacian[fov_mask > 0]))
+            g_active_mean = float(np.mean(image_np[:, :, 1][fov_mask > 0])) if len(image_np.shape) == 3 else g_mean
+            r_active_mean = float(np.mean(image_np[:, :, 0][fov_mask > 0])) if len(image_np.shape) == 3 else r_mean
+            rg_active_ratio = r_active_mean / max(1.0, g_active_mean)
         else:
             brightness = overall_mean
             contrast = float(np.std(gray))
             blur_score = float(np.var(cv2.Laplacian(gray, cv2.CV_64F)))
+            g_active_mean = g_mean
+            r_active_mean = r_mean
+            rg_active_ratio = r_mean / max(1.0, g_mean)
 
         # -------------------------------------------------------------
         # 3. MULTI-SCALE TUBULAR VESSEL TREE EXTRACTION
@@ -255,6 +273,58 @@ class ImageQualityAssessmentService:
         # -------------------------------------------------------------
         # 5. REJECTION GATES
         # -------------------------------------------------------------
+        # Gate 0A: Non-circular / Tall object / Drink / Glass geometry
+        if fov_aspect_ratio > 1.40:
+            return {
+                "quality_label": "NOT A RETINA IMAGE",
+                "quality_score": 0.0,
+                "is_gradable": False,
+                "blur_score": round(blur_score, 2),
+                "brightness_score": round(brightness, 2),
+                "contrast_score": round(contrast, 2),
+                "fov_ratio": round(fov_ratio, 4),
+                "rejection_reason": f"Non-retinal image detected: Elongated non-retinal object shape (Aspect ratio: {fov_aspect_ratio:.2f}, fundus camera aperture must be <= 1.40). Please upload an authentic eye fundus photograph."
+            }
+
+        # Gate 0B: Irregular object shape / Glass / Cup / Table reflections
+        if solidity < 0.85:
+            return {
+                "quality_label": "NOT A RETINA IMAGE",
+                "quality_score": 0.0,
+                "is_gradable": False,
+                "blur_score": round(blur_score, 2),
+                "brightness_score": round(brightness, 2),
+                "contrast_score": round(contrast, 2),
+                "fov_ratio": round(fov_ratio, 4),
+                "rejection_reason": f"Non-retinal image detected: Non-circular convex geometry (Solidity: {solidity:.2f}, min 0.85 for ocular fundus lens). Please upload an authentic eye fundus photograph."
+            }
+
+        # Gate 0C: Excessive Green Reflectance (Orange juice / citrus drink / yellow liquids)
+        # Authentic retina tissue absorbs green light through hemoglobin (G_mean <= 135)
+        if g_active_mean > 135.0:
+            return {
+                "quality_label": "NOT A RETINA IMAGE",
+                "quality_score": 0.0,
+                "is_gradable": False,
+                "blur_score": round(blur_score, 2),
+                "brightness_score": round(brightness, 2),
+                "contrast_score": round(contrast, 2),
+                "fov_ratio": round(fov_ratio, 4),
+                "rejection_reason": f"Non-retinal image detected: Abnormal green spectrum reflectance without ocular hemoglobin absorption (Green mean: {g_active_mean:.1f}, authentic retina <= 135.0). Please upload an authentic eye fundus photograph."
+            }
+
+        # Gate 0D: Insufficient Red Choroidal Dominance
+        if rg_active_ratio < 1.25:
+            return {
+                "quality_label": "NOT A RETINA IMAGE",
+                "quality_score": 0.0,
+                "is_gradable": False,
+                "blur_score": round(blur_score, 2),
+                "brightness_score": round(brightness, 2),
+                "contrast_score": round(contrast, 2),
+                "fov_ratio": round(fov_ratio, 4),
+                "rejection_reason": f"Non-retinal image detected: Insufficient choroidal red reflectance (R/G ratio: {rg_active_ratio:.2f}, min 1.25 required). Please upload an authentic eye fundus photograph."
+            }
         # Gate A: Non-Retina Everyday Photo
         if corners_mean > 45.0 and fov_ratio > 0.95 and elongated_vessels < 5:
             return {
