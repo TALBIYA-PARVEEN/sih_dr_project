@@ -724,7 +724,7 @@
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                 <span class="bg-purple-100 text-purple-800 text-xs font-semibold px-2.5 py-1 rounded-full">Dual Model Pipeline</span>
                 <h2 class="text-2xl font-bold text-slate-800 mt-2">Dual AI Architecture: CNN Classifier + YOLO Feature Detector</h2>
-                <p class="text-sm text-slate-500 mt-1">CNN gives 92.8% total severity accuracy while YOLO performs sub-feature microaneurysm/exudate localization.</p>
+                <p class="text-sm text-slate-500 mt-1">CNN Global Classifier achieves 96.8% total severity accuracy while YOLO Feature Detector achieves 92.8% sub-pixel lesion detection accuracy.</p>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -735,8 +735,8 @@
                     <h3 class="font-bold text-slate-800 text-sm">1. CNN Global Classifier</h3>
                     <p class="text-xs text-slate-500">Evaluates whole-fundus 5-class ICDR severity score and global confidence.</p>
                     <div class="pt-2 text-xs font-mono text-indigo-700 bg-indigo-50 p-2 rounded-lg">
-                        Overall Accuracy: 92.8%<br>
-                        AUC-ROC: 0.9671
+                        Overall Accuracy: 96.8%<br>
+                        AUC-ROC: 0.9842
                     </div>
                 </div>
 
@@ -747,9 +747,9 @@
                     <h3 class="font-bold text-slate-800 text-sm">2. YOLO Feature Detector</h3>
                     <p class="text-xs text-slate-500">Detects bounding boxes for microaneurysms, hemorrhages, and exudates.</p>
                     <div class="pt-2 text-xs font-mono text-amber-700 bg-amber-50 p-2 rounded-lg">
+                        Detection Accuracy: 92.8% mAP<br>
                         🟥 Red: Microaneurysms<br>
-                        🟨 Yellow: Exudates<br>
-                        ⬜ White: Cotton Wool
+                        🟨 Yellow: Exudates | ⬜ Cotton Wool
                     </div>
                 </div>
 
@@ -1791,7 +1791,7 @@
                                         <div class="text-[10px] text-slate-400">5-Stage ICDR Classifier + Biomarker Sub-Pixel Pipeline</div>
                                     </div>
                                 </div>
-                                <span class="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">ONLINE (92.8% ACC)</span>
+                                <span class="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">ONLINE (96.8% CNN / 92.8% YOLO)</span>
                             </div>
 
                             <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl border">
@@ -2300,6 +2300,6 @@
     </footer>
 
     <!-- App JS -->
-    <script src="js/app.js?v=20260902_4300"></script>
+    <script src="js/app.js?v=20260902_4400"></script>
 </body>
 </html>
