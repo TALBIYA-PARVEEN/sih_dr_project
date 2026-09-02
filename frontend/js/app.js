@@ -40,6 +40,32 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 });
 
+function resetPatientScreeningView() {
+    activeSessionId = null;
+    selectedFile = null;
+    try { localStorage.removeItem("netra_active_session_id"); } catch (e) {}
+
+    const resCont = document.getElementById("patientResultContainer");
+    const resCard = document.getElementById("patientScreeningResultsCard");
+    const initPlace = document.getElementById("screeningInitialState");
+    const rejCard = document.getElementById("rejectionCard");
+    const loadState = document.getElementById("patientLoadingState");
+    const prevCont = document.getElementById("previewContainer");
+    const patPrevCont = document.getElementById("patientPreviewContainer");
+    const fileInput = document.getElementById("fileInput");
+    const patFileInput = document.getElementById("patientFileInput");
+
+    if (resCont) resCont.classList.add("hidden");
+    if (resCard) resCard.classList.add("hidden");
+    if (rejCard) rejCard.classList.add("hidden");
+    if (loadState) loadState.classList.add("hidden");
+    if (prevCont) prevCont.classList.add("hidden");
+    if (patPrevCont) patPrevCont.classList.add("hidden");
+    if (initPlace) initPlace.classList.remove("hidden");
+    if (fileInput) fileInput.value = "";
+    if (patFileInput) patFileInput.value = "";
+}
+
 // -----------------------------------------------------------------------------
 // 1. Navigation & Browser History
 // -----------------------------------------------------------------------------
@@ -70,21 +96,7 @@ function navigateTo(pageId, pushState = true) {
     if (pageId === "admin") loadAdminDashboard();
     if (pageId === "login") setTimeout(initOfficialGoogleSignIn, 150);
     if (pageId === "patient") {
-        const resCont = document.getElementById("patientResultContainer");
-        const initPlace = document.getElementById("screeningInitialState");
-        const rejCard = document.getElementById("rejectionCard");
-        const loadState = document.getElementById("patientLoadingState");
-        const prevCont = document.getElementById("previewContainer");
-        const fileInput = document.getElementById("fileInput");
-        
-        if (resCont) resCont.classList.add("hidden");
-        if (rejCard) rejCard.classList.add("hidden");
-        if (loadState) loadState.classList.add("hidden");
-        if (initPlace) initPlace.classList.remove("hidden");
-        if (prevCont) prevCont.classList.add("hidden");
-        if (fileInput) fileInput.value = "";
-        selectedFile = null;
-
+        resetPatientScreeningView();
         if (currentUser) {
             updatePatientProfileUI();
             loadPatientHistory();
