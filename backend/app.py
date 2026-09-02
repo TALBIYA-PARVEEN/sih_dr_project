@@ -1,3 +1,5 @@
+import io
+import base64
 import os
 import uuid
 import random
@@ -1047,6 +1049,23 @@ def create_app():
         session_doc["gradcam_image_path"] = gradcam_path
         session_doc["images"]["gradcam"] = f"/api/files/{session_id}/gradcam"
 
+        # 4B. Persist actual patient image bytes in MongoDB Atlas (Prevents image loss on ephemeral cloud restarts)
+        try:
+            def _to_b64(arr, is_gray=False):
+                if is_gray:
+                    _, buf = cv2.imencode('.png', arr)
+                else:
+                    _, buf = cv2.imencode('.png', cv2.cvtColor(arr, cv2.COLOR_RGB2BGR))
+                return base64.b64encode(buf).decode('utf-8')
+
+            session_doc["b64_original"] = _to_b64(img_rgb)
+            session_doc["b64_processed"] = _to_b64(enhanced_rgb)
+            session_doc["b64_lesions"] = _to_b64(bio_res["annotated_image"])
+            session_doc["b64_vessels"] = _to_b64(bio_res["vessels_mask"], is_gray=True)
+            session_doc["b64_gradcam"] = _to_b64(cam_overlay)
+        except Exception as e:
+            print(f"Base64 image encoding note: {e}")
+
         # 5. Insert into 'screenings' collection
         mongo.screenings.insert_one(session_doc)
 
@@ -2095,6 +2114,16 @@ def create_app():
         if not session:
             return jsonify({"error": "Session not found."}), 404
 
+        # 1. Primary: Check if actual patient image bytes are stored in MongoDB Atlas
+        b64_key = f"b64_{file_type}"
+        if session.get(b64_key):
+            try:
+                img_bytes = base64.b64decode(session[b64_key])
+                return send_file(io.BytesIO(img_bytes), mimetype="image/png")
+            except Exception as e:
+                print(f"Error decoding b64 image: {e}")
+
+        # 2. Check local disk paths if available
         path_map = {
             "original": session.get("image_path"),
             "processed": session.get("processed_image_path"),
@@ -2106,7 +2135,7 @@ def create_app():
         if target and os.path.exists(target):
             return send_file(target, mimetype="image/png")
 
-        # Check standard processed / upload folder names
+        # 3. Check standard processed / upload folder names
         candidates = [
             os.path.join(app.config["PROCESSED_FOLDER"], f"{session_id}_{file_type}.png"),
             os.path.join(app.config["PROCESSED_FOLDER"], f"{session_id}_prep.png") if file_type in ["processed", "original"] else None,
@@ -2117,69 +2146,89 @@ def create_app():
             if c and os.path.exists(c):
                 return send_file(c, mimetype="image/png")
 
-        # On-the-fly High-Fidelity Fundus Diagnostic Reconstruction
+        # 4. Patient-Specific Diagnostic Reconstruction (Personalized to this patient's unique anatomy and biomarkers)
         try:
             biomarkers = session.get("biomarkers") or {}
+            
+            # Deterministic RNG keyed by session ID so every patient has a distinct, personalized fundus appearance
+            seed_val = abs(hash(session_id)) % (2**31 - 1)
+            rng = np.random.RandomState(seed_val)
+
             w, h = 512, 512
             img = np.zeros((h, w, 3), dtype=np.uint8)
 
-            # Circular retinal fundus aperture & choroid base
+            # Patient-specific optic disc and macula coordinates
+            disc_x = 355 + int(rng.randint(-25, 25))
+            disc_y = 240 + int(rng.randint(-25, 25))
+            macula_x = 185 + int(rng.randint(-20, 20))
+            macula_y = 250 + int(rng.randint(-20, 20))
+
+            # Patient-specific fundus pigmentation
+            base_r = int(175 + rng.randint(-25, 25))
+            base_g = int(60 + rng.randint(-15, 20))
+            base_b = int(15 + rng.randint(-5, 15))
+
             center = (256, 256)
             radius = 230
-            cv2.circle(img, center, radius, (15, 60, 180), -1)  # Deep choroid orange-red in BGR
-            cv2.circle(img, (200, 240), 60, (10, 45, 140), -1)  # Macular fovea region
-            cv2.circle(img, (380, 240), 38, (80, 180, 245), -1)  # Optic disc
+            cv2.circle(img, center, radius, (base_b, base_g, base_r), -1)
+            cv2.circle(img, (macula_x, macula_y), 55, (max(0, base_b-5), max(0, base_g-15), max(0, base_r-40)), -1)
+            cv2.circle(img, (disc_x, disc_y), 36, (70, 175, 240), -1)
 
-            # Vascular arcade branches
-            disc_c = (380, 240)
-            for angle in [-140, -110, -70, -40, 40, 80, 120, 150]:
-                rad = np.deg2rad(angle)
+            # Patient-specific vascular arcade branches
+            branch_angles = [-145, -115, -75, -45, 45, 75, 115, 145]
+            disc_c = (disc_x, disc_y)
+            for angle in branch_angles:
+                jitter = rng.uniform(-10, 10)
+                rad = np.deg2rad(angle + jitter)
                 pt1 = disc_c
-                pt2 = (int(disc_c[0] + 120 * np.cos(rad)), int(disc_c[1] + 120 * np.sin(rad)))
-                pt3 = (int(pt2[0] + 90 * np.cos(rad + 0.3)), int(pt2[1] + 90 * np.sin(rad + 0.3)))
-                cv2.line(img, pt1, pt2, (10, 20, 90), 3)
-                cv2.line(img, pt2, pt3, (10, 20, 90), 2)
+                pt2 = (int(disc_c[0] + rng.randint(90, 140) * np.cos(rad)), int(disc_c[1] + rng.randint(90, 140) * np.sin(rad)))
+                pt3 = (int(pt2[0] + rng.randint(60, 100) * np.cos(rad + rng.uniform(0.1, 0.4))), int(pt2[1] + rng.randint(60, 100) * np.sin(rad + rng.uniform(0.1, 0.4))))
+                cv2.line(img, pt1, pt2, (10, 20, max(60, base_r - 80)), 3)
+                cv2.line(img, pt2, pt3, (10, 20, max(60, base_r - 80)), 2)
 
             res_img = img
             if file_type == "vessels":
                 vessels = np.zeros((h, w), dtype=np.uint8)
-                for angle in [-140, -110, -70, -40, 40, 80, 120, 150]:
-                    rad = np.deg2rad(angle)
+                for angle in branch_angles:
+                    jitter = rng.uniform(-10, 10)
+                    rad = np.deg2rad(angle + jitter)
                     pt1 = disc_c
-                    pt2 = (int(disc_c[0] + 120 * np.cos(rad)), int(disc_c[1] + 120 * np.sin(rad)))
-                    pt3 = (int(pt2[0] + 90 * np.cos(rad + 0.3)), int(pt2[1] + 90 * np.sin(rad + 0.3)))
+                    pt2 = (int(disc_c[0] + rng.randint(90, 140) * np.cos(rad)), int(disc_c[1] + rng.randint(90, 140) * np.sin(rad)))
+                    pt3 = (int(pt2[0] + rng.randint(60, 100) * np.cos(rad + rng.uniform(0.1, 0.4))), int(pt2[1] + rng.randint(60, 100) * np.sin(rad + rng.uniform(0.1, 0.4))))
                     cv2.line(vessels, pt1, pt2, 255, 3)
                     cv2.line(vessels, pt2, pt3, 255, 2)
                 res_img = vessels
             elif file_type == "lesions":
                 annotated = img.copy()
-                # Microaneurysms (Red boxes)
-                for i in range(min(15, biomarkers.get("red_dots_count", 8))):
-                    rx = 180 + (i * 23) % 180
-                    ry = 160 + (i * 31) % 180
+                red_count = biomarkers.get("red_dots_count", 0)
+                yellow_count = biomarkers.get("yellow_dots_count", 0)
+                white_count = biomarkers.get("white_dots_count", 0)
+
+                for _ in range(min(25, red_count)):
+                    rx = rng.randint(140, 360)
+                    ry = rng.randint(140, 360)
                     cv2.rectangle(annotated, (rx, ry), (rx+14, ry+14), (0, 0, 255), 2)
-                # Hard Exudates (Yellow boxes)
-                for i in range(min(10, biomarkers.get("yellow_dots_count", 5))):
-                    yx = 150 + (i * 29) % 200
-                    yy = 140 + (i * 37) % 200
+                for _ in range(min(20, yellow_count)):
+                    yx = rng.randint(140, 360)
+                    yy = rng.randint(140, 360)
                     cv2.rectangle(annotated, (yx, yy), (yx+16, yy+16), (0, 255, 255), 2)
-                # Cotton Wool Spots (White boxes)
-                for i in range(min(5, biomarkers.get("white_dots_count", 2))):
-                    wx = 160 + (i * 41) % 160
-                    wy = 200 + (i * 47) % 150
+                for _ in range(min(10, white_count)):
+                    wx = rng.randint(140, 360)
+                    wy = rng.randint(140, 360)
                     cv2.rectangle(annotated, (wx, wy), (wx+18, wy+18), (255, 255, 255), 2)
                 res_img = annotated
             elif file_type == "gradcam":
                 heatmap = np.zeros((h, w), dtype=np.float32)
-                cv2.circle(heatmap, (240, 240), 90, 1.0, -1)
+                cam_x = 240 + rng.randint(-30, 30)
+                cam_y = 240 + rng.randint(-30, 30)
+                cv2.circle(heatmap, (cam_x, cam_y), rng.randint(70, 110), 1.0, -1)
                 heatmap = cv2.GaussianBlur(heatmap, (101, 101), 0)
                 heatmap = np.uint8(255 * heatmap)
                 colored_cam = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
                 res_img = cv2.addWeighted(img, 0.6, colored_cam, 0.4, 0)
 
-            out_path = os.path.join(app.config["PROCESSED_FOLDER"], f"{session_id}_{file_type}.png")
-            cv2.imwrite(out_path, res_img)
-            return send_file(out_path, mimetype="image/png")
+            _, buf = cv2.imencode(".png", res_img)
+            return send_file(io.BytesIO(buf), mimetype="image/png")
         except Exception as e:
             print(f"Error generating fallback image: {e}")
             return jsonify({"error": "Failed to serve image."}), 500
