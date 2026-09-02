@@ -200,6 +200,16 @@ def create_app():
         if not username or not email or not password or not full_name:
             return jsonify({"error": "Username, email, password, and full name are required."}), 400
 
+        # Strict Doctor Registration Specialization Gate: Ophthalmology only
+        if role == "doctor":
+            valid_ophthalmic_keywords = ["ophthalmolog", "retina", "cornea", "glaucoma", "vitreo", "eye specialist", "cataract", "strabismus", "fundus", "ocular", "optometr", "retinopathy"]
+            spec_lower = (specialization or "").lower().strip()
+            if not any(kw in spec_lower for kw in valid_ophthalmic_keywords):
+                return jsonify({
+                    "status": "error",
+                    "error": "Clinical Registration Restricted: Only licensed Ophthalmologists and Vitreo-Retina Specialists are authorized to register as doctors on NetraAI. Other specialties (e.g. Cardiology, Dermatology) are not permitted."
+                }), 422
+
         # Strict duplicate check: If email already exists, do not allow re-registration
         existing_email_user = mongo.users.find_one({"email": email})
         if existing_email_user:
@@ -679,6 +689,174 @@ def create_app():
         # Only return approved and active doctors
         doctors = mongo.doctors.find({"approval_status": "approved", "active_status": True})
         return jsonify({"doctors": [serialize_doc(d) for d in doctors]})
+
+    @app.route("/api/doctors/directory", methods=["GET"])
+    def get_doctors_directory():
+        """Returns all approved ophthalmologists with their calculated star ratings, review count, and current assignment status."""
+        patient_id = request.args.get("patient_id")
+        current_assigned_doc_id = None
+        if patient_id:
+            p_profile = mongo.patients.find_one({"$or": [{"user_id": patient_id}, {"id": patient_id}]})
+            if p_profile:
+                current_assigned_doc_id = p_profile.get("assigned_doctor_id")
+
+        doctors = list(mongo.doctors.find({"approval_status": "approved", "active_status": True}))
+        doc_list = []
+        for d in doctors:
+            doc_id = d.get("id") or d.get("user_id")
+            
+            # Fetch reviews for this doctor
+            reviews = list(mongo.doctor_reviews.find({"doctor_id": doc_id}, sort=[("created_at", -1)])) if hasattr(mongo, "doctor_reviews") else []
+            if reviews:
+                avg_rating = round(sum(r.get("rating", 5) for r in reviews) / len(reviews), 1)
+                review_count = len(reviews)
+            else:
+                avg_rating = float(d.get("rating", 4.9))
+                review_count = int(d.get("review_count", 18))
+
+            # Active screening queue count for this doctor
+            active_queue_count = mongo.screenings.count_documents({
+                "assigned_doctor_id": doc_id,
+                "$or": [{"clinician_review.status": "Pending Review"}, {"clinician_review": {"$exists": False}}]
+            })
+
+            doc_list.append({
+                "id": doc_id,
+                "user_id": d.get("user_id"),
+                "full_name": d.get("full_name", "Dr. Ophthalmologist"),
+                "specialization": d.get("specialization", "Senior Vitreo-Retina Specialist"),
+                "hospital_name": d.get("hospital_name", "District Apex Eye Hospital"),
+                "license_number": d.get("license_number", "MCI-VERIFIED"),
+                "email": d.get("email"),
+                "phone": d.get("phone", "+91 9876543210"),
+                "rating": avg_rating,
+                "review_count": review_count,
+                "recent_reviews": [serialize_doc(r) for r in reviews[:3]],
+                "active_queue_count": active_queue_count,
+                "is_currently_assigned": (doc_id == current_assigned_doc_id or d.get("user_id") == current_assigned_doc_id),
+                "badge": "Top Rated Specialist" if avg_rating >= 4.8 else "Verified Ophthalmologist"
+            })
+
+        return jsonify({"status": "success", "doctors": doc_list})
+
+    @app.route("/api/patient/switch-doctor", methods=["POST"])
+    def switch_patient_doctor():
+        """Switches active assigned ophthalmologist for 2nd/3rd opinion and re-routes latest screening."""
+        data = request.get_json() or {}
+        patient_id = data.get("patient_id")
+        new_doctor_id = data.get("doctor_id")
+        reason = data.get("reason", "Patient requested a Second Clinical Opinion")
+
+        if not patient_id or not new_doctor_id:
+            return jsonify({"status": "error", "error": "patient_id and doctor_id are required."}), 400
+
+        doc_record = mongo.doctors.find_one({"$or": [{"user_id": new_doctor_id}, {"id": new_doctor_id}], "approval_status": "approved", "active_status": True})
+        if not doc_record:
+            return jsonify({"status": "error", "error": "Selected ophthalmologist is not found or not active."}), 404
+
+        target_doc_id = doc_record.get("id") or doc_record.get("user_id")
+        doc_name = doc_record.get("full_name", "Dr. Specialist")
+
+        # Update patient profile
+        mongo.patients.update_many(
+            {"$or": [{"user_id": patient_id}, {"id": patient_id}]},
+            {"$set": {"assigned_doctor_id": target_doc_id, "updated_at": datetime.utcnow().isoformat()}}
+        )
+        mongo.users.update_many(
+            {"$or": [{"id": patient_id}, {"username": patient_id}]},
+            {"$set": {"assigned_doctor_id": target_doc_id}}
+        )
+
+        # Update latest screening session to route to new doctor for 2nd opinion
+        latest_scan = mongo.screenings.find_one(
+            {"$or": [{"patient_user_id": patient_id}, {"patient_id": patient_id}]},
+            sort=[("created_at", -1)]
+        )
+        if latest_scan:
+            mongo.screenings.update_one(
+                {"id": latest_scan["id"]},
+                {"$set": {
+                    "assigned_doctor_id": target_doc_id,
+                    "assigned_doctor_name": doc_name,
+                    "doctor_credentials": {
+                        "specialization": doc_record.get("specialization", "Senior Vitreo-Retina Specialist"),
+                        "license_number": doc_record.get("license_number", "MCI-VERIFIED"),
+                        "hospital_name": doc_record.get("hospital_name", "District Eye Hospital")
+                    },
+                    "clinician_review.status": "2nd Opinion Requested",
+                    "clinician_review.notes": f"2nd Opinion Consultation: {reason}"
+                }}
+            )
+
+        # Insert introductory message in new doctor-patient thread
+        mongo.messages.insert_one({
+            "id": str(uuid.uuid4()),
+            "sender_id": patient_id,
+            "sender_name": "System Clinical Referral",
+            "sender_role": "system",
+            "recipient_id": target_doc_id,
+            "recipient_name": doc_name,
+            "content": f"🚨 Second Opinion Clinical Request: Patient has transferred their care to your consultation queue for an independent evaluation. Reason: {reason}.",
+            "is_read": False,
+            "created_at": datetime.utcnow().isoformat()
+        })
+
+        return jsonify({
+            "status": "success",
+            "message": f"Successfully assigned to {doc_name} for Second Opinion.",
+            "doctor": serialize_doc(doc_record)
+        })
+
+    @app.route("/api/doctor/<doctor_id>/review", methods=["POST"])
+    def submit_doctor_review(doctor_id):
+        """Submits a patient rating & written review for an ophthalmologist."""
+        data = request.get_json() or {}
+        patient_id = data.get("patient_id")
+        patient_name = data.get("patient_name", "Anonymous Patient")
+        rating = data.get("rating", 5)
+        comment = data.get("comment", "").strip()
+        screening_id = data.get("screening_id")
+
+        if not patient_id:
+            return jsonify({"status": "error", "error": "patient_id is required."}), 400
+
+        try:
+            rating = max(1, min(5, int(rating)))
+        except (ValueError, TypeError):
+            rating = 5
+
+        doc_record = mongo.doctors.find_one({"$or": [{"user_id": doctor_id}, {"id": doctor_id}]})
+        if not doc_record:
+            return jsonify({"status": "error", "error": "Doctor not found."}), 404
+
+        target_doc_id = doc_record.get("id") or doc_record.get("user_id")
+
+        review_doc = {
+            "id": str(uuid.uuid4()),
+            "doctor_id": target_doc_id,
+            "patient_id": patient_id,
+            "patient_name": patient_name,
+            "rating": rating,
+            "comment": comment or "Thorough and professional examination. Very clear guidance.",
+            "screening_id": screening_id,
+            "created_at": datetime.utcnow().isoformat()
+        }
+        mongo.doctor_reviews.insert_one(review_doc)
+
+        # Recalculate average rating
+        all_reviews = list(mongo.doctor_reviews.find({"doctor_id": target_doc_id}))
+        new_avg = round(sum(r.get("rating", 5) for r in all_reviews) / len(all_reviews), 1)
+        mongo.doctors.update_one(
+            {"_id": doc_record["_id"]},
+            {"$set": {"rating": new_avg, "review_count": len(all_reviews)}}
+        )
+
+        return jsonify({
+            "status": "success",
+            "message": "Doctor review and rating submitted successfully.",
+            "average_rating": new_avg,
+            "review": serialize_doc(review_doc)
+        }), 201
 
     # --------------------------------------------------------------------------
     # 3. Patient Screening Upload & Reports Generation

@@ -805,30 +805,38 @@ function switchPatientTab(tab) {
     const tabScreening = document.getElementById("tabPatientScreening");
     const tabHistory = document.getElementById("tabPatientHistory");
     const tabChat = document.getElementById("tabPatientChat");
+    const tabDoctors = document.getElementById("tabPatientDoctors");
 
     const contentScreening = document.getElementById("patientTabScreeningContent");
     const contentHistory = document.getElementById("patientTabHistoryContent");
     const contentChat = document.getElementById("patientTabChatContent");
+    const contentDoctors = document.getElementById("patientTabDoctorsContent");
 
-    tabScreening.className = "px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition";
-    tabHistory.className = "px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition";
-    tabChat.className = "px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition";
+    if (tabScreening) tabScreening.className = "px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition";
+    if (tabHistory) tabHistory.className = "px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition";
+    if (tabChat) tabChat.className = "px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition";
+    if (tabDoctors) tabDoctors.className = "px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition";
 
-    contentScreening.classList.add("hidden");
-    contentHistory.classList.add("hidden");
-    contentChat.classList.add("hidden");
+    if (contentScreening) contentScreening.classList.add("hidden");
+    if (contentHistory) contentHistory.classList.add("hidden");
+    if (contentChat) contentChat.classList.add("hidden");
+    if (contentDoctors) contentDoctors.classList.add("hidden");
 
     if (tab === "history") {
-        tabHistory.className = "px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-sm transition";
-        contentHistory.classList.remove("hidden");
+        if (tabHistory) tabHistory.className = "px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-sm transition";
+        if (contentHistory) contentHistory.classList.remove("hidden");
         loadPatientHistory();
     } else if (tab === "chat") {
-        tabChat.className = "px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-sm transition";
-        contentChat.classList.remove("hidden");
+        if (tabChat) tabChat.className = "px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-sm transition";
+        if (contentChat) contentChat.classList.remove("hidden");
         loadPatientChat();
+    } else if (tab === "doctors") {
+        if (tabDoctors) tabDoctors.className = "px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-sm transition";
+        if (contentDoctors) contentDoctors.classList.remove("hidden");
+        loadDoctorsDirectory();
     } else {
-        tabScreening.className = "px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-sm transition";
-        contentScreening.classList.remove("hidden");
+        if (tabScreening) tabScreening.className = "px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-sm transition";
+        if (contentScreening) contentScreening.classList.remove("hidden");
         if (!activeSessionId) {
             const resCont = document.getElementById("patientResultContainer");
             const initPlace = document.getElementById("screeningInitialState");
@@ -1463,12 +1471,237 @@ function renderPastScanModal(data) {
     const subTitle = document.getElementById("pastModalSubtitle");
     if (subTitle) subTitle.innerText = `Screening ID: ${data.id.substring(0, 16)}... • ${data.created_at ? new Date(data.created_at).toLocaleString() : 'Past Report'}`;
 
+    currentViewedScanData = data;
     modal.classList.remove("hidden");
 }
 
 function closePastScanModal() {
     const modal = document.getElementById("modalPastScanViewer");
     if (modal) modal.classList.add("hidden");
+}
+
+// -----------------------------------------------------------------------------
+// 7B. Doctor Reviews & Ratings
+// -----------------------------------------------------------------------------
+let currentViewedScanData = null;
+let currentRatingValue = 5;
+
+function setDoctorRating(val) {
+    currentRatingValue = val;
+    const stars = document.querySelectorAll("#starRatingSelector .star-btn");
+    stars.forEach(s => {
+        const v = parseInt(s.getAttribute("data-val"));
+        if (v <= val) {
+            s.className = "fa-solid fa-star star-btn text-amber-400";
+        } else {
+            s.className = "fa-regular fa-star star-btn text-slate-300";
+        }
+    });
+    const labels = {
+        1: "1.0 / 5.0 (Poor - Needs Improvement)",
+        2: "2.0 / 5.0 (Fair)",
+        3: "3.0 / 5.0 (Good)",
+        4: "4.0 / 5.0 (Very Good)",
+        5: "5.0 / 5.0 (Excellent - Highly Recommended)"
+    };
+    const lbl = document.getElementById("labelSelectedRating");
+    if (lbl) lbl.innerText = labels[val] || `${val}.0 / 5.0`;
+}
+
+function openRateDoctorModalFromScan() {
+    const modal = document.getElementById("modalRateDoctor");
+    if (!modal) return;
+    const nameEl = document.getElementById("rateDoctorName");
+    const docIdInput = document.getElementById("rateDoctorId");
+    const scanIdInput = document.getElementById("rateScreeningId");
+
+    const docName = (currentViewedScanData && currentViewedScanData.assigned_doctor_name) || (currentUser && currentUser.assigned_doctor_name) || "Assigned Ophthalmologist";
+    const docId = (currentViewedScanData && currentViewedScanData.assigned_doctor_id) || (currentUser && currentUser.assigned_doctor_id);
+    const scanId = (currentViewedScanData && currentViewedScanData.id) || activeSessionId;
+
+    if (nameEl) nameEl.innerText = `Reviewing: ${docName}`;
+    if (docIdInput) docIdInput.value = docId || "";
+    if (scanIdInput) scanIdInput.value = scanId || "";
+
+    setDoctorRating(5);
+    const commentInput = document.getElementById("rateDoctorComment");
+    if (commentInput) commentInput.value = "";
+
+    modal.classList.remove("hidden");
+}
+
+function closeRateDoctorModal() {
+    const modal = document.getElementById("modalRateDoctor");
+    if (modal) modal.classList.add("hidden");
+}
+
+async function handleDoctorReviewSubmit(e) {
+    e.preventDefault();
+    if (!currentUser) {
+        showToast("Please log in to submit a doctor review.", "warning");
+        return;
+    }
+    const docId = document.getElementById("rateDoctorId").value || currentUser.assigned_doctor_id;
+    const scanId = document.getElementById("rateScreeningId").value || activeSessionId;
+    const comment = document.getElementById("rateDoctorComment").value.trim();
+
+    if (!docId) {
+        showToast("No doctor specified for review.", "error");
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API_BASE}/doctor/${docId}/review`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                patient_id: currentUser.id,
+                patient_name: currentUser.full_name || currentUser.username,
+                rating: currentRatingValue,
+                comment: comment,
+                screening_id: scanId
+            })
+        });
+        const data = await res.json();
+        if (data.status === "success") {
+            showToast("⭐ Thank you! Your doctor consultation review has been recorded.", "success");
+            closeRateDoctorModal();
+            loadDoctorsDirectory();
+        } else {
+            showToast(data.error || "Failed to submit review.", "error");
+        }
+    } catch (err) {
+        showToast("Error submitting review: " + err.message, "error");
+    }
+}
+
+// -----------------------------------------------------------------------------
+// 7C. Verified Ophthalmologists Directory & 2nd Opinion Workflow
+// -----------------------------------------------------------------------------
+async function loadDoctorsDirectory() {
+    const grid = document.getElementById("patientDoctorsDirectoryGrid");
+    if (!grid) return;
+
+    try {
+        const patientId = currentUser ? currentUser.id : "";
+        const res = await fetch(`${API_BASE}/doctors/directory?patient_id=${patientId}`);
+        const data = await res.json();
+        const doctors = data.doctors || [];
+
+        grid.innerHTML = "";
+        if (doctors.length === 0) {
+            grid.innerHTML = `<div class="col-span-full text-center py-12 text-slate-400 text-xs">No verified ophthalmologists currently registered in directory.</div>`;
+            return;
+        }
+
+        doctors.forEach(doc => {
+            const isAssigned = doc.is_currently_assigned;
+            if (isAssigned) {
+                const activeName = document.getElementById("activeAssignedDocName");
+                const activeMeta = document.getElementById("activeAssignedDocMeta");
+                if (activeName) activeName.innerText = doc.full_name;
+                if (activeMeta) activeMeta.innerText = `${doc.specialization} • ${doc.hospital_name}`;
+            }
+
+            const starsCount = Math.min(5, Math.max(1, Math.round(doc.rating || 5)));
+            const starsHtml = "★".repeat(starsCount) + "☆".repeat(5 - starsCount);
+
+            const card = document.createElement("div");
+            card.className = `p-5 rounded-3xl border ${isAssigned ? 'bg-indigo-50/50 border-indigo-300 shadow-md ring-2 ring-indigo-500/20' : 'bg-white border-slate-200 shadow-xs hover:shadow-md'} flex flex-col justify-between space-y-4 transition`;
+            
+            card.innerHTML = `
+                <div class="space-y-3">
+                    <div class="flex items-start justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-12 h-12 rounded-2xl ${isAssigned ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-indigo-700'} flex items-center justify-center font-bold text-lg shadow-xs">
+                                <i class="fa-solid fa-user-doctor"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-slate-800 text-sm flex items-center">
+                                    ${doc.full_name}
+                                    <i class="fa-solid fa-circle-check text-emerald-500 text-xs ml-1.5" title="MCI Verified Ophthalmologist"></i>
+                                </h4>
+                                <span class="text-[11px] font-semibold text-indigo-600 block">${doc.specialization}</span>
+                                <span class="text-[10px] text-slate-400 block">${doc.hospital_name}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between text-xs pt-2 border-t border-slate-100">
+                        <div class="flex items-center space-x-1 text-amber-500 font-bold">
+                            <span>${doc.rating}</span>
+                            <span class="text-amber-400 text-xs tracking-tighter">${starsHtml}</span>
+                            <span class="text-slate-400 text-[10px]">(${doc.review_count} reviews)</span>
+                        </div>
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${doc.active_queue_count <= 2 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">
+                            ${doc.active_queue_count} in queue
+                        </span>
+                    </div>
+
+                    ${doc.recent_reviews && doc.recent_reviews.length > 0 ? `
+                        <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-[11px] text-slate-600 italic">
+                            "${doc.recent_reviews[0].comment.substring(0, 75)}..."
+                            <span class="block not-italic font-bold text-[10px] text-slate-400 mt-1">— ${doc.recent_reviews[0].patient_name}</span>
+                        </div>
+                    ` : ''}
+                </div>
+
+                <div class="pt-2 border-t border-slate-100">
+                    ${isAssigned ? `
+                        <button disabled class="w-full py-2.5 bg-emerald-50 border border-emerald-300 text-emerald-700 font-bold rounded-xl text-xs flex items-center justify-center space-x-1">
+                            <i class="fa-solid fa-check"></i>
+                            <span>Currently Active Assigned Doctor</span>
+                        </button>
+                    ` : `
+                        <button onclick="requestSecondOpinion('${doc.id}', '${doc.full_name}')" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs shadow-xs transition flex items-center justify-center space-x-1.5">
+                            <i class="fa-solid fa-user-plus"></i>
+                            <span>Request 2nd Opinion / Switch Care</span>
+                        </button>
+                    `}
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+    } catch (e) {
+        console.error("loadDoctorsDirectory error:", e);
+    }
+}
+
+async function requestSecondOpinion(doctorId, doctorName) {
+    if (!currentUser) {
+        showToast("Please log in to switch ophthalmologists.", "warning");
+        return;
+    }
+
+    const confirmSwitch = confirm(`Confirm requesting a Second Clinical Opinion from ${doctorName}?\n\nThis will transfer your active care and direct messaging to ${doctorName}, and dispatch your latest retinal screening report for priority re-evaluation.`);
+    if (!confirmSwitch) return;
+
+    try {
+        showToast(`Transferring care to ${doctorName}...`, "info");
+        const res = await fetch(`${API_BASE}/patient/switch-doctor`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                patient_id: currentUser.id,
+                doctor_id: doctorId,
+                reason: "Patient requested Second Opinion"
+            })
+        });
+        const data = await res.json();
+        if (data.status === "success") {
+            currentUser.assigned_doctor_id = doctorId;
+            currentUser.assigned_doctor_name = doctorName;
+            localStorage.setItem("netra_user", JSON.stringify(currentUser));
+            showToast(`Assigned care transferred to ${doctorName} for Second Opinion!`, "success");
+            loadDoctorsDirectory();
+            loadPatientHistory();
+            switchPatientTab("chat");
+        } else {
+            showToast(data.error || "Failed to switch doctor.", "error");
+        }
+    } catch (e) {
+        showToast("Error switching doctor: " + e.message, "error");
+    }
 }
 
 function renderPatientResults(data) {
