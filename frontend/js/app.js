@@ -92,7 +92,10 @@ function navigateTo(pageId, pushState = true) {
 
     updateNavbarForPage(pageId);
 
-    if (pageId === "doctor") loadDoctorQueue();
+    if (pageId === "doctor") {
+        loadDoctorQueue();
+        loadDoctorReviews();
+    }
     if (pageId === "admin") loadAdminDashboard();
     if (pageId === "login") setTimeout(initOfficialGoogleSignIn, 150);
     if (pageId === "patient") {
@@ -1875,9 +1878,11 @@ function switchDoctorTab(tab) {
     const tabWorkstation = document.getElementById("tabDoctorWorkstation");
     const tabScreening = document.getElementById("tabDoctorScreening");
     const tabChat = document.getElementById("tabDoctorChat");
+    const tabReviews = document.getElementById("tabDoctorReviews");
     const contentWorkstation = document.getElementById("doctorTabWorkstationContent");
     const contentScreening = document.getElementById("doctorTabScreeningContent");
     const contentChat = document.getElementById("doctorTabChatContent");
+    const contentReviews = document.getElementById("doctorTabReviewsContent");
 
     const inactiveClass = "px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition flex items-center space-x-1";
     const activeClass = "px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center space-x-1";
@@ -1885,13 +1890,111 @@ function switchDoctorTab(tab) {
     if (tabWorkstation) tabWorkstation.className = (tab === "workstation" ? activeClass : inactiveClass);
     if (tabScreening) tabScreening.className = (tab === "screening" ? activeClass : inactiveClass);
     if (tabChat) tabChat.className = (tab === "chat" ? activeClass : inactiveClass);
+    if (tabReviews) tabReviews.className = (tab === "reviews" ? activeClass : inactiveClass);
 
     if (contentWorkstation) contentWorkstation.classList.toggle("hidden", tab !== "workstation");
     if (contentScreening) contentScreening.classList.toggle("hidden", tab !== "screening");
     if (contentChat) contentChat.classList.toggle("hidden", tab !== "chat");
+    if (contentReviews) contentReviews.classList.toggle("hidden", tab !== "reviews");
 
     if (tab === "chat") loadDoctorChat();
     if (tab === "workstation") loadDoctorQueue();
+    if (tab === "reviews") loadDoctorReviews();
+}
+
+async function loadDoctorReviews() {
+    if (!currentUser || currentUser.role !== "doctor") return;
+    const docId = currentUser.id;
+    try {
+        const res = await fetch(`${API_BASE}/doctor/${docId}/reviews`);
+        const data = await res.json();
+        if (data.status !== "success") return;
+
+        const rating = data.overall_rating || 4.9;
+        const count = data.review_count || 0;
+        const breakdown = data.star_breakdown || { star_5: 85, star_4: 12, star_3: 3, star_2: 0, star_1: 0 };
+        const reviews = data.reviews || [];
+
+        // Update header badge
+        const hRating = document.getElementById("docHeaderRating");
+        const hCount = document.getElementById("docHeaderReviewCount");
+        if (hRating) hRating.innerText = rating;
+        if (hCount) hCount.innerText = `(${count} Reviews)`;
+
+        // Update main reviews summary card
+        const bigRating = document.getElementById("docReviewBigRating");
+        const bigStars = document.getElementById("docReviewBigStars");
+        const totalCount = document.getElementById("docReviewTotalCount");
+        if (bigRating) bigRating.innerText = rating;
+        if (bigStars) {
+            const starsCount = Math.min(5, Math.max(1, Math.round(rating)));
+            bigStars.innerText = "★".repeat(starsCount) + "☆".repeat(5 - starsCount);
+        }
+        if (totalCount) totalCount.innerText = `${count} verified ratings`;
+
+        // Update breakdown bars
+        const bar5 = document.getElementById("barDocStar5");
+        const pct5 = document.getElementById("pctDocStar5");
+        if (bar5) bar5.style.width = `${breakdown.star_5 || 0}%`;
+        if (pct5) pct5.innerText = `${breakdown.star_5 || 0}%`;
+
+        const bar4 = document.getElementById("barDocStar4");
+        const pct4 = document.getElementById("pctDocStar4");
+        if (bar4) bar4.style.width = `${breakdown.star_4 || 0}%`;
+        if (pct4) pct4.innerText = `${breakdown.star_4 || 0}%`;
+
+        const bar3 = document.getElementById("barDocStar3");
+        const pct3 = document.getElementById("pctDocStar3");
+        if (bar3) bar3.style.width = `${breakdown.star_3 || 0}%`;
+        if (pct3) pct3.innerText = `${breakdown.star_3 || 0}%`;
+
+        // Render reviews feed
+        const feed = document.getElementById("doctorReviewsFeed");
+        if (feed) {
+            feed.innerHTML = "";
+            if (reviews.length === 0) {
+                feed.innerHTML = `<div class="col-span-full text-center py-10 text-slate-400 text-xs">No reviews submitted yet. When screened patients submit feedback, it will appear here.</div>`;
+                return;
+            }
+
+            reviews.forEach(r => {
+                const dateStr = r.created_at ? new Date(r.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : "Recent";
+                const starsCount = Math.min(5, Math.max(1, Math.round(r.rating || 5)));
+                const starsHtml = "★".repeat(starsCount) + "☆".repeat(5 - starsCount);
+
+                const card = document.createElement("div");
+                card.className = "p-4 rounded-2xl bg-slate-50 border border-slate-200 shadow-2xs space-y-2";
+                card.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center">
+                                ${(r.patient_name || 'P')[0].toUpperCase()}
+                            </div>
+                            <div>
+                                <h5 class="font-bold text-slate-800 text-xs">${r.patient_name || 'Verified Patient'}</h5>
+                                <span class="text-[10px] text-slate-400">${dateStr}</span>
+                            </div>
+                        </div>
+                        <span class="text-[9px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full flex items-center">
+                            <i class="fa-solid fa-circle-check mr-1 text-emerald-600"></i> Verified Patient
+                        </span>
+                    </div>
+
+                    <div class="flex items-center space-x-1 text-amber-500 font-bold text-xs">
+                        <span>${starsHtml}</span>
+                        <span class="text-slate-600 text-[11px] ml-1 font-semibold">${r.rating}/5.0</span>
+                    </div>
+
+                    <p class="text-xs text-slate-600 leading-relaxed italic">
+                        "${r.comment}"
+                    </p>
+                `;
+                feed.appendChild(card);
+            });
+        }
+    } catch (e) {
+        console.error("loadDoctorReviews error:", e);
+    }
 }
 
 async function handleDoctorScreeningSubmit(e) {

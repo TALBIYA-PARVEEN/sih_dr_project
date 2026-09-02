@@ -1137,7 +1137,16 @@
                     <h2 class="text-2xl font-bold text-slate-800 mt-1">Tele-Ophthalmology Review Worklist</h2>
                     <p class="text-xs text-slate-500">Review AI-annotated fundus scans and sign off in &lt;15 seconds.</p>
                 </div>
-                <div class="flex items-center space-x-2">
+                <div class="flex items-center space-x-2 flex-wrap gap-y-2">
+                    <!-- Doctor Overall Rating Badge -->
+                    <div onclick="switchDoctorTab('reviews')" class="flex items-center space-x-2 bg-amber-50 hover:bg-amber-100/80 border border-amber-200 px-3.5 py-2 rounded-xl cursor-pointer transition shadow-2xs">
+                        <div class="flex items-center text-amber-500 text-xs font-black">
+                            <i class="fa-solid fa-star mr-1"></i>
+                            <span id="docHeaderRating">4.9</span>
+                        </div>
+                        <span class="text-[11px] font-bold text-amber-900" id="docHeaderReviewCount">(24 Reviews)</span>
+                    </div>
+
                     <button onclick="openEditProfileModal()" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 border border-slate-200">
                         <i class="fa-solid fa-user-doctor"></i>
                         <span>Edit Profile</span>
@@ -1150,6 +1159,9 @@
                     </button>
                     <button onclick="switchDoctorTab('chat')" id="tabDoctorChat" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition flex items-center space-x-1">
                         <i class="fa-solid fa-comments mr-1"></i> Messages
+                    </button>
+                    <button onclick="switchDoctorTab('reviews')" id="tabDoctorReviews" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition flex items-center space-x-1">
+                        <i class="fa-solid fa-star text-amber-500 mr-1"></i> Reviews & Ratings
                     </button>
                     <button onclick="handleLogout()" class="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition flex items-center space-x-1.5 shadow-sm">
                         <i class="fa-solid fa-right-from-bracket"></i>
@@ -1521,6 +1533,86 @@
                                 <span>Send</span>
                             </button>
                         </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB D: PATIENT REVIEWS & RATINGS DASHBOARD (AMAZON / FLIPKART STYLE) -->
+            <div id="doctorTabReviewsContent" class="hidden space-y-6">
+                <!-- Top Overall Rating Summary Card -->
+                <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+                    <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+                        <!-- Left: Big Rating Number & Stars -->
+                        <div class="flex items-center space-x-5">
+                            <div class="text-center p-4 bg-amber-50/70 border border-amber-200/70 rounded-2xl">
+                                <div class="text-4xl font-black text-slate-900" id="docReviewBigRating">4.9</div>
+                                <div class="text-amber-400 text-base tracking-tight my-0.5" id="docReviewBigStars">★★★★★</div>
+                                <div class="text-[11px] font-bold text-amber-900" id="docReviewTotalCount">24 verified ratings</div>
+                            </div>
+                            <div>
+                                <span class="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">MCI Clinical Tele-Feedback</span>
+                                <h3 class="text-lg font-bold text-slate-800 mt-1">Patient Reviews & Overall Ratings</h3>
+                                <p class="text-xs text-slate-500">Real-time ratings, comments, and second opinion feedback submitted by screened patients.</p>
+                            </div>
+                        </div>
+
+                        <!-- Middle: Amazon-style Star Progress Bars -->
+                        <div class="w-full lg:w-72 space-y-1.5 text-xs text-slate-600">
+                            <div class="flex items-center space-x-2">
+                                <span class="w-10 font-bold text-[11px]">5 Star</span>
+                                <div class="flex-1 bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                                    <div id="barDocStar5" class="bg-amber-400 h-full rounded-full transition-all duration-500" style="width: 85%;"></div>
+                                </div>
+                                <span id="pctDocStar5" class="w-8 text-right font-bold text-[11px] text-slate-700">85%</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <span class="w-10 font-bold text-[11px]">4 Star</span>
+                                <div class="flex-1 bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                                    <div id="barDocStar4" class="bg-amber-400 h-full rounded-full transition-all duration-500" style="width: 12%;"></div>
+                                </div>
+                                <span id="pctDocStar4" class="w-8 text-right font-bold text-[11px] text-slate-700">12%</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <span class="w-10 font-bold text-[11px]">3 Star</span>
+                                <div class="flex-1 bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                                    <div id="barDocStar3" class="bg-amber-400 h-full rounded-full transition-all duration-500" style="width: 3%;"></div>
+                                </div>
+                                <span id="pctDocStar3" class="w-8 text-right font-bold text-[11px] text-slate-700">3%</span>
+                            </div>
+                        </div>
+
+                        <!-- Right: Quality KPI Badges -->
+                        <div class="grid grid-cols-2 gap-2 text-center text-xs">
+                            <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl">
+                                <div class="text-base font-black text-emerald-700">98%</div>
+                                <div class="text-[10px] font-semibold text-emerald-800">Positive Feedback</div>
+                            </div>
+                            <div class="p-3 bg-indigo-50 border border-indigo-200 rounded-2xl">
+                                <div class="text-base font-black text-indigo-700">&lt; 15m</div>
+                                <div class="text-[10px] font-semibold text-indigo-800">Avg Sign-off Time</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Patient Reviews Feed Container -->
+                <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 space-y-4">
+                    <div class="flex items-center justify-between border-b pb-3">
+                        <h4 class="font-bold text-slate-800 text-sm flex items-center">
+                            <i class="fa-solid fa-comments text-indigo-600 mr-2"></i>
+                            <span>Verified Patient Feedback & Comments</span>
+                        </h4>
+                        <button onclick="loadDoctorReviews()" class="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition">
+                            <i class="fa-solid fa-arrows-rotate text-[10px]"></i>
+                            <span>Refresh Reviews</span>
+                        </button>
+                    </div>
+
+                    <!-- Reviews List -->
+                    <div id="doctorReviewsFeed" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="col-span-full text-center py-10 text-slate-400 text-xs">
+                            Loading patient reviews and ratings...
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2141,6 +2233,6 @@
     </footer>
 
     <!-- App JS -->
-    <script src="js/app.js?v=20260902_2700"></script>
+    <script src="js/app.js?v=20260902_2800"></script>
 </body>
 </html>
