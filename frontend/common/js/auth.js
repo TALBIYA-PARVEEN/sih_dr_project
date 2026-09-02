@@ -202,8 +202,25 @@ async function handleRegister(e) {
         return;
     }
 
-    if (!payload.password || payload.password.length < 6) {
-        showToast("Password must be at least 6 characters.", "warning");
+    const pwd = payload.password || "";
+    if (pwd.length < 8) {
+        showToast("Password must be at least 8 characters long.", "error");
+        return;
+    }
+    if (!/[A-Z]/.test(pwd)) {
+        showToast("Password must contain at least 1 uppercase letter (A–Z).", "error");
+        return;
+    }
+    if (!/[a-z]/.test(pwd)) {
+        showToast("Password must contain at least 1 lowercase letter (a–z).", "error");
+        return;
+    }
+    if (!/[0-9]/.test(pwd)) {
+        showToast("Password must contain at least 1 number (0–9).", "error");
+        return;
+    }
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(pwd)) {
+        showToast("Password must contain at least 1 special character (e.g. @, #, $, %, !, *).", "error");
         return;
     }
 
@@ -461,8 +478,24 @@ async function handleResetPasswordSubmit(e) {
         showToast("Please enter the 6-digit OTP received in your email.", "warning");
         return;
     }
-    if (!newPassword || newPassword.length < 6) {
-        showToast("New password must be at least 6 characters long.", "warning");
+    if (!newPassword || newPassword.length < 8) {
+        showToast("New password must be at least 8 characters long.", "error");
+        return;
+    }
+    if (!/[A-Z]/.test(newPassword)) {
+        showToast("Password must contain at least 1 uppercase letter (A–Z).", "error");
+        return;
+    }
+    if (!/[a-z]/.test(newPassword)) {
+        showToast("Password must contain at least 1 lowercase letter (a–z).", "error");
+        return;
+    }
+    if (!/[0-9]/.test(newPassword)) {
+        showToast("Password must contain at least 1 number (0–9).", "error");
+        return;
+    }
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(newPassword)) {
+        showToast("Password must contain at least 1 special character (e.g. @, #, $, %, !, *).", "error");
         return;
     }
     if (newPassword !== confirmPassword) {

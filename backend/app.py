@@ -600,8 +600,12 @@ def create_app():
         if not user_id or not current_password or not new_password:
             return jsonify({"error": "User ID, current password, and new password are required."}), 400
 
-        if len(new_password) < 6:
-            return jsonify({"error": "New password must be at least 6 characters long."}), 400
+        is_strong, pwd_err = AuthService.validate_password_strength(new_password)
+        if not is_strong:
+            return jsonify({
+                "status": "error",
+                "error": f"Weak Password: {pwd_err}"
+            }), 422
 
         user = mongo.users.find_one({"id": user_id})
         if not user:
