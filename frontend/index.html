@@ -1086,7 +1086,11 @@
                             <p class="text-xs text-slate-500" id="activeAssignedDocMeta">Senior Vitreo-Retina Specialist • District Eye Hospital</p>
                         </div>
                     </div>
-                    <div class="flex items-center space-x-2">
+                    <div class="flex items-center space-x-2 flex-wrap gap-y-2">
+                        <button onclick="openDoctorReviewModal(null, null, null)" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center space-x-1.5">
+                            <i class="fa-solid fa-star"></i>
+                            <span>Rate & Review Doctor</span>
+                        </button>
                         <button onclick="switchPatientTab('chat')" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center space-x-1.5">
                             <i class="fa-solid fa-comment-dots"></i>
                             <span>Message Active Doctor</span>
@@ -2255,6 +2259,6 @@
     </footer>
 
     <!-- App JS -->
-    <script src="js/app.js?v=20260902_3300"></script>
+    <script src="js/app.js?v=20260902_3400"></script>
 </body>
 </html>

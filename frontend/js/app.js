@@ -889,15 +889,29 @@ async function loadPatientHistory() {
                 statusBadge = `<span class="px-2.5 py-1 bg-slate-100 text-slate-700 rounded-full text-[10px] font-bold">${docStatus}</span>`;
             }
 
+            const targetDocId = s.assigned_doctor_id || s.doctor_id || (currentUser && currentUser.assigned_doctor_id) || "";
             tr.innerHTML = `
                 <td class="p-3 font-mono text-slate-500">${dateStr}</td>
                 <td class="p-3 font-semibold text-slate-800">${sev}</td>
                 <td class="p-3"><span class="px-2 py-0.5 rounded-full font-bold ${qual === 'GOOD' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">${qual}</span></td>
-                <td class="p-3 text-slate-600">${docName}</td>
+                <td class="p-3 font-semibold text-slate-700">
+                    <div class="flex items-center space-x-1.5">
+                        <div class="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-bold">
+                            <i class="fa-solid fa-user-doctor"></i>
+                        </div>
+                        <span>${docName}</span>
+                    </div>
+                </td>
                 <td class="p-3">${statusBadge}</td>
-                <td class="p-3 flex items-center space-x-2">
-                    <button onclick="restoreLastSession('${scanId}')" class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold transition">View Scan</button>
-                    <a href="${pdfUrl}" target="_blank" class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-xs font-bold transition">PDF</a>
+                <td class="p-3">
+                    <div class="flex items-center space-x-1.5 flex-wrap gap-y-1">
+                        <button onclick="restoreLastSession('${scanId}')" class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold transition">View Scan</button>
+                        <a href="${pdfUrl}" target="_blank" class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-xs font-bold transition">PDF</a>
+                        <button onclick="openDoctorReviewModal('${targetDocId}', '${docName}', '${scanId}')" class="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-lg text-xs font-bold border border-amber-200 transition flex items-center space-x-1 shadow-2xs" title="Rate this doctor's consultation">
+                            <i class="fa-solid fa-star text-amber-500 text-[10px]"></i>
+                            <span>Rate</span>
+                        </button>
+                    </div>
                 </td>
             `;
             tbody.appendChild(tr);
@@ -1507,26 +1521,34 @@ function setDoctorRating(val) {
     if (lbl) lbl.innerText = labels[val] || `${val}.0 / 5.0`;
 }
 
-function openRateDoctorModalFromScan() {
+function openDoctorReviewModal(docId = null, docName = null, scanId = null) {
     const modal = document.getElementById("modalRateDoctor");
     if (!modal) return;
     const nameEl = document.getElementById("rateDoctorName");
     const docIdInput = document.getElementById("rateDoctorId");
     const scanIdInput = document.getElementById("rateScreeningId");
 
-    const docName = (currentViewedScanData && currentViewedScanData.assigned_doctor_name) || (currentUser && currentUser.assigned_doctor_name) || "Assigned Ophthalmologist";
-    const docId = (currentViewedScanData && currentViewedScanData.assigned_doctor_id) || (currentUser && currentUser.assigned_doctor_id);
-    const scanId = (currentViewedScanData && currentViewedScanData.id) || activeSessionId;
+    const resolvedDocName = docName || (currentUser && currentUser.assigned_doctor_name) || "Assigned Ophthalmologist";
+    const resolvedDocId = docId || (currentUser && currentUser.assigned_doctor_id);
+    const resolvedScanId = scanId || (currentViewedScanData && currentViewedScanData.id) || activeSessionId || "";
 
-    if (nameEl) nameEl.innerText = `Reviewing: ${docName}`;
-    if (docIdInput) docIdInput.value = docId || "";
-    if (scanIdInput) scanIdInput.value = scanId || "";
+    if (nameEl) nameEl.innerText = `Reviewing: ${resolvedDocName}`;
+    if (docIdInput) docIdInput.value = resolvedDocId || "";
+    if (scanIdInput) scanIdInput.value = resolvedScanId;
 
     setDoctorRating(5);
     const commentInput = document.getElementById("rateDoctorComment");
     if (commentInput) commentInput.value = "";
 
     modal.classList.remove("hidden");
+}
+
+function openRateDoctorModalFromScan() {
+    openDoctorReviewModal(
+        (currentViewedScanData && currentViewedScanData.assigned_doctor_id) || (currentUser && currentUser.assigned_doctor_id),
+        (currentViewedScanData && currentViewedScanData.assigned_doctor_name) || (currentUser && currentUser.assigned_doctor_name),
+        (currentViewedScanData && currentViewedScanData.id) || activeSessionId
+    );
 }
 
 function closeRateDoctorModal() {
@@ -1759,10 +1781,16 @@ function renderDoctorsCards(doctors) {
                         <span>Select as My Consulting Doctor</span>
                     </button>
                 `}
-                <button onclick="openDoctorChatDirectly('${doc.id}', '${doc.full_name}')" class="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition flex items-center justify-center space-x-1.5 border border-slate-200">
-                    <i class="fa-solid fa-comment-dots text-indigo-600"></i>
-                    <span>Direct Tele-Consultation Message</span>
-                </button>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="openDoctorChatDirectly('${doc.id}', '${doc.full_name}')" class="py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition flex items-center justify-center space-x-1 border border-slate-200">
+                        <i class="fa-solid fa-comment-dots text-indigo-600"></i>
+                        <span>Message</span>
+                    </button>
+                    <button onclick="openDoctorReviewModal('${doc.id}', '${doc.full_name}', null)" class="py-2 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold rounded-xl text-xs transition flex items-center justify-center space-x-1 border border-amber-200">
+                        <i class="fa-solid fa-star text-amber-500"></i>
+                        <span>Rate & Review</span>
+                    </button>
+                </div>
             </div>
         `;
         grid.appendChild(card);

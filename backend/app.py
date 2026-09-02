@@ -1463,6 +1463,21 @@ def create_app():
         reports = mongo.reports.find(query, sort=[("created_at", -1)])
         screenings = mongo.screenings.find(query, sort=[("created_at", -1)])
 
+        # Resolve patient's current assigned doctor fallback
+        current_assigned_doc_name = None
+        current_assigned_doc_id = patient_profile.get("assigned_doctor_id") if patient_profile else (user.get("assigned_doctor_id") if user else None)
+        if current_assigned_doc_id:
+            d_obj = mongo.doctors.find_one({"$or": [{"id": current_assigned_doc_id}, {"user_id": current_assigned_doc_id}]})
+            if d_obj:
+                current_assigned_doc_name = d_obj.get("full_name")
+
+        if not current_assigned_doc_name:
+            # Check first approved doctor in network
+            appr = mongo.doctors.find_one({"approval_status": "approved", "active_status": True})
+            if appr:
+                current_assigned_doc_name = appr.get("full_name")
+                current_assigned_doc_id = appr.get("id") or appr.get("user_id")
+
         history_items = []
         seen_session_ids = set()
 
@@ -1474,7 +1489,20 @@ def create_app():
             doc["final_severity_name"] = doc.get("final_severity_name") or doc.get("severity_name") or "Moderate NPDR (Grade 2)"
             doc["quality_status"] = doc.get("quality_status") or "GOOD"
             doc["clinical_status"] = doc.get("clinical_status") or doc.get("review_status") or "Pending Review"
-            doc["doctor_name"] = doc.get("doctor_name") or doc.get("assigned_doctor_name") or "Dr. S. Sharma, MD"
+            
+            # Resolve actual doctor name
+            resolved_doc_name = doc.get("doctor_name") or doc.get("assigned_doctor_name")
+            target_doc_id = doc.get("assigned_doctor_id") or doc.get("doctor_id") or current_assigned_doc_id
+            if not resolved_doc_name or resolved_doc_name in ["District Specialist Pool", "Dr. S. Sharma, MD", "Assigned Ophthalmologist"]:
+                if target_doc_id:
+                    matched_doc = mongo.doctors.find_one({"$or": [{"id": target_doc_id}, {"user_id": target_doc_id}]})
+                    if matched_doc:
+                        resolved_doc_name = matched_doc.get("full_name")
+                if not resolved_doc_name or resolved_doc_name in ["District Specialist Pool", "Dr. S. Sharma, MD", "Assigned Ophthalmologist"]:
+                    resolved_doc_name = current_assigned_doc_name or "Pending Specialist Assignment"
+
+            doc["doctor_name"] = resolved_doc_name
+            doc["assigned_doctor_id"] = target_doc_id
             doc["pdf_report_url"] = doc.get("pdf_report_url") or f"/api/report/{sid}/pdf"
             history_items.append(doc)
 
@@ -1490,7 +1518,20 @@ def create_app():
                 s_doc["final_severity_name"] = pred.get("severity_name", "Ungradable")
                 s_doc["quality_status"] = qual.get("quality_label", "N/A")
                 s_doc["clinical_status"] = rev.get("status") or s_doc.get("review_status", "Pending Review")
-                s_doc["doctor_name"] = s_doc.get("assigned_doctor_name", "Dr. S. Sharma, MD")
+                
+                # Resolve actual doctor name
+                resolved_doc_name = s_doc.get("assigned_doctor_name") or s_doc.get("doctor_name")
+                target_doc_id = s_doc.get("assigned_doctor_id") or current_assigned_doc_id
+                if not resolved_doc_name or resolved_doc_name in ["District Specialist Pool", "Dr. S. Sharma, MD", "Assigned Ophthalmologist"]:
+                    if target_doc_id:
+                        matched_doc = mongo.doctors.find_one({"$or": [{"id": target_doc_id}, {"user_id": target_doc_id}]})
+                        if matched_doc:
+                            resolved_doc_name = matched_doc.get("full_name")
+                    if not resolved_doc_name or resolved_doc_name in ["District Specialist Pool", "Dr. S. Sharma, MD", "Assigned Ophthalmologist"]:
+                        resolved_doc_name = current_assigned_doc_name or "Pending Specialist Assignment"
+
+                s_doc["doctor_name"] = resolved_doc_name
+                s_doc["assigned_doctor_id"] = target_doc_id
                 s_doc["pdf_report_url"] = f"/api/report/{sid}/pdf"
                 history_items.append(s_doc)
 
