@@ -48,7 +48,7 @@ class PatientModel:
 class DoctorModel:
     """Professional clinical credentials and hospital affiliation for ophthalmologists."""
     @staticmethod
-    def create(user_id, full_name, specialization, license_number, hospital_name, qualifications="MBBS, MS (Ophthalmology)", phone="", consultation_hours="09:00 - 17:00 IST"):
+    def create(user_id, full_name, specialization, license_number, hospital_name, qualifications="MBBS, MS (Ophthalmology)", email="", phone="", consultation_hours="09:00 - 17:00 IST"):
         return {
             "id": str(uuid.uuid4()),
             "user_id": user_id,
@@ -57,12 +57,30 @@ class DoctorModel:
             "license_number": license_number.strip() or f"MCI-{uuid.uuid4().hex[:6].upper()}",
             "qualifications": qualifications.strip(),
             "hospital_name": hospital_name.strip() or "District Eye Hospital",
+            "email": email.strip().lower() if email else "",
             "phone": phone.strip(),
             "consultation_hours": consultation_hours,
+            "rating": 0.0,
+            "review_count": 0,
             "approval_status": "pending_approval",  # "pending_approval" | "approved" | "blacklisted"
             "active_status": False,  # False until Master Admin approves
             "created_at": datetime.utcnow().isoformat(),
             "updated_at": datetime.utcnow().isoformat()
+        }
+
+class DoctorReviewModel:
+    """Patient clinical review, star rating, and feedback for an ophthalmologist."""
+    @staticmethod
+    def create(doctor_id, patient_id, patient_name, rating, comment="", screening_id=None):
+        return {
+            "id": str(uuid.uuid4()),
+            "doctor_id": doctor_id,
+            "patient_id": patient_id,
+            "patient_name": patient_name.strip(),
+            "rating": max(1, min(5, int(rating))),
+            "comment": comment.strip(),
+            "screening_id": screening_id,
+            "created_at": datetime.utcnow().isoformat()
         }
 
 class AdminModel:

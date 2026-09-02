@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>NetraAI • National Tele-Ophthalmology DR Screening Network | SIH 2026</title>
+    <title>Netra Setu • National Tele-Ophthalmology DR Screening Network | SIH 2026</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome 6 CDN -->
@@ -14,6 +14,26 @@
     <!-- Google Identity Services -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <link rel="stylesheet" href="css/style.css">
+    <script>
+        // Immediate DOM & Cache purge safeguard
+        (function() {
+            const currentBuild = "20260902_V7000";
+            if (localStorage.getItem("netra_build_ver") !== currentBuild) {
+                localStorage.setItem("netra_build_ver", currentBuild);
+                if ('caches' in window) {
+                    caches.keys().then(names => {
+                        for (let name of names) caches.delete(name);
+                    });
+                }
+            }
+            window.addEventListener("DOMContentLoaded", () => {
+                const oldPage = document.getElementById("pageModels");
+                if (oldPage) oldPage.remove();
+                const oldLink = document.getElementById("navLinkModels");
+                if (oldLink) oldLink.remove();
+            });
+        })();
+    </script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col antialiased">
 
@@ -27,7 +47,7 @@
                 </div>
                 <div>
                     <h1 class="font-bold text-lg leading-tight tracking-wide flex items-center gap-2">
-                        <span>NetraAI</span>
+                        <span>Netra Setu</span>
                         <span class="text-[10px] bg-indigo-800 px-2 py-0.5 rounded-full text-indigo-300 uppercase font-mono border border-indigo-700">SIH 2026</span>
                     </h1>
                     <p class="text-xs text-indigo-300">National Tele-Ophthalmology Screening Network</p>
@@ -52,6 +72,9 @@
                     </button>
                     <button onclick="switchPatientTab('chat')" class="nav-link px-3.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-indigo-900 transition text-indigo-200">
                         <i class="fa-solid fa-comments mr-1.5"></i> Messages
+                    </button>
+                    <button onclick="switchPatientTab('doctors')" class="nav-link px-3.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-indigo-900 transition text-indigo-200">
+                        <i class="fa-solid fa-user-doctor mr-1.5"></i> 2nd Opinion
                     </button>
                 </div>
 
@@ -129,7 +152,7 @@
                     </h1>
                     <p class="text-indigo-200 text-sm md:text-base leading-relaxed">
                         India has over 77 million diabetic adults and only 1 ophthalmologist per 100,000 rural citizens. 
-                        NetraAI provides an automated tele-screening platform with image quality assessment, YOLO11 ICDR grading, 
+                        Netra Setu provides an automated tele-screening platform with image quality assessment, YOLO11 ICDR grading, 
                         sub-pixel lesion mapping, and district-level Simulink telemedicine optimization.
                     </p>
                     <div class="pt-4 flex flex-wrap items-center gap-3">
@@ -226,7 +249,7 @@
                 <div class="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto text-xl shadow-inner">
                     <i class="fa-solid fa-lock"></i>
                 </div>
-                <h2 class="text-2xl font-extrabold text-slate-800">Sign In to NetraAI</h2>
+                <h2 class="text-2xl font-extrabold text-slate-800">Sign In to Netra Setu</h2>
                 <p class="text-xs text-slate-500" id="loginSubtitle">Enter your username or email to access your dashboard</p>
             </div>
 
@@ -262,32 +285,12 @@
                 <div class="flex-grow border-t border-slate-200"></div>
             </div>
 
-            <!-- Google OAuth Button -->
-            <div>
-                <button type="button" onclick="triggerGoogleSignIn()" class="w-full py-2.5 px-4 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-semibold rounded-xl text-xs shadow-xs transition flex items-center justify-center space-x-2.5">
-                    <svg class="w-4 h-4" viewBox="0 0 24 24">
-                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-                    </svg>
-                    <span>Continue with Google</span>
-                </button>
+            <!-- Official Google Identity Services Container -->
+            <div class="flex justify-center w-full py-1">
+                <div id="googleSignInButton" class="w-full flex justify-center"></div>
             </div>
 
-            <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-2">
-                <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block text-center">Quick Master Admin Access</span>
-                <div class="grid grid-cols-2 gap-2">
-                    <button onclick="fillLogin('admin', 'Admin@SIH2026')" class="px-3 py-2 bg-white border border-slate-200 hover:border-purple-500 text-purple-800 rounded-xl text-xs font-bold shadow-xs flex items-center justify-center space-x-1.5 transition">
-                        <span>👑 Master Admin</span>
-                    </button>
-                    <button onclick="fillLogin('talbiya', '')" class="px-3 py-2 bg-white border border-slate-200 hover:border-indigo-500 text-indigo-800 rounded-xl text-xs font-bold shadow-xs flex items-center justify-center space-x-1.5 transition">
-                        <span>👤 Patient (Talbiya)</span>
-                    </button>
-                </div>
-            </div>
-
-            <p class="text-xs text-center text-slate-500">
+            <p class="text-xs text-center text-slate-500 pt-2">
                 Don't have an account? <button onclick="openRegisterModal('patient')" class="text-indigo-600 font-bold hover:underline">Register here</button>
             </p>
         </section>
@@ -321,17 +324,18 @@
             <form id="formRegister" onsubmit="handleRegister(event)" class="space-y-3.5">
                 <div>
                     <label class="text-xs font-bold text-slate-600 uppercase">Full Name</label>
-                    <input type="text" id="regFullName" required placeholder="e.g. Talbiya Parveen" class="w-full mt-1 px-3.5 py-2.5 bg-slate-50 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
+                    <input type="text" id="regFullName" required placeholder="Enter full name" class="w-full mt-1 px-3.5 py-2.5 bg-slate-50 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
                 </div>
 
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="text-xs font-bold text-slate-600 uppercase">Age</label>
-                        <input type="number" id="regAge" required value="48" class="w-full mt-1 px-3.5 py-2.5 bg-slate-50 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <input type="number" id="regAge" required placeholder="e.g. 52" class="w-full mt-1 px-3.5 py-2.5 bg-slate-50 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
                     </div>
                     <div>
                         <label class="text-xs font-bold text-slate-600 uppercase">Gender</label>
                         <select id="regGender" class="w-full mt-1 px-3.5 py-2.5 bg-slate-50 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
+                            <option value="" disabled selected>Select Gender</option>
                             <option value="Female">Female</option>
                             <option value="Male">Male</option>
                             <option value="Other">Other</option>
@@ -352,24 +356,39 @@
                     </div>
                     <div>
                         <label class="text-[11px] font-bold text-blue-800 uppercase">Duration (Years)</label>
-                        <input type="number" id="regDiabetesDuration" value="5" min="0" max="60" class="w-full mt-1 px-2.5 py-2 bg-white text-xs border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                        <input type="number" id="regDiabetesDuration" placeholder="e.g. 5" min="0" max="60" class="w-full mt-1 px-2.5 py-2 bg-white text-xs border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                     </div>
                 </div>
 
                 <!-- Doctor fields -->
                 <div id="doctorExtraFields" class="hidden space-y-3 p-3 bg-emerald-50 rounded-xl border border-emerald-200">
                     <div>
-                        <label class="text-xs font-bold text-emerald-800 uppercase">Specialization</label>
-                        <input type="text" id="regSpecialization" placeholder="e.g. Senior Vitreo-Retina Specialist" class="w-full mt-1 px-3 py-2 bg-white text-sm border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none">
+                        <div class="flex items-center justify-between">
+                            <label class="text-xs font-bold text-emerald-800 uppercase">Ophthalmology Specialty</label>
+                            <span class="text-[10px] bg-emerald-200 text-emerald-900 font-bold px-1.5 py-0.5 rounded">Eye Care Specialists Only</span>
+                        </div>
+                        <select id="regSpecialization" class="w-full mt-1 px-3 py-2 bg-white text-xs font-semibold border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none">
+                            <option value="Senior Vitreo-Retina Consultant" selected>Senior Vitreo-Retina Consultant</option>
+                            <option value="Vitreo-Retina Specialist">Vitreo-Retina Specialist</option>
+                            <option value="General Ophthalmologist">General Ophthalmologist</option>
+                            <option value="Retina & Diabetic Eye Specialist">Retina & Diabetic Eye Specialist</option>
+                            <option value="Cornea & Anterior Segment Specialist">Cornea & Anterior Segment Specialist</option>
+                            <option value="Glaucoma & Neuro-Ophthalmology Consultant">Glaucoma & Neuro-Ophthalmology Consultant</option>
+                            <option value="Pediatric Ophthalmology & Strabismus">Pediatric Ophthalmology & Strabismus</option>
+                            <option value="Ophthalmic Surgeon & Retinopathy Consultant">Ophthalmic Surgeon & Retinopathy Consultant</option>
+                        </select>
+                        <p class="text-[10px] text-emerald-700 mt-1">
+                            <i class="fa-solid fa-shield-halved mr-1"></i> Registration is strictly restricted to licensed Ophthalmology & Eye Care practitioners.
+                        </p>
                     </div>
                     <div class="grid grid-cols-2 gap-2">
                         <div>
                             <label class="text-xs font-bold text-emerald-800 uppercase">Medical License No</label>
-                            <input type="text" id="regLicense" placeholder="MCI-RET-2026-889" class="w-full mt-1 px-3 py-2 bg-white text-sm border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none">
+                            <input type="text" id="regLicense" placeholder="MCI-RET-2026-889" class="w-full mt-1 px-3 py-2 bg-white text-xs border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none">
                         </div>
                         <div>
                             <label class="text-xs font-bold text-emerald-800 uppercase">Hospital Affiliation</label>
-                            <input type="text" id="regHospital" placeholder="District Eye Hospital" class="w-full mt-1 px-3 py-2 bg-white text-sm border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none">
+                            <input type="text" id="regHospital" placeholder="District Eye Hospital" class="w-full mt-1 px-3 py-2 bg-white text-xs border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none">
                         </div>
                     </div>
                 </div>
@@ -391,8 +410,49 @@
                 </div>
 
                 <div>
-                    <label class="text-xs font-bold text-slate-600 uppercase">Password</label>
-                    <input type="password" id="regPassword" required placeholder="••••••••" class="w-full mt-1 px-3.5 py-2.5 bg-slate-50 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
+                    <div class="flex items-center justify-between">
+                        <label class="text-xs font-bold text-slate-600 uppercase">Create Password</label>
+                        <span id="passwordStrengthLabel" class="text-[11px] font-bold text-slate-400">Required: Strong Password</span>
+                    </div>
+                    <div class="relative mt-1">
+                        <input type="password" id="regPassword" required placeholder="Create a strong password" oninput="checkRegPasswordStrength(this.value)" class="w-full px-3.5 py-2.5 bg-slate-50 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none pr-10">
+                        <button type="button" onclick="togglePasswordVisibility('regPassword', this)" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 focus:outline-none" title="Show / Hide Password">
+                            <i class="fa-solid fa-eye"></i>
+                        </button>
+                    </div>
+
+                    <!-- Live Password Strength Meter -->
+                    <div class="w-full bg-slate-200 h-1.5 rounded-full mt-2 overflow-hidden">
+                        <div id="passwordStrengthBar" class="h-full bg-slate-400 transition-all duration-300 w-0"></div>
+                    </div>
+
+                    <!-- Dynamic Real-Time Requirements Checklist -->
+                    <div class="mt-2.5 p-3 bg-slate-50 rounded-2xl border border-slate-200 text-[11px] space-y-1.5 text-slate-600">
+                        <div class="font-bold text-slate-700 mb-1 flex items-center justify-between">
+                            <span><i class="fa-solid fa-shield-halved text-indigo-500 mr-1"></i> Strong Password Rules:</span>
+                            <span id="pwdRulesScore" class="text-[10px] text-slate-400 font-mono">0/5 Met</span>
+                        </div>
+                        <div id="reqLen" class="flex items-center space-x-2 text-slate-400">
+                            <i class="fa-solid fa-circle-xmark text-slate-400"></i>
+                            <span>At least <b>8 characters</b> in length</span>
+                        </div>
+                        <div id="reqUpper" class="flex items-center space-x-2 text-slate-400">
+                            <i class="fa-solid fa-circle-xmark text-slate-400"></i>
+                            <span>At least <b>1 uppercase letter</b> (A–Z)</span>
+                        </div>
+                        <div id="reqLower" class="flex items-center space-x-2 text-slate-400">
+                            <i class="fa-solid fa-circle-xmark text-slate-400"></i>
+                            <span>At least <b>1 lowercase letter</b> (a–z)</span>
+                        </div>
+                        <div id="reqNum" class="flex items-center space-x-2 text-slate-400">
+                            <i class="fa-solid fa-circle-xmark text-slate-400"></i>
+                            <span>At least <b>1 numeric digit</b> (0–9)</span>
+                        </div>
+                        <div id="reqSpecial" class="flex items-center space-x-2 text-slate-400">
+                            <i class="fa-solid fa-circle-xmark text-slate-400"></i>
+                            <span>At least <b>1 special character</b> (e.g. @, #, $, %, !, *)</span>
+                        </div>
+                    </div>
                 </div>
 
                 <button type="submit" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-md transition flex items-center justify-center space-x-2">
@@ -476,12 +536,12 @@
 
                         <div>
                             <label class="text-xs font-bold text-slate-600 uppercase">New Password</label>
-                            <input type="password" id="resetNewPassword" minlength="6" placeholder="At least 6 characters" class="w-full mt-1 px-3.5 py-2.5 bg-slate-50 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
+                            <input type="password" id="resetNewPassword" minlength="8" placeholder="At least 8 characters (Upper, Lower, Num, Special)" class="w-full mt-1 px-3.5 py-2.5 bg-slate-50 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
                         </div>
 
                         <div>
                             <label class="text-xs font-bold text-slate-600 uppercase">Confirm New Password</label>
-                            <input type="password" id="resetConfirmPassword" minlength="6" placeholder="Re-enter new password" class="w-full mt-1 px-3.5 py-2.5 bg-slate-50 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
+                            <input type="password" id="resetConfirmPassword" minlength="8" placeholder="Re-enter new password" class="w-full mt-1 px-3.5 py-2.5 bg-slate-50 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
                         </div>
 
                         <button type="submit" id="btnSubmitResetPassword" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md transition flex items-center justify-center space-x-2 text-xs">
@@ -493,85 +553,7 @@
             </div>
         </div>
 
-        <!-- =============================================================== -->
-        <!-- 3C. GOOGLE SIGN-IN ACCOUNT SELECTOR MODAL -->
-        <!-- =============================================================== -->
-        <div id="modalGoogleAuth" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div class="bg-white max-w-sm w-full p-6 rounded-3xl shadow-2xl border space-y-5 text-left">
-                <!-- Google Header -->
-                <div class="flex items-center justify-between border-b pb-3.5">
-                    <div class="flex items-center space-x-2.5">
-                        <svg class="w-6 h-6" viewBox="0 0 24 24">
-                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-                        </svg>
-                        <div>
-                            <h3 class="text-sm font-bold text-slate-800">Sign in with Google</h3>
-                            <p class="text-[11px] text-slate-500">Choose an account to continue to NetraAI</p>
-                        </div>
-                    </div>
-                    <button onclick="closeGoogleAuthModal()" class="text-slate-400 hover:text-slate-600 text-lg">
-                        <i class="fa-solid fa-xmark"></i>
-                    </button>
-                </div>
 
-                <!-- Quick Select Accounts List -->
-                <div class="space-y-2">
-                    <!-- Account 1 -->
-                    <button type="button" onclick="loginWithGoogleAccount('Talbiya Parveen', 'dev.talbiya.parveen@gmail.com')" class="w-full p-2.5 hover:bg-slate-50 border border-slate-200 hover:border-indigo-400 rounded-2xl flex items-center space-x-3 transition text-left group">
-                        <div class="w-9 h-9 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center text-sm shadow-xs">
-                            TP
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <p class="text-xs font-bold text-slate-800 group-hover:text-indigo-600 truncate">Talbiya Parveen</p>
-                            <p class="text-[11px] text-slate-500 truncate">dev.talbiya.parveen@gmail.com</p>
-                        </div>
-                        <i class="fa-solid fa-chevron-right text-slate-300 text-xs group-hover:text-indigo-600"></i>
-                    </button>
-
-                    <!-- Account 2 -->
-                    <button type="button" onclick="loginWithGoogleAccount('Arsh Ahmad', 'arshahmad441@gmail.com')" class="w-full p-2.5 hover:bg-slate-50 border border-slate-200 hover:border-indigo-400 rounded-2xl flex items-center space-x-3 transition text-left group">
-                        <div class="w-9 h-9 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-sm shadow-xs">
-                            AA
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <p class="text-xs font-bold text-slate-800 group-hover:text-indigo-600 truncate">Arsh Ahmad</p>
-                            <p class="text-[11px] text-slate-500 truncate">arshahmad441@gmail.com</p>
-                        </div>
-                        <i class="fa-solid fa-chevron-right text-slate-300 text-xs group-hover:text-indigo-600"></i>
-                    </button>
-                </div>
-
-                <!-- Custom Account Entry Form (Expandable) -->
-                <div class="pt-2 border-t border-slate-100">
-                    <button type="button" onclick="toggleCustomGoogleInput()" class="text-xs text-indigo-600 font-bold hover:underline flex items-center space-x-1.5 w-full justify-center">
-                        <i class="fa-solid fa-user-plus text-[11px]"></i>
-                        <span>Use another Google account</span>
-                    </button>
-
-                    <form id="formCustomGoogle" onsubmit="handleCustomGoogleSubmit(event)" class="hidden mt-3 space-y-2.5 text-xs">
-                        <div>
-                            <label class="font-bold text-slate-600 uppercase text-[10px]">Your Name</label>
-                            <input type="text" id="customGoogleName" required placeholder="e.g. Dr. A. Sharma" class="w-full mt-1 px-3 py-2 bg-slate-50 border rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500">
-                        </div>
-                        <div>
-                            <label class="font-bold text-slate-600 uppercase text-[10px]">Google Email Address</label>
-                            <input type="email" id="customGoogleEmail" required placeholder="user@gmail.com" class="w-full mt-1 px-3 py-2 bg-slate-50 border rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500">
-                        </div>
-                        <div class="flex space-x-2 pt-1">
-                            <button type="button" onclick="toggleCustomGoogleInput()" class="flex-1 py-2 bg-slate-100 text-slate-600 rounded-xl font-bold">Back</button>
-                            <button type="submit" class="flex-1 py-2 bg-indigo-600 text-white rounded-xl font-bold shadow">Sign In</button>
-                        </div>
-                    </form>
-                </div>
-
-                <p class="text-[10px] text-slate-400 text-center leading-relaxed">
-                    To continue, Google will share your name and email address with NetraAI Tele-Ophthalmology.
-                </p>
-            </div>
-        </div>
 
         <!-- =============================================================== -->
         <!-- 4. EDIT PROFILE MODAL (ROLE-AWARE) -->
@@ -750,56 +732,61 @@
         <!-- 6. PATIENT SCREENING DASHBOARD (WITH SAVED DETAILS & HISTORY) -->
         <!-- =============================================================== -->
         <section id="pagePatient" class="hidden space-y-6">
-            <!-- Back to Landing Page and Log Out Row -->
-            <div class="flex items-center justify-between">
-                <button onclick="navigateTo('home')" class="text-xs text-slate-500 hover:text-indigo-600 font-semibold flex items-center space-x-1.5 transition">
-                    <i class="fa-solid fa-arrow-left"></i>
-                    <span>Back to Landing Page</span>
-                </button>
-                <button onclick="handleLogout()" class="px-3.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 border border-rose-200 shadow-2xs">
-                    <i class="fa-solid fa-right-from-bracket"></i>
-                    <span>Log Out</span>
-                </button>
-            </div>
-
-            <!-- Patient Banner with Profile Summary & Controls -->
-            <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4">
+            <!-- Patient Header Hero & Profile Card -->
+            <div class="bg-white p-5 md:p-6 rounded-3xl shadow-xs border border-slate-200/90 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5">
+                <!-- Patient Profile Info -->
                 <div class="flex items-center space-x-4">
-                    <div class="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-xl font-bold shadow-md">
-                        <i class="fa-solid fa-id-card-clip"></i>
+                    <div class="relative">
+                        <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-700 text-white flex items-center justify-center text-2xl font-bold shadow-md shadow-indigo-500/20">
+                            <i class="fa-solid fa-id-card-clip"></i>
+                        </div>
+                        <span class="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full"></span>
                     </div>
                     <div>
-                        <div class="flex items-center space-x-2">
-                            <h2 class="text-lg font-bold text-slate-800" id="patientCardFullName">Patient Name</h2>
-                            <span class="text-[10px] bg-indigo-100 text-indigo-800 font-bold px-2 py-0.5 rounded-full" id="patientCardAgeGender">Age: 48 • Female</span>
+                        <div class="flex items-center space-x-2.5 flex-wrap">
+                            <h2 class="text-xl font-bold text-slate-800" id="patientCardFullName">Patient Name</h2>
+                            <span class="text-[11px] bg-indigo-100 text-indigo-800 font-bold px-2.5 py-0.5 rounded-full" id="patientCardAgeGender">Age: -- • Gender: --</span>
+                            <span class="text-[11px] bg-emerald-100 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full">Active Tele-Patient</span>
                         </div>
-                        <p class="text-xs text-slate-400 mt-0.5" id="patientCardContact">Email: user@gmail.com • Phone: N/A</p>
+                        <p class="text-xs text-slate-500 mt-1" id="patientCardContact">Email: user@gmail.com • Phone: N/A</p>
                     </div>
                 </div>
 
-                <div class="flex items-center space-x-2 flex-wrap gap-y-2">
-                    <button onclick="openEditProfileModal()" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 border border-slate-200">
-                        <i class="fa-solid fa-user-pen"></i>
+                <!-- Right Side: Profile Controls -->
+                <div class="flex items-center space-x-2.5 flex-wrap self-stretch lg:self-auto justify-between lg:justify-end border-t lg:border-t-0 pt-3 lg:pt-0 border-slate-100">
+                    <button onclick="openEditProfileModal()" class="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 border border-slate-200 shadow-2xs">
+                        <i class="fa-solid fa-user-pen text-slate-500"></i>
                         <span>Edit Profile</span>
                     </button>
-                    <button onclick="openChangePasswordModal()" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 border border-slate-200">
+                    <button onclick="openChangePasswordModal()" class="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 border border-slate-200 shadow-2xs">
                         <i class="fa-solid fa-key text-indigo-600"></i>
-                        <span>Change Password</span>
+                        <span>Password</span>
                     </button>
-                    <button onclick="switchPatientTab('screening')" id="tabPatientScreening" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-sm transition">
-                        <i class="fa-solid fa-upload mr-1"></i> New Screening
-                    </button>
-                    <button onclick="switchPatientTab('history')" id="tabPatientHistory" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition">
-                        <i class="fa-solid fa-clock-rotate-left mr-1"></i> Past Reports
-                    </button>
-                    <button onclick="switchPatientTab('chat')" id="tabPatientChat" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition">
-                        <i class="fa-solid fa-comments mr-1"></i> Messages
-                    </button>
-                    <button onclick="handleLogout()" class="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition flex items-center space-x-1.5 shadow-sm">
+                    <button onclick="handleLogout()" class="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 border border-rose-200 shadow-2xs">
                         <i class="fa-solid fa-right-from-bracket"></i>
                         <span>Log Out</span>
                     </button>
                 </div>
+            </div>
+
+            <!-- Patient Segmented Navigation Bar -->
+            <div class="bg-white p-1.5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center space-x-1.5 overflow-x-auto">
+                <button onclick="switchPatientTab('screening')" id="tabPatientScreening" class="flex-1 min-w-[160px] py-2.5 px-4 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-upload"></i>
+                    <span>New Screening</span>
+                </button>
+                <button onclick="switchPatientTab('history')" id="tabPatientHistory" class="flex-1 min-w-[160px] py-2.5 px-4 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold transition flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-clock-rotate-left text-indigo-600"></i>
+                    <span>Past Reports & Scans</span>
+                </button>
+                <button onclick="switchPatientTab('chat')" id="tabPatientChat" class="flex-1 min-w-[160px] py-2.5 px-4 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold transition flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-comments text-indigo-600"></i>
+                    <span>Messages</span>
+                </button>
+                <button onclick="switchPatientTab('doctors')" id="tabPatientDoctors" class="flex-1 min-w-[160px] py-2.5 px-4 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold transition flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-star text-amber-500"></i>
+                    <span>Specialists & Reviews</span>
+                </button>
             </div>
 
             <!-- TAB A: SCREENING WORKFLOW -->
@@ -847,10 +834,10 @@
                         <!-- Stored Patient Meta Preview -->
                         <div class="bg-indigo-50/70 p-3 rounded-2xl border border-indigo-100 space-y-1 text-xs text-indigo-900">
                             <div class="font-bold flex items-center justify-between">
-                                <span id="labelPatientAttached">Screening for: Talbiya Parveen</span>
+                                <span id="labelPatientAttached">Screening for: Patient</span>
                                 <button type="button" onclick="openEditProfileModal()" class="text-[10px] text-indigo-600 underline">Change</button>
                             </div>
-                            <div class="text-slate-500 text-[11px]" id="labelPatientAgeGender">Age: 48 • Gender: Female</div>
+                            <div class="text-slate-500 text-[11px]" id="labelPatientAgeGender">Patient Screening Profile</div>
                         </div>
 
                         <button id="btnRunScreening" onclick="runPatientScreening()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition shadow-md flex items-center justify-center space-x-2 text-xs">
@@ -861,6 +848,17 @@
 
                     <!-- Right: Diagnostic Results Dashboard -->
                     <div class="lg:col-span-2 space-y-4">
+                        <!-- Initial Clean State: Shown when no active scan is being viewed -->
+                        <div id="screeningInitialState" class="bg-white p-12 rounded-3xl border border-slate-200 text-center space-y-3 shadow-xs">
+                            <div class="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto text-2xl">
+                                <i class="fa-solid fa-eye"></i>
+                            </div>
+                            <h4 class="font-bold text-slate-800 text-base">Ready for Retinal Screening</h4>
+                            <p class="text-xs text-slate-500 max-w-md mx-auto">
+                                Upload a clear retinal fundus photo on the left or use the live camera to begin Dual AI analysis. To review previous results, click <b>"View Scan"</b> in the History tab.
+                            </p>
+                        </div>
+
                         <div id="patientLoadingState" class="hidden bg-white p-12 rounded-3xl border border-slate-200 text-center space-y-3">
                             <div class="animate-spin w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full mx-auto"></div>
                             <h4 class="font-bold text-slate-700">Evaluating Retinal Scan...</h4>
@@ -1046,58 +1044,167 @@
                     </button>
                 </form>
             </div>
+
+            <!-- TAB D: FIND OPHTHALMOLOGIST / SECOND OPINION DIRECTORY -->
+            <div id="patientTabDoctorsContent" class="hidden bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-6">
+                <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 border-b pb-4">
+                    <div>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-[10px] bg-amber-100 text-amber-900 font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wide flex items-center">
+                                <i class="fa-solid fa-star text-amber-500 mr-1"></i> Specialist Marketplace
+                            </span>
+                            <span class="text-[10px] bg-indigo-100 text-indigo-800 font-bold px-2.5 py-0.5 rounded-full">1 Active Doctor Constraint</span>
+                        </div>
+                        <h3 class="font-bold text-slate-800 text-lg mt-1">Verified Ophthalmology Specialists & Patient Reviews</h3>
+                        <p class="text-xs text-slate-500">Choose your consulting ophthalmologist based on real patient star ratings, reviews, and clinical queue availability.</p>
+                    </div>
+                    <button onclick="loadDoctorsDirectory()" class="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition">
+                        <i class="fa-solid fa-arrows-rotate"></i>
+                        <span>Refresh Specialists</span>
+                    </button>
+                </div>
+
+                <!-- Currently Assigned Doctor Banner -->
+                <div id="currentAssignedDoctorBanner" class="p-4 rounded-2xl bg-indigo-50/80 border border-indigo-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-xl font-bold shadow-sm">
+                            <i class="fa-solid fa-user-doctor"></i>
+                        </div>
+                        <div>
+                            <span class="text-[10px] font-bold text-indigo-700 uppercase tracking-wider block">Your Currently Active Assigned Doctor</span>
+                            <h4 class="font-bold text-slate-800 text-sm" id="activeAssignedDocName">Dr. Specialist</h4>
+                            <p class="text-xs text-slate-500" id="activeAssignedDocMeta">Senior Vitreo-Retina Specialist • District Eye Hospital</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2 flex-wrap gap-y-2">
+                        <button onclick="openDoctorReviewModal(null, null, null)" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center space-x-1.5">
+                            <i class="fa-solid fa-star"></i>
+                            <span>Rate & Review Doctor</span>
+                        </button>
+                        <button onclick="switchPatientTab('chat')" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center space-x-1.5">
+                            <i class="fa-solid fa-comment-dots"></i>
+                            <span>Message Active Doctor</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Search & Filters (Amazon / Flipkart Style) -->
+                <div class="flex flex-col md:flex-row items-stretch md:items-center gap-3">
+                    <div class="relative flex-1">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-xs"></i>
+                        <input type="text" id="inputSearchDoctors" oninput="filterDoctorsList()" placeholder="Search by doctor name, hospital, or retina sub-specialty..." class="w-full pl-9 pr-4 py-2.5 bg-slate-50 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    <div class="flex items-center space-x-2 flex-wrap text-xs">
+                        <button type="button" onclick="setDoctorFilter('all')" id="btnFilterDocAll" class="px-3 py-1.5 rounded-lg bg-slate-800 text-white font-bold transition">All Specialists</button>
+                        <button type="button" onclick="setDoctorFilter('top')" id="btnFilterDocTop" class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition">⭐ Top Rated (4.8+)</button>
+                        <button type="button" onclick="setDoctorFilter('fast')" id="btnFilterDocFast" class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition">⚡ Fast Response</button>
+                    </div>
+                </div>
+
+                <!-- Doctors Directory Grid -->
+                <div id="patientDoctorsDirectoryGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    <div class="col-span-full text-center py-12 text-slate-400 text-xs">
+                        <div class="animate-spin w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full mx-auto mb-2"></div>
+                        Loading verified ophthalmologist directory & reviews...
+                    </div>
+                </div>
+            </div>
         </section>
 
         <!-- =============================================================== -->
         <!-- 7. DOCTOR CLINICAL WORKSTATION -->
         <!-- =============================================================== -->
         <section id="pageDoctor" class="hidden space-y-6">
-            <!-- Back to Landing Page and Log Out Row -->
-            <div class="flex items-center justify-between">
-                <button onclick="navigateTo('home')" class="text-xs text-slate-500 hover:text-emerald-600 font-semibold flex items-center space-x-1.5 transition">
-                    <i class="fa-solid fa-arrow-left"></i>
-                    <span>Back to Landing Page</span>
-                </button>
-                <button onclick="handleLogout()" class="px-3.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 border border-rose-200 shadow-2xs">
-                    <i class="fa-solid fa-right-from-bracket"></i>
-                    <span>Log Out</span>
-                </button>
-            </div>
-
-            <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4">
-                <div>
-                    <span class="bg-emerald-100 text-emerald-800 text-xs font-semibold px-2.5 py-1 rounded-full">Doctor Clinical Workstation</span>
-                    <h2 class="text-2xl font-bold text-slate-800 mt-1">Tele-Ophthalmology Review Worklist</h2>
-                    <p class="text-xs text-slate-500">Review AI-annotated fundus scans and sign off in &lt;15 seconds.</p>
+            <!-- Doctor Header Hero & Profile Card -->
+            <div class="bg-white p-5 md:p-6 rounded-3xl shadow-xs border border-slate-200/90 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5">
+                <!-- Doctor Profile Info -->
+                <div class="flex items-center space-x-4">
+                    <div class="relative">
+                        <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white flex items-center justify-center text-2xl font-bold shadow-md shadow-emerald-500/20">
+                            <i class="fa-solid fa-user-doctor"></i>
+                        </div>
+                        <span class="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full"></span>
+                    </div>
+                    <div>
+                        <div class="flex items-center space-x-2.5 flex-wrap">
+                            <h2 class="text-xl font-bold text-slate-800" id="docHeaderFullName">Doctor Clinical Workstation</h2>
+                            <span class="text-[11px] bg-emerald-100 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full flex items-center">
+                                <i class="fa-solid fa-circle-check text-emerald-600 mr-1 text-[10px]"></i> MCI Verified Ophthalmologist
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-1" id="docHeaderMeta">Senior Vitreo-Retina Consultant • Tele-Ophthalmology Review Worklist</p>
+                    </div>
                 </div>
-                <div class="flex items-center space-x-2">
-                    <button onclick="openEditProfileModal()" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 border border-slate-200">
-                        <i class="fa-solid fa-user-doctor"></i>
+
+                <!-- Right Side: Rating Pill & Profile Quick Actions -->
+                <div class="flex items-center space-x-2.5 flex-wrap self-stretch lg:self-auto justify-between lg:justify-end border-t lg:border-t-0 pt-3 lg:pt-0 border-slate-100">
+                    <!-- Amazon-Style Doctor Rating Badge -->
+                    <div onclick="switchDoctorTab('reviews')" class="flex items-center space-x-2 bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 border border-amber-200/80 px-4 py-2 rounded-2xl cursor-pointer transition shadow-2xs group" title="Click to view all patient reviews and ratings">
+                        <div class="flex items-center text-amber-500 text-sm font-black">
+                            <i class="fa-solid fa-star mr-1.5 group-hover:scale-110 transition"></i>
+                            <span id="docHeaderRating">0.0</span>
+                        </div>
+                        <div class="text-left border-l border-amber-200 pl-2">
+                            <div class="text-[11px] font-bold text-amber-900 leading-tight" id="docHeaderReviewCount">(0 Reviews)</div>
+                            <div class="text-[9px] text-amber-700 leading-none">View Feedback</div>
+                        </div>
+                    </div>
+
+                    <button onclick="openEditProfileModal()" class="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 border border-slate-200 shadow-2xs">
+                        <i class="fa-solid fa-user-pen text-slate-500"></i>
                         <span>Edit Profile</span>
                     </button>
-                    <button onclick="switchDoctorTab('workstation')" id="tabDoctorWorkstation" class="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-sm transition">
-                        <i class="fa-solid fa-list-check mr-1"></i> Patient Queue
+                    <button onclick="openChangePasswordModal()" class="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 border border-slate-200 shadow-2xs">
+                        <i class="fa-solid fa-key text-emerald-600"></i>
+                        <span>Password</span>
                     </button>
-                    <button onclick="switchDoctorTab('screening')" id="tabDoctorScreening" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center space-x-1.5">
-                        <i class="fa-solid fa-camera-retro mr-1"></i> New Patient Scan
-                    </button>
-                    <button onclick="switchDoctorTab('chat')" id="tabDoctorChat" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition flex items-center space-x-1">
-                        <i class="fa-solid fa-comments mr-1"></i> Messages
-                    </button>
-                    <button onclick="handleLogout()" class="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition flex items-center space-x-1.5 shadow-sm">
+                    <button onclick="handleLogout()" class="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 border border-rose-200 shadow-2xs">
                         <i class="fa-solid fa-right-from-bracket"></i>
                         <span>Log Out</span>
                     </button>
                 </div>
             </div>
 
+            <!-- Doctor Segmented Navigation Bar -->
+            <div class="bg-white p-1.5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center space-x-1.5 overflow-x-auto">
+                <button onclick="switchDoctorTab('workstation')" id="tabDoctorWorkstation" class="flex-1 min-w-[160px] py-2.5 px-4 bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-list-check"></i>
+                    <span>Review Worklist</span>
+                </button>
+                <button onclick="switchDoctorTab('screening')" id="tabDoctorScreening" class="flex-1 min-w-[160px] py-2.5 px-4 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold transition flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-camera-retro text-emerald-600"></i>
+                    <span>New Patient Scan</span>
+                </button>
+                <button onclick="switchDoctorTab('chat')" id="tabDoctorChat" class="flex-1 min-w-[160px] py-2.5 px-4 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold transition flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-comments text-indigo-600"></i>
+                    <span>Patient Messages</span>
+                </button>
+                <button onclick="switchDoctorTab('reviews')" id="tabDoctorReviews" class="flex-1 min-w-[160px] py-2.5 px-4 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold transition flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-star text-amber-500"></i>
+                    <span>Reviews & Ratings</span>
+                </button>
+            </div>
+
             <!-- TAB A: DOCTOR WORKSTATION QUEUE & SIGN-OFF -->
             <div id="doctorTabWorkstationContent" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 space-y-3">
-                    <h3 class="font-bold text-slate-800 text-sm flex items-center justify-between">
-                        <span><i class="fa-solid fa-list-check text-emerald-600 mr-2"></i> Review Queue</span>
-                        <span id="doctorQueueCount" class="text-xs bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">0</span>
-                    </h3>
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-bold text-slate-800 text-sm flex items-center">
+                            <i class="fa-solid fa-list-check text-emerald-600 mr-2"></i> Review Queue
+                        </h3>
+                        <span id="doctorQueueCount" class="text-xs bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full font-bold">0</span>
+                    </div>
+
+                    <!-- Queue Scope Switcher -->
+                    <div class="flex p-1 bg-slate-100 rounded-xl text-[11px] font-semibold">
+                        <button type="button" id="btnQueueScopeAll" onclick="setDoctorQueueScope('all')" class="flex-1 py-1.5 rounded-lg bg-emerald-600 text-white font-bold transition shadow-xs">
+                            All Scans (Clinic)
+                        </button>
+                        <button type="button" id="btnQueueScopeMy" onclick="setDoctorQueueScope('my')" class="flex-1 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition">
+                            Assigned to Me
+                        </button>
+                    </div>
+
                     <div id="doctorQueueList" class="space-y-2 max-h-[520px] overflow-y-auto pr-1"></div>
                 </div>
 
@@ -1110,8 +1217,8 @@
                     <div id="doctorStationContent" class="hidden space-y-5">
                         <div class="flex items-center justify-between border-b pb-3">
                             <div>
-                                <h3 class="text-lg font-bold text-slate-800" id="docPatientName">Patient: Ramesh Kumar</h3>
-                                <div class="text-xs text-slate-400" id="docPatientMeta">Age: 54 • Gender: Male</div>
+                                <h3 class="text-lg font-bold text-slate-800" id="docPatientName">Patient: -</h3>
+                                <div class="text-xs text-slate-400" id="docPatientMeta">-</div>
                             </div>
                             <div class="text-right flex items-center space-x-2">
                                 <span id="docAIStatusBadge" class="px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800">Moderate NPDR</span>
@@ -1190,7 +1297,7 @@
                         <form id="formDoctorScreening" onsubmit="handleDoctorScreeningSubmit(event)" class="space-y-3 text-xs">
                             <div>
                                 <label class="font-bold text-slate-700 uppercase tracking-wider text-[10px]">Patient Full Name *</label>
-                                <input type="text" id="docScanPatientName" required placeholder="e.g. Ramesh Kumar" class="w-full mt-1 px-3 py-2 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+                                <input type="text" id="docScanPatientName" required placeholder="Enter patient full name" class="w-full mt-1 px-3 py-2 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500">
                             </div>
 
                             <div class="grid grid-cols-2 gap-2">
@@ -1207,11 +1314,12 @@
                             <div class="grid grid-cols-2 gap-2">
                                 <div>
                                     <label class="font-bold text-slate-700 uppercase tracking-wider text-[10px]">Age</label>
-                                    <input type="number" id="docScanPatientAge" value="48" min="1" max="120" class="w-full mt-1 px-3 py-2 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+                                    <input type="number" id="docScanPatientAge" placeholder="e.g. 52" min="1" max="120" class="w-full mt-1 px-3 py-2 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500">
                                 </div>
                                 <div>
                                     <label class="font-bold text-slate-700 uppercase tracking-wider text-[10px]">Gender</label>
                                     <select id="docScanPatientGender" class="w-full mt-1 px-3 py-2 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+                                        <option value="" disabled selected>Select Gender</option>
                                         <option value="Female">Female</option>
                                         <option value="Male">Male</option>
                                         <option value="Other">Other</option>
@@ -1231,7 +1339,7 @@
                                 </div>
                                 <div>
                                     <label class="font-bold text-slate-700 uppercase tracking-wider text-[10px]">Duration (Yrs)</label>
-                                    <input type="number" id="docScanDiabetesDuration" value="5" min="0" max="60" class="w-full mt-1 px-3 py-2 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+                                    <input type="number" id="docScanDiabetesDuration" placeholder="e.g. 5" min="0" max="60" class="w-full mt-1 px-3 py-2 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500">
                                 </div>
                             </div>
 
@@ -1286,7 +1394,7 @@
                             </div>
                             <h4 class="text-base font-bold text-slate-700">Ophthalmologist Clinical Screening Station</h4>
                             <p class="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
-                                Upload a retinal fundus image on the left. NetraAI will execute automated Image Quality Assessment, 
+                                Upload a retinal fundus image on the left. Netra Setu will execute automated Image Quality Assessment, 
                                 CNN/YOLO ICDR grading, 4-channel lesion segmentation, and add the scan to your Review Queue. 
                                 The patient will automatically receive their login credentials via email, and you can complete the final sign-off in your queue.
                             </p>
@@ -1443,6 +1551,86 @@
                     </div>
                 </div>
             </div>
+
+            <!-- TAB D: PATIENT REVIEWS & RATINGS DASHBOARD (AMAZON / FLIPKART STYLE) -->
+            <div id="doctorTabReviewsContent" class="hidden space-y-6">
+                <!-- Top Overall Rating Summary Card -->
+                <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+                    <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+                        <!-- Left: Big Rating Number & Stars -->
+                        <div class="flex items-center space-x-5">
+                            <div class="text-center p-4 bg-amber-50/70 border border-amber-200/70 rounded-2xl">
+                                <div class="text-4xl font-black text-slate-900" id="docReviewBigRating">4.9</div>
+                                <div class="text-amber-400 text-base tracking-tight my-0.5" id="docReviewBigStars">★★★★★</div>
+                                <div class="text-[11px] font-bold text-amber-900" id="docReviewTotalCount">24 verified ratings</div>
+                            </div>
+                            <div>
+                                <span class="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">MCI Clinical Tele-Feedback</span>
+                                <h3 class="text-lg font-bold text-slate-800 mt-1">Patient Reviews & Overall Ratings</h3>
+                                <p class="text-xs text-slate-500">Real-time ratings, comments, and second opinion feedback submitted by screened patients.</p>
+                            </div>
+                        </div>
+
+                        <!-- Middle: Amazon-style Star Progress Bars -->
+                        <div class="w-full lg:w-72 space-y-1.5 text-xs text-slate-600">
+                            <div class="flex items-center space-x-2">
+                                <span class="w-10 font-bold text-[11px]">5 Star</span>
+                                <div class="flex-1 bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                                    <div id="barDocStar5" class="bg-amber-400 h-full rounded-full transition-all duration-500" style="width: 85%;"></div>
+                                </div>
+                                <span id="pctDocStar5" class="w-8 text-right font-bold text-[11px] text-slate-700">85%</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <span class="w-10 font-bold text-[11px]">4 Star</span>
+                                <div class="flex-1 bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                                    <div id="barDocStar4" class="bg-amber-400 h-full rounded-full transition-all duration-500" style="width: 12%;"></div>
+                                </div>
+                                <span id="pctDocStar4" class="w-8 text-right font-bold text-[11px] text-slate-700">12%</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <span class="w-10 font-bold text-[11px]">3 Star</span>
+                                <div class="flex-1 bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                                    <div id="barDocStar3" class="bg-amber-400 h-full rounded-full transition-all duration-500" style="width: 3%;"></div>
+                                </div>
+                                <span id="pctDocStar3" class="w-8 text-right font-bold text-[11px] text-slate-700">3%</span>
+                            </div>
+                        </div>
+
+                        <!-- Right: Quality KPI Badges -->
+                        <div class="grid grid-cols-2 gap-2 text-center text-xs">
+                            <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl">
+                                <div class="text-base font-black text-emerald-700">98%</div>
+                                <div class="text-[10px] font-semibold text-emerald-800">Positive Feedback</div>
+                            </div>
+                            <div class="p-3 bg-indigo-50 border border-indigo-200 rounded-2xl">
+                                <div class="text-base font-black text-indigo-700">&lt; 15m</div>
+                                <div class="text-[10px] font-semibold text-indigo-800">Avg Sign-off Time</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Patient Reviews Feed Container -->
+                <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 space-y-4">
+                    <div class="flex items-center justify-between border-b pb-3">
+                        <h4 class="font-bold text-slate-800 text-sm flex items-center">
+                            <i class="fa-solid fa-comments text-indigo-600 mr-2"></i>
+                            <span>Verified Patient Feedback & Comments</span>
+                        </h4>
+                        <button onclick="loadDoctorReviews()" class="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition">
+                            <i class="fa-solid fa-arrows-rotate text-[10px]"></i>
+                            <span>Refresh Reviews</span>
+                        </button>
+                    </div>
+
+                    <!-- Reviews List -->
+                    <div id="doctorReviewsFeed" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="col-span-full text-center py-10 text-slate-400 text-xs">
+                            Loading patient reviews and ratings...
+                        </div>
+                    </div>
+                </div>
+            </div>
         </section>
 
         <!-- =============================================================== -->
@@ -1538,7 +1726,7 @@
                                     <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
                                     <div>
                                         <div class="text-xs font-bold text-slate-800">MongoDB Atlas Cloud Cluster</div>
-                                        <div class="text-[10px] text-slate-400">NetraAI-db (Active TLS replica set)</div>
+                                        <div class="text-[10px] text-slate-400">NetraSetu-db (Active TLS replica set)</div>
                                     </div>
                                 </div>
                                 <span class="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">CONNECTED</span>
@@ -1552,7 +1740,7 @@
                                         <div class="text-[10px] text-slate-400">5-Stage ICDR Classifier + Biomarker Sub-Pixel Pipeline</div>
                                     </div>
                                 </div>
-                                <span class="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">ONLINE (92.8% ACC)</span>
+                                <span class="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">ONLINE (96.8% CNN / 92.8% YOLO)</span>
                             </div>
 
                             <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl border">
@@ -1657,6 +1845,7 @@
                                 <th class="p-3">Doctor Name</th>
                                 <th class="p-3">Medical License No</th>
                                 <th class="p-3">Specialization</th>
+                                <th class="p-3">Overall Rating</th>
                                 <th class="p-3">Hospital Affiliation</th>
                                 <th class="p-3">Contact Email & Phone</th>
                                 <th class="p-3">Status</th>
@@ -1664,7 +1853,7 @@
                             </tr>
                         </thead>
                         <tbody id="adminDoctorsTableBody" class="divide-y divide-slate-200">
-                            <tr><td colspan="7" class="text-center py-6 text-slate-400">Loading doctor staff records...</td></tr>
+                            <tr><td colspan="8" class="text-center py-6 text-slate-400">Loading doctor staff records...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -1794,35 +1983,252 @@
                 <form onsubmit="handleAdminCreateDoctor(event)" class="space-y-3">
                     <div>
                         <label class="text-xs font-semibold text-slate-600">Doctor Full Name</label>
-                        <input type="text" id="admDocFullName" required placeholder="e.g. Dr. Priya Nair, MD" class="w-full text-sm mt-1 px-3 py-2 border rounded-xl outline-none focus:ring-2 focus:ring-emerald-500">
+                        <input type="text" id="admDocFullName" required placeholder="e.g. Dr. Full Name, MD" class="w-full text-sm mt-1 px-3 py-2 border rounded-xl outline-none focus:ring-2 focus:ring-emerald-500">
                     </div>
                     <div class="grid grid-cols-2 gap-2">
                         <div>
                             <label class="text-xs font-semibold text-slate-600">Username</label>
-                            <input type="text" id="admDocUsername" required placeholder="dr_nair" class="w-full text-sm mt-1 px-3 py-2 border rounded-xl outline-none">
+                            <input type="text" id="admDocUsername" required placeholder="e.g. dr_username" class="w-full text-sm mt-1 px-3 py-2 border rounded-xl outline-none">
                         </div>
                         <div>
                             <label class="text-xs font-semibold text-slate-600">Email Address</label>
-                            <input type="email" id="admDocEmail" required placeholder="dr.nair@teleophta.org" class="w-full text-sm mt-1 px-3 py-2 border rounded-xl outline-none">
+                            <input type="email" id="admDocEmail" required placeholder="doctor@hospital.org" class="w-full text-sm mt-1 px-3 py-2 border rounded-xl outline-none">
                         </div>
                     </div>
                     <div class="grid grid-cols-2 gap-2">
                         <div>
                             <label class="text-xs font-semibold text-slate-600">Medical License Reg No</label>
-                            <input type="text" id="admDocLicense" required placeholder="MCI-RET-2026-904" class="w-full text-sm mt-1 px-3 py-2 border rounded-xl outline-none">
+                            <input type="text" id="admDocLicense" required placeholder="MCI-RET-2026-904" class="w-full text-xs mt-1 px-3 py-2 border rounded-xl outline-none">
                         </div>
                         <div>
-                            <label class="text-xs font-semibold text-slate-600">Specialization</label>
-                            <input type="text" id="admDocSpec" value="Senior Vitreo-Retina Specialist" class="w-full text-sm mt-1 px-3 py-2 border rounded-xl outline-none">
+                            <label class="text-xs font-semibold text-slate-600">Ophthalmology Specialty</label>
+                            <select id="admDocSpec" class="w-full text-xs mt-1 px-3 py-2 border rounded-xl outline-none bg-white">
+                                <option value="Senior Vitreo-Retina Consultant" selected>Senior Vitreo-Retina Consultant</option>
+                                <option value="Vitreo-Retina Specialist">Vitreo-Retina Specialist</option>
+                                <option value="General Ophthalmologist">General Ophthalmologist</option>
+                                <option value="Retina & Diabetic Eye Specialist">Retina & Diabetic Eye Specialist</option>
+                                <option value="Cornea & Anterior Segment Specialist">Cornea & Anterior Segment Specialist</option>
+                                <option value="Glaucoma & Neuro-Ophthalmology Consultant">Glaucoma & Neuro-Ophthalmology Consultant</option>
+                                <option value="Pediatric Ophthalmology & Strabismus">Pediatric Ophthalmology & Strabismus</option>
+                                <option value="Ophthalmic Surgeon & Retinopathy Consultant">Ophthalmic Surgeon & Retinopathy Consultant</option>
+                            </select>
                         </div>
                     </div>
                     <div>
                         <label class="text-xs font-semibold text-slate-600">Affiliated Hospital</label>
-                        <input type="text" id="admDocHospital" value="District Apex Eye Hospital" class="w-full text-sm mt-1 px-3 py-2 border rounded-xl outline-none">
+                        <input type="text" id="admDocHospital" placeholder="e.g. District Apex Eye Hospital" class="w-full text-sm mt-1 px-3 py-2 border rounded-xl outline-none">
                     </div>
                     <div class="flex items-center justify-end space-x-2 pt-3 border-t">
                         <button type="button" onclick="closeAdminAddDoctorModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl">Cancel</button>
                         <button type="submit" class="px-5 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow transition">Register & Verify Doctor</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Modal: Doctor Account Provisioned / Credentials Display -->
+        <div id="modalDoctorCreatedSuccess" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+            <div class="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-emerald-100 text-center animate-fade-in">
+                <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-3xl shadow-sm">
+                    <i class="fa-solid fa-user-doctor"></i>
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold text-slate-800">Doctor Successfully Provisioned!</h3>
+                    <p class="text-xs text-slate-500 mt-1">Official ophthalmologist profile is verified & active in Netra Setu network.</p>
+                </div>
+
+                <div class="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-4 text-left space-y-2 text-xs">
+                    <div class="flex justify-between items-center py-1 border-b border-emerald-200/50">
+                        <span class="text-slate-500">Doctor Name:</span>
+                        <span id="docSuccessName" class="font-bold text-slate-800">-</span>
+                    </div>
+                    <div class="flex justify-between items-center py-1 border-b border-emerald-200/50">
+                        <span class="text-slate-500">Username:</span>
+                        <span id="docSuccessUsername" class="font-mono font-bold text-indigo-700">-</span>
+                    </div>
+                    <div class="flex justify-between items-center py-1 border-b border-emerald-200/50">
+                        <span class="text-slate-500">Email:</span>
+                        <span id="docSuccessEmail" class="font-mono text-slate-700">-</span>
+                    </div>
+                    <div class="flex justify-between items-center py-1 border-b border-emerald-200/50">
+                        <span class="text-slate-500">Default Password:</span>
+                        <span id="docSuccessPassword" class="font-mono font-bold bg-white px-2 py-0.5 rounded border border-emerald-300 text-emerald-800">-</span>
+                    </div>
+                    <div class="flex justify-between items-center py-1">
+                        <span class="text-slate-500">Medical License:</span>
+                        <span id="docSuccessLicense" class="font-mono font-semibold text-slate-700">MCI-RET-20027</span>
+                    </div>
+                </div>
+
+                <p class="text-[11px] text-slate-400">
+                    <i class="fa-solid fa-envelope mr-1 text-emerald-600"></i> Credentials have also been dispatched to the doctor's email.
+                </p>
+
+                <div class="flex items-center space-x-2 pt-2">
+                    <button onclick="copyDoctorCredentialsToClipboard()" class="flex-1 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-xl text-xs transition flex items-center justify-center space-x-1">
+                        <i class="fa-solid fa-copy"></i>
+                        <span>Copy Credentials</span>
+                    </button>
+                    <button onclick="closeDoctorCreatedSuccessModal()" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition shadow">
+                        Done & Continue
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal: Past Scan Comprehensive Diagnostic Report Viewer -->
+        <div id="modalPastScanViewer" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-xs p-4 overflow-y-auto">
+            <div class="bg-white rounded-3xl max-w-4xl w-full p-6 space-y-5 shadow-2xl border border-slate-200 animate-fade-in my-8 max-h-[90vh] overflow-y-auto">
+                <div class="flex items-center justify-between border-b pb-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg font-bold">
+                            <i class="fa-solid fa-file-medical"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-bold text-slate-800" id="pastModalTitle">Past Screening Diagnostic Report</h3>
+                            <p class="text-xs text-slate-500" id="pastModalSubtitle">Screening Record &bull; MongoDB Atlas</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <a id="pastModalPdfBtn" href="#" target="_blank" class="px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 border border-indigo-200">
+                            <i class="fa-solid fa-file-pdf"></i>
+                            <span>Download PDF</span>
+                        </a>
+                        <button onclick="closePastScanModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center text-sm transition">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Diagnostic Summary Badges -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+                        <span class="text-[11px] font-semibold text-slate-400 uppercase">Image Quality</span>
+                        <div class="flex items-center justify-between mt-1">
+                            <span id="pastResQualityBadge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">GOOD</span>
+                            <span id="pastResQualityScore" class="text-xs font-bold text-slate-700">92%</span>
+                        </div>
+                        <div class="text-[10px] text-slate-400 mt-1" id="pastResFocusScore">Focus: 180.2 • FOV: 74%</div>
+                    </div>
+
+                    <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+                        <span class="text-[11px] font-semibold text-slate-400 uppercase">CNN DR Severity</span>
+                        <div class="text-sm font-bold text-slate-800 mt-1 truncate" id="pastResSeverityName">Level 2: Moderate NPDR</div>
+                        <div class="text-[10px] text-indigo-600 font-semibold mt-1" id="pastResConfidence">Confidence: 93.4%</div>
+                    </div>
+
+                    <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+                        <span class="text-[11px] font-semibold text-slate-400 uppercase">Referral Triage</span>
+                        <div id="pastResReferralBadge" class="mt-1 inline-block px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-700">REFERRAL RECOMMENDED</div>
+                        <div class="text-[10px] text-slate-500 mt-1 truncate" id="pastResTriageAction">Urgent Specialist Review</div>
+                    </div>
+                </div>
+
+                <!-- 4-Panel Scans -->
+                <div class="space-y-2">
+                    <h4 class="font-bold text-slate-800 text-xs flex items-center">
+                        <i class="fa-solid fa-images text-indigo-600 mr-1.5"></i> Multi-Channel Diagnostic Imaging
+                    </h4>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div class="bg-slate-50 p-2 rounded-2xl border border-slate-200 text-center">
+                            <div class="aspect-square rounded-xl overflow-hidden bg-black mb-1.5">
+                                <img id="pastViewImgOriginal" src="" class="w-full h-full object-cover">
+                            </div>
+                            <span class="text-[10px] font-semibold text-slate-600">1. Original Scan</span>
+                        </div>
+                        <div class="bg-slate-50 p-2 rounded-2xl border border-slate-200 text-center">
+                            <div class="aspect-square rounded-xl overflow-hidden bg-black mb-1.5">
+                                <img id="pastViewImgVessels" src="" class="w-full h-full object-cover">
+                            </div>
+                            <span class="text-[10px] font-semibold text-slate-600" id="pastLabelVessels">2. Vessels Tree</span>
+                        </div>
+                        <div class="bg-slate-50 p-2 rounded-2xl border border-slate-200 text-center">
+                            <div class="aspect-square rounded-xl overflow-hidden bg-black mb-1.5">
+                                <img id="pastViewImgLesions" src="" class="w-full h-full object-cover">
+                            </div>
+                            <span class="text-[10px] font-semibold text-slate-600">3. YOLO Lesions</span>
+                        </div>
+                        <div class="bg-slate-50 p-2 rounded-2xl border border-slate-200 text-center">
+                            <div class="aspect-square rounded-xl overflow-hidden bg-black mb-1.5">
+                                <img id="pastViewImgGradcam" src="" class="w-full h-full object-cover">
+                            </div>
+                            <span class="text-[10px] font-semibold text-slate-600">4. Grad-CAM</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Biomarkers & Doctor Status -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200 text-xs space-y-1.5">
+                        <div class="font-semibold text-slate-700">Sub-Pixel Biomarkers:</div>
+                        <div class="grid grid-cols-2 gap-1.5 text-[11px]">
+                            <div>Microaneurysms: <b id="pastBioRedCount" class="text-slate-800">0</b></div>
+                            <div>Hard Exudates: <b id="pastBioYellowCount" class="text-slate-800">0</b></div>
+                            <div>Cotton Wool: <b id="pastBioWhiteCount" class="text-slate-800">0</b></div>
+                            <div>Optic Disc: <b id="pastBioOpticDisc" class="text-slate-800">(0,0)</b></div>
+                        </div>
+                    </div>
+                    <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200 text-xs space-y-1">
+                        <div class="font-semibold text-slate-700">Doctor Validation: <span id="pastPatientDocStatus" class="text-emerald-600 font-bold">Validated</span></div>
+                        <p class="text-slate-500 text-[11px]" id="pastPatientDocNotes">No notes available.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between pt-3 border-t">
+                    <button type="button" id="btnOpenDoctorReviewModal" onclick="openRateDoctorModalFromScan()" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center space-x-1.5">
+                        <i class="fa-solid fa-star"></i>
+                        <span>Rate Examining Doctor</span>
+                    </button>
+                    <button type="button" onclick="closePastScanModal()" class="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition shadow-sm">
+                        Close Report Viewer
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal: Rate & Review Doctor -->
+        <div id="modalRateDoctor" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+            <div class="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-slate-200 animate-fade-in">
+                <div class="flex items-center justify-between border-b pb-3">
+                    <div class="flex items-center space-x-2.5">
+                        <div class="w-9 h-9 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center text-base font-bold">
+                            <i class="fa-solid fa-star"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-slate-800 text-sm">Rate Doctor's Consultation</h3>
+                            <p class="text-[11px] text-slate-500" id="rateDoctorName">Ophthalmologist Review</p>
+                        </div>
+                    </div>
+                    <button onclick="closeRateDoctorModal()" class="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center text-xs transition">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <form onsubmit="handleDoctorReviewSubmit(event)" class="space-y-4">
+                    <input type="hidden" id="rateDoctorId">
+                    <input type="hidden" id="rateScreeningId">
+
+                    <!-- Star Rating Selector -->
+                    <div>
+                        <label class="text-xs font-semibold text-slate-700 block mb-1.5">Your Clinical Consultation Rating</label>
+                        <div class="flex items-center space-x-2 text-2xl text-amber-400 cursor-pointer" id="starRatingSelector">
+                            <i class="fa-solid fa-star star-btn text-amber-400" data-val="1" onclick="setDoctorRating(1)"></i>
+                            <i class="fa-solid fa-star star-btn text-amber-400" data-val="2" onclick="setDoctorRating(2)"></i>
+                            <i class="fa-solid fa-star star-btn text-amber-400" data-val="3" onclick="setDoctorRating(3)"></i>
+                            <i class="fa-solid fa-star star-btn text-amber-400" data-val="4" onclick="setDoctorRating(4)"></i>
+                            <i class="fa-solid fa-star star-btn text-amber-400" data-val="5" onclick="setDoctorRating(5)"></i>
+                            <span class="text-xs font-bold text-slate-700 ml-2" id="labelSelectedRating">5.0 / 5.0 (Excellent)</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="text-xs font-semibold text-slate-700 block mb-1">Your Written Review</label>
+                        <textarea id="rateDoctorComment" rows="3" placeholder="Describe doctor's diagnostic clarity, prescription instructions, and responsiveness..." class="w-full text-xs p-3 border rounded-xl outline-none focus:border-indigo-500 transition resize-none"></textarea>
+                    </div>
+
+                    <div class="flex items-center justify-end space-x-2 pt-2 border-t">
+                        <button type="button" onclick="closeRateDoctorModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition">Cancel</button>
+                        <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-xs transition">Submit Official Review</button>
                     </div>
                 </form>
             </div>
@@ -1834,7 +2240,7 @@
     <footer class="bg-indigo-950 border-t border-indigo-900 py-6 text-center text-xs text-indigo-300">
         <div class="max-w-7xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-2">
             <div>
-                <b>NetraAI Tele-Ophthalmology</b> • Smart India Hackathon (SIH 2026)
+                <b>Netra Setu Tele-Ophthalmology</b> • Smart India Hackathon (SIH 2026)
             </div>
             <div class="text-indigo-400">
                 Dual AI Engine (CNN + YOLO) • MATLAB CLAHE & Biomarkers • MongoDB Atlas
@@ -1843,6 +2249,6 @@
     </footer>
 
     <!-- App JS -->
-    <script src="js/app.js?v=20260901_250"></script>
+    <script src="js/app.js?v=20260902_V7000"></script>
 </body>
 </html>

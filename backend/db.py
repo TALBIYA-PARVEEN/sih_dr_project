@@ -56,6 +56,8 @@ class MongoManager:
         self.screenings = self.db["screenings"]
         self.reports = self.db["reports"]
         self.messages = self.db["messages"]
+        self.doctor_reviews = self.db["doctor_reviews"]
+        self.temp_registrations = self.db["temp_registrations"]
 
         try:
             self.users.create_index("username", unique=True)
@@ -65,6 +67,9 @@ class MongoManager:
             self.admins.create_index("user_id", unique=True)
             self.screenings.create_index("patient_id")
             self.reports.create_index("screening_id")
+            self.doctor_reviews.create_index("doctor_id")
+            self.doctor_reviews.create_index("patient_id")
+            self.doctor_reviews.create_index("screening_id")
         except Exception:
             pass
 
@@ -154,6 +159,28 @@ class InMemoryCollection:
             new_doc = dict(query)
             new_doc.update(update["$set"])
             self.insert_one(new_doc)
+
+    def delete_one(self, query):
+        item = self.find_one(query)
+        if item and item in self.data:
+            self.data.remove(item)
+            class DelRes:
+                deleted_count = 1
+            return DelRes()
+        class DelRes:
+            deleted_count = 0
+        return DelRes()
+
+    def delete_many(self, query):
+        to_del = self.find(query)
+        count = len(to_del)
+        for item in to_del:
+            if item in self.data:
+                self.data.remove(item)
+        class DelRes:
+            def __init__(self, c):
+                self.deleted_count = c
+        return DelRes(count)
 
     def count_documents(self, query):
         return len(self.find(query))

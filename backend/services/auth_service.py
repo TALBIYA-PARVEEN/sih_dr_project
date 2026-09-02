@@ -108,46 +108,62 @@ class AuthService:
             return None
 
     @staticmethod
+    def validate_password_strength(password):
+        """
+        Enforces strict strong password security:
+        - Minimum 8 characters
+        - At least 1 uppercase letter (A-Z)
+        - At least 1 lowercase letter (a-z)
+        - At least 1 number (0-9)
+        - At least 1 special character (@, $, !, %, *, #, etc.)
+        """
+        import re
+        if not password or len(password) < 8:
+            return False, "Password must be at least 8 characters long."
+        if not re.search(r"[A-Z]", password):
+            return False, "Password must contain at least one uppercase letter (A-Z)."
+        if not re.search(r"[a-z]", password):
+            return False, "Password must contain at least one lowercase letter (a-z)."
+        if not re.search(r"[0-9]", password):
+            return False, "Password must contain at least one number (0-9)."
+        if not re.search(r"[!@#$%^&*()_+\-=\[\]{};':\"\\|,.<>\/?~`]", password):
+            return False, "Password must contain at least one special character (e.g. @, #, $, %, !, *)."
+        return True, None
+
+    @staticmethod
     def generate_otp():
         return f"{random.randint(100000, 999999)}"
 
     @staticmethod
-    @staticmethod
     def _deliver_email(to_email, subject, text_body, html_body=None):
-        """High-reliability delivery via HTTPS REST API (Resend/Brevo) with fast SMTP fallback."""
-        # 1. Primary Cloud Gateway: Resend HTTPS REST API (Port 443 - Never blocked on Render)
-        resend_api_key = os.environ.get("RESEND_API_KEY", "").strip()
-        if not resend_api_key:
+        """High-reliability delivery via HTTPS REST API (Google Relay / Brevo / Resend) with fast SMTP fallback."""
+        # 0. Primary Cloud Gateway: Google Apps Script HTTPS Mail Relay (Sends to ANY email via Gmail's servers on Port 443)
+        gmail_relay_url = os.environ.get("GMAIL_RELAY_URL", "").strip()
+        if not gmail_relay_url:
             try:
-                resend_api_key = current_app.config.get("RESEND_API_KEY", "").strip()
+                gmail_relay_url = current_app.config.get("GMAIL_RELAY_URL", "").strip()
             except Exception:
                 pass
 
-        if resend_api_key:
+        if gmail_relay_url:
             try:
                 import requests
-                headers = {
-                    "Authorization": f"Bearer {resend_api_key}",
-                    "Content-Type": "application/json"
-                }
                 payload = {
-                    "from": os.environ.get("RESEND_FROM", "NetraAI Healthcare <onboarding@resend.dev>"),
-                    "to": [to_email],
+                    "to": to_email,
                     "subject": subject,
-                    "text": text_body
+                    "body": text_body,
+                    "htmlBody": html_body if html_body else text_body
                 }
-                if html_body:
-                    payload["html"] = html_body
-                r = requests.post("https://api.resend.com/emails", json=payload, headers=headers, timeout=5.0)
-                if r.status_code in [200, 201]:
-                    print(f"[RESEND-HTTPS-SUCCESS] Delivered '{subject}' to {to_email} via Resend API!")
+                r = requests.post(gmail_relay_url, json=payload, timeout=8.0, allow_redirects=True)
+                if r.status_code in [200, 201, 302]:
+                    print(f"[GMAIL-RELAY-SUCCESS] Delivered '{subject}' to {to_email} via Google Apps Script Relay!")
                     return True
                 else:
-                    print(f"[RESEND-API-NOTE] Status {r.status_code}: {r.text}")
-            except Exception as e_resend:
-                print(f"[RESEND-API-ERROR] {e_resend}")
+                    print(f"[GMAIL-RELAY-NOTE] Status {r.status_code}: {r.text}")
+            except Exception as e_relay:
+                print(f"[GMAIL-RELAY-ERROR] {e_relay}")
 
-        # 2. Secondary Cloud Gateway: Brevo HTTPS REST API (Port 443)
+        # 1. Secondary Cloud Gateway: Brevo HTTPS REST API (Port 443 - Sends to ANY email worldwide without domain requirement)
         brevo_api_key = os.environ.get("BREVO_API_KEY", "").strip()
         if not brevo_api_key:
             try:
@@ -163,7 +179,7 @@ class AuthService:
                     "Content-Type": "application/json"
                 }
                 payload = {
-                    "sender": {"name": "NetraAI Healthcare", "email": "2k24.cs1q.2413756@gmail.com"},
+                    "sender": {"name": "Netra Setu Healthcare", "email": "2k24.cs1q.2413756@gmail.com"},
                     "to": [{"email": to_email}],
                     "subject": subject,
                     "textContent": text_body
@@ -174,8 +190,42 @@ class AuthService:
                 if r.status_code in [200, 201]:
                     print(f"[BREVO-HTTPS-SUCCESS] Delivered '{subject}' to {to_email} via Brevo API!")
                     return True
+                else:
+                    print(f"[BREVO-API-NOTE] Status {r.status_code}: {r.text}")
             except Exception as e_brevo:
                 print(f"[BREVO-API-ERROR] {e_brevo}")
+
+        # 2. Tertiary Cloud Gateway: Resend HTTPS REST API (Port 443)
+        resend_api_key = os.environ.get("RESEND_API_KEY", "").strip()
+        if not resend_api_key:
+            try:
+                resend_api_key = current_app.config.get("RESEND_API_KEY", "").strip()
+            except Exception:
+                pass
+
+        if resend_api_key:
+            try:
+                import requests
+                headers = {
+                    "Authorization": f"Bearer {resend_api_key}",
+                    "Content-Type": "application/json"
+                }
+                payload = {
+                    "from": os.environ.get("RESEND_FROM", "Netra Setu Healthcare <onboarding@resend.dev>"),
+                    "to": [to_email],
+                    "subject": subject,
+                    "text": text_body
+                }
+                if html_body:
+                    payload["html"] = html_body
+                r = requests.post("https://api.resend.com/emails", json=payload, headers=headers, timeout=5.0)
+                if r.status_code in [200, 201]:
+                    print(f"[RESEND-HTTPS-SUCCESS] Delivered '{subject}' to {to_email} via Resend API!")
+                    return True
+                else:
+                    print(f"[RESEND-API-NOTE] Status {r.status_code}: {r.text}")
+            except Exception as e_resend:
+                print(f"[RESEND-API-ERROR] {e_resend}")
 
         # 3. Standard SMTP (Local / VPS)
         mail_server = os.environ.get("MAIL_SERVER", "smtp.gmail.com")
@@ -223,13 +273,13 @@ class AuthService:
     @staticmethod
     def send_otp_email(to_email, otp_code, purpose="verification"):
         """Sends clean email OTP via Resend HTTPS API / SMTP in a background worker."""
-        subject = f"Your NetraAI Verification Code: {otp_code}"
-        text_body = f"Hello,\n\nYour NetraAI verification code is: {otp_code}\n\nThis code is valid for 15 minutes.\n\nThank you,\nNetraAI Tele-Ophthalmology Team"
+        subject = f"Your Netra Setu Verification Code: {otp_code}"
+        text_body = f"Hello,\n\nYour Netra Setu verification code is: {otp_code}\n\nThis code is valid for 15 minutes.\n\nThank you,\nNetra Setu Tele-Ophthalmology Team"
         html_body = f"""<!DOCTYPE html>
 <html>
 <body style="font-family: Arial, sans-serif; background-color: #f8fafc; padding: 20px; color: #1e293b;">
   <div style="max-width: 480px; margin: auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; text-align: center;">
-    <h3 style="color: #4338ca; margin-bottom: 12px;">NetraAI Tele-Ophthalmology</h3>
+    <h3 style="color: #4338ca; margin-bottom: 12px;">Netra Setu Tele-Ophthalmology</h3>
     <p style="color: #475569; font-size: 14px;">Your 6-digit verification code is:</p>
     <div style="display: inline-block; font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #4338ca; background: #eef2ff; padding: 12px 24px; border-radius: 10px; margin: 16px 0;">
       {otp_code}
@@ -245,9 +295,85 @@ class AuthService:
         return True
 
     @staticmethod
+    def send_doctor_credentials_email(to_email, doctor_name, username, password, hospital_name="District Eye Hospital", license_number="MCI-VERIFIED"):
+        """Sends official credentials and login access email when Master Admin registers a new doctor."""
+        subject = "Doctor Account Credentials & Clinical Clearance • Netra Setu"
+
+        html_body = f"""
+        <!DOCTYPE html>
+        <html>
+        <body style="font-family: Arial, sans-serif; background-color: #f8fafc; padding: 20px; color: #1e293b;">
+            <div style="max-width: 540px; margin: auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 20px; padding: 32px; box-shadow: 0 6px 20px rgba(0,0,0,0.06);">
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <div style="width: 56px; height: 56px; background-color: #ecfdf5; color: #059669; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 28px; line-height: 56px; margin-bottom: 12px;">
+                        🩺
+                    </div>
+                    <h2 style="color: #065f46; margin: 0; font-size: 22px;">Doctor Clinical Account Created</h2>
+                    <p style="color: #64748b; font-size: 13px; margin-top: 4px;">National Tele-Ophthalmology Diagnostic Network</p>
+                </div>
+                
+                <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 16px 0;">
+                
+                <p style="font-size: 14px; color: #334155;">Dear <b>{doctor_name}</b>,</p>
+                
+                <p style="font-size: 14px; color: #334155; line-height: 1.6;">
+                    An authorized clinical doctor account has been provisioned for you by the <b>District Healthcare Administration</b>. You are officially verified for <b>{hospital_name}</b> (License: <code style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; color: #4338ca; font-weight: bold;">{license_number}</code>).
+                </p>
+
+                <!-- Credentials Box -->
+                <div style="background-color: #eef2ff; border: 1px solid #c7d2fe; border-radius: 14px; padding: 18px; margin: 20px 0;">
+                    <div style="font-size: 12px; font-weight: bold; color: #3730a3; text-transform: uppercase;">Your Doctor Portal Login Credentials:</div>
+                    
+                    <div style="background: #ffffff; border: 1px solid #e0e7ff; border-radius: 10px; padding: 12px; font-family: monospace; font-size: 13px; color: #1e1b4b; margin-top: 10px;">
+                        <div><b>Login Email / Username:</b> {to_email} <i>(or {username})</i></div>
+                        <div style="margin-top: 6px;"><b>Password:</b> <span style="background: #e0e7ff; padding: 2px 8px; border-radius: 6px; font-weight: bold; color: #312e81;">{password}</span></div>
+                    </div>
+                </div>
+
+                <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 14px; padding: 16px; margin: 20px 0;">
+                    <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: bold; color: #166534;">Your Active Clinical Privileges:</p>
+                    <ul style="margin: 0; padding-left: 20px; font-size: 12px; color: #14532d; line-height: 1.6;">
+                        <li>Perform walk-in patient retinal fundus examinations</li>
+                        <li>Evaluate assigned AI triage screening queues in real time</li>
+                        <li>Electronically sign & stamp diagnostic reports</li>
+                        <li>Conduct tele-consultations with diabetic patients</li>
+                    </ul>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 20px 0;">
+                <p style="font-size: 11px; color: #94a3b8; text-align: center; margin: 0;">
+                    Smart India Hackathon (SIH 2026) • District Tele-Ophthalmology Network • Confidential Medical Communication
+                </p>
+            </div>
+        </body>
+        </html>
+        """
+
+        text_body = f"""Official Doctor Account Credentials - Netra Setu Tele-Ophthalmology
+
+Dear {doctor_name},
+
+An authorized clinical doctor account has been provisioned for you by the District Healthcare Administration.
+Hospital: {hospital_name}
+License: {license_number}
+
+Your Doctor Portal Login Credentials:
+Email / Username: {to_email} (or {username})
+Password: {password}
+
+You may now log in to the Netra Setu Doctor Portal to examine patient screenings and sign diagnostic reports.
+Smart India Hackathon 2026."""
+
+        import threading
+        t = threading.Thread(target=AuthService._deliver_email, args=(to_email, subject, text_body, html_body))
+        t.daemon = True
+        t.start()
+        return True
+
+    @staticmethod
     def send_doctor_approval_email(to_email, doctor_name, hospital_name="District Eye Hospital", license_number="MCI-VERIFIED"):
         """Sends official confirmation email to the doctor when Master Admin approves their registration."""
-        subject = "Official Account Approval • NetraAI Tele-Ophthalmology Network"
+        subject = "Official Account Approval • Netra Setu Tele-Ophthalmology Network"
 
         html_body = f"""
         <!DOCTYPE html>
@@ -289,22 +415,26 @@ class AuthService:
         </html>
         """
 
-        text_body = f"""Official Approval Notification - NetraAI Tele-Ophthalmology
+        text_body = f"""Official Approval Notification - Netra Setu Tele-Ophthalmology
 
 Dear {doctor_name},
 
 Your clinical credentials ({license_number}, {hospital_name}) have been officially APPROVED by the District Master Admin.
 
-You may now log in to the NetraAI Doctor Portal to examine assigned patient fundus screenings and sign diagnostic reports.
+You may now log in to the Netra Setu Doctor Portal to examine assigned patient fundus screenings and sign diagnostic reports.
 Smart India Hackathon 2026."""
 
-        return AuthService._deliver_email(to_email, subject, text_body, html_body)
+        import threading
+        t = threading.Thread(target=AuthService._deliver_email, args=(to_email, subject, text_body, html_body))
+        t.daemon = True
+        t.start()
+        return True
 
     @staticmethod
     def send_patient_welcome_report_email(to_email, patient_name, temp_password, doctor_name, severity_name, doctor_notes="", pdf_filename=""):
         """Sends patient diagnostic report notification along with login credentials to view past scans & consult doctor."""
         if temp_password:
-            subject = f"Your Diabetic Retinopathy Diagnostic Report & Login Credentials • NetraAI"
+            subject = f"Your Diabetic Retinopathy Diagnostic Report & Login Credentials • Netra Setu"
             credentials_box = f"""
                 <div style="background-color: #eef2ff; border: 1px solid #c7d2fe; border-radius: 14px; padding: 18px; margin: 20px 0;">
                     <div style="font-size: 12px; font-weight: bold; color: #3730a3; text-transform: uppercase;">Your Patient Portal Login Credentials:</div>
@@ -318,11 +448,11 @@ Smart India Hackathon 2026."""
             """
             credentials_text = f"Your Patient Portal Login Credentials:\nEmail/Username: {to_email}\nPassword: {temp_password}"
         else:
-            subject = f"Your New Diabetic Retinopathy Diagnostic Report • NetraAI"
+            subject = f"Your New Diabetic Retinopathy Diagnostic Report • Netra Setu"
             credentials_box = f"""
                 <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 14px; padding: 18px; margin: 20px 0;">
                     <div style="font-size: 12px; font-weight: bold; color: #166534; text-transform: uppercase;">Scan Added to Your Existing Patient Portal:</div>
-                    <p style="font-size: 13px; color: #15803d; margin: 6px 0 12px 0;">This new retinal screening and clinical examination has been linked to your existing NetraAI patient account.</p>
+                    <p style="font-size: 13px; color: #15803d; margin: 6px 0 12px 0;">This new retinal screening and clinical examination has been linked to your existing Netra Setu patient account.</p>
                     
                     <div style="background: #ffffff; border: 1px solid #dcfce7; border-radius: 10px; padding: 12px; font-size: 13px; color: #14532d;">
                         <div><b>Login Email:</b> {to_email}</div>
@@ -373,7 +503,7 @@ Smart India Hackathon 2026."""
         </html>
         """
 
-        text_body = f"""NetraAI Retinal Diagnostic Report
+        text_body = f"""Netra Setu Retinal Diagnostic Report
 
 Hello {patient_name},
 
@@ -384,4 +514,8 @@ Doctor Notes: {doctor_notes}
 {credentials_text}
 Smart India Hackathon 2026."""
 
-        return AuthService._deliver_email(to_email, subject, text_body, html_body)
+        import threading
+        t = threading.Thread(target=AuthService._deliver_email, args=(to_email, subject, text_body, html_body))
+        t.daemon = True
+        t.start()
+        return True

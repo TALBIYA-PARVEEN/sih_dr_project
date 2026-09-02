@@ -1,4 +1,4 @@
-// NetraAI Tele-Ophthalmology Fullstack Frontend Logic
+// Netra Setu Tele-Ophthalmology Fullstack Frontend Logic
 // Set your live Render URL here after deploying:
 const LIVE_BACKEND_URL = "https://sih-dr-project.onrender.com";
 const API_BASE = window.location.protocol.startsWith("http")
@@ -8,7 +8,8 @@ const API_BASE = window.location.protocol.startsWith("http")
 // Reactive State
 let currentUser = JSON.parse(localStorage.getItem("netra_user") || "null");
 let authToken = localStorage.getItem("netra_token") || null;
-let activeSessionId = localStorage.getItem("netra_active_session_id") || null;
+let activeSessionId = null;
+localStorage.removeItem("netra_active_session_id");
 let navigationHistory = ["home"];
 let selectedFile = null;
 let doctorQueue = [];
@@ -29,11 +30,6 @@ document.addEventListener("DOMContentLoaded", () => {
         navigateTo("home", false);
     }
 
-    // Restore active screening session if available on refresh
-    if (activeSessionId) {
-        restoreLastSession(activeSessionId);
-    }
-
     window.addEventListener("popstate", (event) => {
         if (event.state && event.state.page) {
             navigateTo(event.state.page, false);
@@ -43,6 +39,32 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 });
+
+function resetPatientScreeningView() {
+    activeSessionId = null;
+    selectedFile = null;
+    try { localStorage.removeItem("netra_active_session_id"); } catch (e) {}
+
+    const resCont = document.getElementById("patientResultContainer");
+    const resCard = document.getElementById("patientScreeningResultsCard");
+    const initPlace = document.getElementById("screeningInitialState");
+    const rejCard = document.getElementById("rejectionCard");
+    const loadState = document.getElementById("patientLoadingState");
+    const prevCont = document.getElementById("previewContainer");
+    const patPrevCont = document.getElementById("patientPreviewContainer");
+    const fileInput = document.getElementById("fileInput");
+    const patFileInput = document.getElementById("patientFileInput");
+
+    if (resCont) resCont.classList.add("hidden");
+    if (resCard) resCard.classList.add("hidden");
+    if (rejCard) rejCard.classList.add("hidden");
+    if (loadState) loadState.classList.add("hidden");
+    if (prevCont) prevCont.classList.add("hidden");
+    if (patPrevCont) patPrevCont.classList.add("hidden");
+    if (initPlace) initPlace.classList.remove("hidden");
+    if (fileInput) fileInput.value = "";
+    if (patFileInput) patFileInput.value = "";
+}
 
 // -----------------------------------------------------------------------------
 // 1. Navigation & Browser History
@@ -70,12 +92,20 @@ function navigateTo(pageId, pushState = true) {
 
     updateNavbarForPage(pageId);
 
-    if (pageId === "doctor") loadDoctorQueue();
+    if (pageId === "doctor") {
+        updateDoctorProfileUI();
+        loadDoctorQueue();
+        loadDoctorReviews();
+    }
     if (pageId === "admin") loadAdminDashboard();
-    if (pageId === "patient" && currentUser) {
-        updatePatientProfileUI();
-        loadPatientHistory();
-        loadPatientChat();
+    if (pageId === "login") setTimeout(initOfficialGoogleSignIn, 150);
+    if (pageId === "patient") {
+        resetPatientScreeningView();
+        if (currentUser) {
+            updatePatientProfileUI();
+            loadPatientHistory();
+            loadPatientChat();
+        }
     }
     window.scrollTo({ top: 0, behavior: "smooth" });
 }
@@ -162,11 +192,6 @@ function handleLogout() {
     navigateTo("home");
 }
 
-function fillLogin(uname, pass) {
-    document.getElementById("loginUsername").value = uname;
-    document.getElementById("loginPassword").value = pass;
-}
-
 async function handleLogin(e) {
     e.preventDefault();
     const username = document.getElementById("loginUsername").value.trim();
@@ -198,6 +223,72 @@ async function handleLogin(e) {
     }
 }
 
+let activeGoogleClientId = localStorage.getItem("netra_google_client_id") || "387784977439-ql7h183e12mgdvbfpcd2061d411p269c.apps.googleusercontent.com";
+
+async function fetchGoogleClientId() {
+    if (activeGoogleClientId) return activeGoogleClientId;
+    try {
+        const res = await fetch(`${API_BASE}/auth/google/client-id`);
+        const data = await res.json();
+        if (data.configured && data.client_id) {
+            activeGoogleClientId = data.client_id;
+            return activeGoogleClientId;
+        }
+    } catch (e) {
+        console.log("[GOOGLE-FETCH-NOTE]", e);
+    }
+    return activeGoogleClientId || "387784977439-ql7h183e12mgdvbfpcd2061d411p269c.apps.googleusercontent.com";
+}
+
+async function initOfficialGoogleSignIn() {
+    const btnContainer = document.getElementById("googleSignInButton");
+    if (!btnContainer) return;
+
+    const clientId = await fetchGoogleClientId();
+
+    if (clientId && window.google && google.accounts && google.accounts.id) {
+        try {
+            google.accounts.id.initialize({
+                client_id: clientId,
+                callback: handleGoogleCredentialResponse,
+                auto_select: false,
+                context: "signin"
+            });
+            btnContainer.innerHTML = "";
+            google.accounts.id.renderButton(btnContainer, {
+                type: "standard",
+                theme: "outline",
+                size: "large",
+                text: "signin_with",
+                shape: "rectangular",
+                logo_alignment: "left",
+                width: 320
+            });
+            return;
+        } catch (e) {
+            console.log("[GOOGLE-ID-INIT-NOTE]", e);
+        }
+    }
+
+    btnContainer.innerHTML = `
+        <button type="button" onclick="triggerGoogleSignIn()" class="w-full py-2.5 px-4 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-semibold rounded-xl text-xs shadow-xs transition flex items-center justify-center space-x-2.5">
+            <svg class="w-4 h-4" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+            </svg>
+            <span>Sign in with Google</span>
+        </button>
+    `;
+}
+
+function triggerGoogleSignIn() {
+    if (window.google && google.accounts && google.accounts.id) {
+        google.accounts.id.prompt();
+    }
+}
+
 async function handleGoogleCredentialResponse(response) {
     try {
         showToast("Authenticating with Google...", "info");
@@ -223,57 +314,6 @@ async function handleGoogleCredentialResponse(response) {
     } catch (err) {
         showToast("Google Sign-In connection error: " + err.message, "error");
     }
-}
-
-function triggerGoogleSignIn() {
-    const modal = document.getElementById("modalGoogleAuth");
-    if (modal) modal.classList.remove("hidden");
-}
-
-function closeGoogleAuthModal() {
-    const modal = document.getElementById("modalGoogleAuth");
-    if (modal) modal.classList.add("hidden");
-}
-
-function toggleCustomGoogleInput() {
-    const form = document.getElementById("formCustomGoogle");
-    if (form) form.classList.toggle("hidden");
-}
-
-async function loginWithGoogleAccount(name, email) {
-    try {
-        showToast("Authenticating as " + name + "...", "info");
-        const res = await fetch(`${API_BASE}/auth/google`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ full_name: name, email: email, role: "patient" })
-        });
-        const data = await res.json();
-        if (data.status === "success") {
-            closeGoogleAuthModal();
-            currentUser = data.user;
-            authToken = data.token;
-            localStorage.setItem("netra_user", JSON.stringify(currentUser));
-            localStorage.setItem("netra_token", authToken);
-            if (typeof updateHeaderAuthUI === "function") updateHeaderAuthUI();
-            showToast("Welcome to NetraAI, " + (currentUser.full_name || currentUser.username) + "!", "success");
-            if (currentUser.role === "doctor") navigateTo("doctor");
-            else if (currentUser.role === "admin") navigateTo("admin");
-            else navigateTo("patient");
-        } else {
-            showToast(data.error || "Google Sign-In failed.", "error");
-        }
-    } catch (e) {
-        showToast("Connection error: " + e.message, "error");
-    }
-}
-
-function handleCustomGoogleSubmit(e) {
-    if (e) e.preventDefault();
-    const name = document.getElementById("customGoogleName").value.trim();
-    const email = document.getElementById("customGoogleEmail").value.trim();
-    if (!email) return;
-    loginWithGoogleAccount(name || "Google User", email);
 }
 
 // -----------------------------------------------------------------------------
@@ -312,6 +352,77 @@ function updateHeaderAuthUI() {
     }
 }
 
+// Strong Password Verification & Live Checklist Engine
+function checkRegPasswordStrength(pwd) {
+    pwd = pwd || "";
+    const hasLen = pwd.length >= 8;
+    const hasUpper = /[A-Z]/.test(pwd);
+    const hasLower = /[a-z]/.test(pwd);
+    const hasNum = /[0-9]/.test(pwd);
+    const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(pwd);
+
+    updateReqIcon("reqLen", hasLen);
+    updateReqIcon("reqUpper", hasUpper);
+    updateReqIcon("reqLower", hasLower);
+    updateReqIcon("reqNum", hasNum);
+    updateReqIcon("reqSpecial", hasSpecial);
+
+    const score = [hasLen, hasUpper, hasLower, hasNum, hasSpecial].filter(Boolean).length;
+    const scoreBadge = document.getElementById("pwdRulesScore");
+    if (scoreBadge) scoreBadge.innerText = `${score}/5 Met`;
+
+    const bar = document.getElementById("passwordStrengthBar");
+    const label = document.getElementById("passwordStrengthLabel");
+
+    if (!bar || !label) return;
+
+    if (!pwd || pwd.length === 0) {
+        bar.style.width = "0%";
+        bar.className = "h-full bg-slate-400 transition-all duration-300";
+        label.innerText = "Required: Strong Password";
+        label.className = "text-[11px] font-bold text-slate-400";
+    } else if (score <= 2) {
+        bar.style.width = "30%";
+        bar.className = "h-full bg-rose-500 transition-all duration-300";
+        label.innerText = "Weak Password (Ineligible)";
+        label.className = "text-[11px] font-bold text-rose-600";
+    } else if (score < 5) {
+        bar.style.width = `${score * 18}%`;
+        bar.className = "h-full bg-amber-500 transition-all duration-300";
+        label.innerText = "Moderate Password (Ineligible)";
+        label.className = "text-[11px] font-bold text-amber-600";
+    } else {
+        bar.style.width = "100%";
+        bar.className = "h-full bg-emerald-500 transition-all duration-300";
+        label.innerText = "Strong Password ✓ (Eligible)";
+        label.className = "text-[11px] font-bold text-emerald-600";
+    }
+}
+
+function updateReqIcon(elId, valid) {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    const icon = el.querySelector("i");
+    if (valid) {
+        el.className = "flex items-center space-x-2 text-emerald-600 font-semibold";
+        if (icon) icon.className = "fa-solid fa-circle-check text-emerald-600";
+    } else {
+        el.className = "flex items-center space-x-2 text-slate-400";
+        if (icon) icon.className = "fa-solid fa-circle-xmark text-slate-400";
+    }
+}
+
+function togglePasswordVisibility(inputId, btn) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    const isPass = input.type === "password";
+    input.type = isPass ? "text" : "password";
+    if (btn) {
+        const icon = btn.querySelector("i");
+        if (icon) icon.className = isPass ? "fa-solid fa-eye-slash text-indigo-600" : "fa-solid fa-eye text-slate-400";
+    }
+}
+
 async function handleRegister(e) {
     if (e && e.preventDefault) e.preventDefault();
     const btn = (e && e.target && e.target.querySelector) ? e.target.querySelector('button[type="submit"]') : document.querySelector('#formRegister button[type="submit"]');
@@ -338,8 +449,25 @@ async function handleRegister(e) {
         return;
     }
 
-    if (!payload.password || payload.password.length < 6) {
-        showToast("Password must be at least 6 characters.", "warning");
+    const pwd = payload.password || "";
+    if (pwd.length < 8) {
+        showToast("Password must be at least 8 characters long.", "error");
+        return;
+    }
+    if (!/[A-Z]/.test(pwd)) {
+        showToast("Password must contain at least 1 uppercase letter (A–Z).", "error");
+        return;
+    }
+    if (!/[a-z]/.test(pwd)) {
+        showToast("Password must contain at least 1 lowercase letter (a–z).", "error");
+        return;
+    }
+    if (!/[0-9]/.test(pwd)) {
+        showToast("Password must contain at least 1 number (0–9).", "error");
+        return;
+    }
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(pwd)) {
+        showToast("Password must contain at least 1 special character (e.g. @, #, $, %, !, *).", "error");
         return;
     }
 
@@ -358,10 +486,6 @@ async function handleRegister(e) {
 
         if (data.status === "success") {
             tempRegisterEmail = payload.email;
-            currentUser = data.user;
-            authToken = data.token;
-            localStorage.setItem("netra_user", JSON.stringify(currentUser));
-            localStorage.setItem("netra_token", authToken);
 
             // Open OTP modal only on SUCCESS
             const modal = document.getElementById("modalOtp");
@@ -439,18 +563,16 @@ async function handleVerifyOtp() {
             if (currentUser && currentUser.role === "doctor") {
                 const approval = currentUser.approval_status || currentUser.status;
                 if (approval === "pending_approval") {
-                    showToast("Email verified! Your doctor registration is submitted to District Master Admin for approval.", "info");
-                    navigateTo("landing");
+                    showToast("Email verified! Your doctor registration has been submitted to Master Admin for approval.", "info");
                 } else {
-                    showToast("Email verified! Welcome Dr. " + currentUser.full_name, "success");
-                    navigateTo("doctor");
+                    showToast("Email verified! Welcome Dr. " + (currentUser.full_name || currentUser.username) + "!", "success");
                 }
             } else if (currentUser && currentUser.role === "admin") {
-                navigateTo("admin");
+                showToast("Email verified! Welcome Admin.", "success");
             } else {
-                showToast("Email verified successfully! Welcome to NetraAI, " + (currentUser.full_name || currentUser.username) + "!", "success");
-                navigateTo("patient");
+                showToast("Email verified successfully! Welcome to Netra Setu, " + (currentUser.full_name || currentUser.username) + "!", "success");
             }
+            navigateTo("home");
         } else {
             showToast(data.error || "Invalid verification code. Please check your email.", "error");
         }
@@ -593,8 +715,24 @@ async function handleResetPasswordSubmit(e) {
         showToast("Please enter the 6-digit OTP received in your email.", "warning");
         return;
     }
-    if (!newPassword || newPassword.length < 6) {
-        showToast("New password must be at least 6 characters long.", "warning");
+    if (!newPassword || newPassword.length < 8) {
+        showToast("New password must be at least 8 characters long.", "error");
+        return;
+    }
+    if (!/[A-Z]/.test(newPassword)) {
+        showToast("Password must contain at least 1 uppercase letter (A–Z).", "error");
+        return;
+    }
+    if (!/[a-z]/.test(newPassword)) {
+        showToast("Password must contain at least 1 lowercase letter (a–z).", "error");
+        return;
+    }
+    if (!/[0-9]/.test(newPassword)) {
+        showToast("Password must contain at least 1 number (0–9).", "error");
+        return;
+    }
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(newPassword)) {
+        showToast("Password must contain at least 1 special character (e.g. @, #, $, %, !, *).", "error");
         return;
     }
     if (newPassword !== confirmPassword) {
@@ -771,30 +909,43 @@ function switchPatientTab(tab) {
     const tabScreening = document.getElementById("tabPatientScreening");
     const tabHistory = document.getElementById("tabPatientHistory");
     const tabChat = document.getElementById("tabPatientChat");
+    const tabDoctors = document.getElementById("tabPatientDoctors");
 
     const contentScreening = document.getElementById("patientTabScreeningContent");
     const contentHistory = document.getElementById("patientTabHistoryContent");
     const contentChat = document.getElementById("patientTabChatContent");
+    const contentDoctors = document.getElementById("patientTabDoctorsContent");
 
-    tabScreening.className = "px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition";
-    tabHistory.className = "px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition";
-    tabChat.className = "px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition";
+    const activeClass = "flex-1 min-w-[160px] py-2.5 px-4 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center justify-center space-x-2";
+    const inactiveClass = "flex-1 min-w-[160px] py-2.5 px-4 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold transition flex items-center justify-center space-x-2";
 
-    contentScreening.classList.add("hidden");
-    contentHistory.classList.add("hidden");
-    contentChat.classList.add("hidden");
+    if (tabScreening) tabScreening.className = (tab === "screening" || !tab ? activeClass : inactiveClass);
+    if (tabHistory) tabHistory.className = (tab === "history" ? activeClass : inactiveClass);
+    if (tabChat) tabChat.className = (tab === "chat" ? activeClass : inactiveClass);
+    if (tabDoctors) tabDoctors.className = (tab === "doctors" ? activeClass : inactiveClass);
+
+    if (contentScreening) contentScreening.classList.toggle("hidden", tab !== "screening" && tab !== undefined);
+    if (contentHistory) contentHistory.classList.toggle("hidden", tab !== "history");
+    if (contentChat) contentChat.classList.toggle("hidden", tab !== "chat");
+    if (contentDoctors) contentDoctors.classList.toggle("hidden", tab !== "doctors");
 
     if (tab === "history") {
-        tabHistory.className = "px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-sm transition";
-        contentHistory.classList.remove("hidden");
         loadPatientHistory();
     } else if (tab === "chat") {
-        tabChat.className = "px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-sm transition";
-        contentChat.classList.remove("hidden");
         loadPatientChat();
+    } else if (tab === "doctors") {
+        loadDoctorsDirectory();
     } else {
-        tabScreening.className = "px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-sm transition";
-        contentScreening.classList.remove("hidden");
+        if (!activeSessionId) {
+            const resCont = document.getElementById("patientResultContainer");
+            const initPlace = document.getElementById("screeningInitialState");
+            const rejCard = document.getElementById("rejectionCard");
+            const loadState = document.getElementById("patientLoadingState");
+            if (resCont) resCont.classList.add("hidden");
+            if (rejCard) rejCard.classList.add("hidden");
+            if (loadState) loadState.classList.add("hidden");
+            if (initPlace) initPlace.classList.remove("hidden");
+        }
     }
 }
 
@@ -838,15 +989,29 @@ async function loadPatientHistory() {
                 statusBadge = `<span class="px-2.5 py-1 bg-slate-100 text-slate-700 rounded-full text-[10px] font-bold">${docStatus}</span>`;
             }
 
+            const targetDocId = s.assigned_doctor_id || s.doctor_id || (currentUser && currentUser.assigned_doctor_id) || "";
             tr.innerHTML = `
                 <td class="p-3 font-mono text-slate-500">${dateStr}</td>
                 <td class="p-3 font-semibold text-slate-800">${sev}</td>
                 <td class="p-3"><span class="px-2 py-0.5 rounded-full font-bold ${qual === 'GOOD' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">${qual}</span></td>
-                <td class="p-3 text-slate-600">${docName}</td>
+                <td class="p-3 font-semibold text-slate-700">
+                    <div class="flex items-center space-x-1.5">
+                        <div class="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-bold">
+                            <i class="fa-solid fa-user-doctor"></i>
+                        </div>
+                        <span>${docName}</span>
+                    </div>
+                </td>
                 <td class="p-3">${statusBadge}</td>
-                <td class="p-3 flex items-center space-x-2">
-                    <button onclick="restoreLastSession('${scanId}')" class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold transition">View Scan</button>
-                    <a href="${pdfUrl}" target="_blank" class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-xs font-bold transition">PDF</a>
+                <td class="p-3">
+                    <div class="flex items-center space-x-1.5 flex-wrap gap-y-1">
+                        <button onclick="restoreLastSession('${scanId}')" class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold transition">View Scan</button>
+                        <a href="${pdfUrl}" target="_blank" class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-xs font-bold transition">PDF</a>
+                        <button onclick="openDoctorReviewModal('${targetDocId}', '${docName}', '${scanId}')" class="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-lg text-xs font-bold border border-amber-200 transition flex items-center space-x-1 shadow-2xs" title="Rate this doctor's consultation">
+                            <i class="fa-solid fa-star text-amber-500 text-[10px]"></i>
+                            <span>Rate</span>
+                        </button>
+                    </div>
                 </td>
             `;
             tbody.appendChild(tr);
@@ -905,13 +1070,118 @@ function setupUploadHandlers() {
     }
 }
 
+function validateRetinaClientSide(imgElement) {
+    try {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        const w = 128, h = 128;
+        canvas.width = w;
+        canvas.height = h;
+        ctx.drawImage(imgElement, 0, 0, w, h);
+        const data = ctx.getImageData(0, 0, w, h).data;
+        let rSum = 0, gSum = 0, bSum = 0, count = 0;
+        const gGrid = [];
+
+        for (let y = 0; y < h; y++) {
+            gGrid[y] = [];
+            for (let x = 0; x < w; x++) {
+                const idx = (y * w + x) * 4;
+                const r = data[idx], g = data[idx+1], b = data[idx+2];
+                rSum += r; gSum += g; bSum += b; count++;
+                gGrid[y][x] = g;
+            }
+        }
+
+        if (count === 0) return { valid: true };
+
+        const rMean = rSum / count;
+        const gMean = gSum / count;
+        const bMean = bSum / count;
+        const overallMean = (rMean + gMean + bMean) / 3;
+
+        // 1. Extreme pitch dark
+        if (overallMean < 6.0) {
+            return { valid: false, reason: "Image is completely dark or empty. Please upload a clear retinal fundus photo." };
+        }
+
+        // 2. Extreme pure white
+        if (overallMean > 245.0) {
+            return { valid: false, reason: "Image is completely overexposed or washed out. Please upload a valid retinal scan." };
+        }
+
+        // 3. Biophysical Spectrum Check (Warm fundus vs Non-retinal)
+        const isMonochrome = Math.abs(rMean - gMean) < 8.0 && Math.abs(gMean - bMean) < 8.0;
+        const isWarmFundus = rMean >= 35.0 && (rMean / Math.max(1.0, gMean)) >= 1.20 && (rMean / Math.max(1.0, bMean)) >= 1.40;
+
+        if (!isWarmFundus && !isMonochrome) {
+            return { valid: false, reason: `Non-retinal color spectrum (R: ${rMean.toFixed(0)}, G: ${gMean.toFixed(0)}, B: ${bMean.toFixed(0)}). Fundus photography requires ocular choroidal reflectance.` };
+        }
+
+        // 4. Client-side Green Channel Dark Ridge / Blood Vessel Segment Check
+        let vesselRidgePixels = 0;
+        for (let y = 4; y < h - 4; y++) {
+            for (let x = 4; x < w - 4; x++) {
+                const gVal = gGrid[y][x];
+                const hSurround = (gGrid[y][x-3] + gGrid[y][x+3]) / 2;
+                const vSurround = (gGrid[y-3][x] + gGrid[y+3][x]) / 2;
+                const d1Surround = (gGrid[y-2][x-2] + gGrid[y+2][x+2]) / 2;
+                const d2Surround = (gGrid[y-2][x+2] + gGrid[y+2][x-2]) / 2;
+
+                const maxDarkRidge = Math.max(
+                    hSurround - gVal,
+                    vSurround - gVal,
+                    d1Surround - gVal,
+                    d2Surround - gVal
+                );
+
+                if (maxDarkRidge >= 8.0) {
+                    vesselRidgePixels++;
+                }
+            }
+        }
+
+        if (vesselRidgePixels < 8 && overallMean > 30.0) {
+            return { valid: false, reason: "Missing continuous branching retinal blood vessels. Please upload an authentic eye fundus photograph." };
+        }
+
+        return { valid: true };
+    } catch (e) {
+        return { valid: true };
+    }
+}
+
 function handleFileSelect(file) {
     selectedFile = file;
     document.getElementById("fileNamePreview").innerText = file.name;
+
+    // Forcibly clear previous results container on choosing any file
+    const resCont = document.getElementById("patientResultContainer");
+    if (resCont) resCont.classList.add("hidden");
+    const initPlaceholder = document.getElementById("screeningInitialState");
+    if (initPlaceholder) initPlaceholder.classList.remove("hidden");
+    const rejectionCard = document.getElementById("rejectionCard");
+    if (rejectionCard) rejectionCard.classList.add("hidden");
+
     const reader = new FileReader();
     reader.onload = (e) => {
-        document.getElementById("imgPreview").src = e.target.result;
+        const preview = document.getElementById("imgPreview");
+        preview.src = e.target.result;
         document.getElementById("previewContainer").classList.remove("hidden");
+        preview.onload = () => {
+            const check = validateRetinaClientSide(preview);
+            if (!check.valid) {
+                if (rejectionCard) {
+                    rejectionCard.classList.remove("hidden");
+                    rejectionCard.scrollIntoView({ behavior: "smooth", block: "center" });
+                }
+                if (initPlaceholder) initPlaceholder.classList.add("hidden");
+                if (resCont) resCont.classList.add("hidden");
+                const reason = "Non-retinal image detected: " + check.reason;
+                document.getElementById("rejectionReasonText").innerHTML = `<b>Diagnostic Assessment:</b> ${reason} <br><span class="text-amber-800 font-semibold mt-1 inline-block">Please recapture and upload an authentic retinal fundus photograph.</span>`;
+                showToast("⚠️ Non-Retinal Image: " + check.reason, "error");
+                alert("🚫 Scan Rejected (Non-Retinal Image Detected)\n\n" + reason + "\n\nAction Required: Please recapture and upload an authentic eye fundus photograph.");
+            }
+        };
     };
     reader.readAsDataURL(file);
 }
@@ -923,7 +1193,17 @@ function handleDoctorFileSelect(file) {
     const reader = new FileReader();
     reader.onload = (e) => {
         const preview = document.getElementById("docImgPreview");
-        if (preview) preview.src = e.target.result;
+        if (preview) {
+            preview.src = e.target.result;
+            document.getElementById("docPreviewContainer").classList.remove("hidden");
+            preview.onload = () => {
+                const check = validateRetinaClientSide(preview);
+                if (!check.valid) {
+                    showToast("Quality Assessment Warning: " + check.reason, "warning");
+                    alert("🚫 Non-Retinal Image Detected\n\n" + check.reason + "\n\nPlease upload an authentic clinical fundus scan.");
+                }
+            };
+        }
         const container = document.getElementById("docPreviewContainer");
         if (container) container.classList.remove("hidden");
     };
@@ -1118,6 +1398,25 @@ async function runPatientScreening() {
         return;
     }
 
+    const previewImg = document.getElementById("imgPreview");
+    if (previewImg && previewImg.complete && previewImg.naturalWidth > 0) {
+        const clientCheck = validateRetinaClientSide(previewImg);
+        if (!clientCheck.valid) {
+            const rejectionCard = document.getElementById("rejectionCard");
+            if (rejectionCard) {
+                rejectionCard.classList.remove("hidden");
+                rejectionCard.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
+            document.getElementById("patientResultContainer").classList.add("hidden");
+            localStorage.removeItem("netra_active_session_id");
+            const reason = "Non-retinal image detected: " + clientCheck.reason + " (Please upload an authentic eye fundus scan).";
+            document.getElementById("rejectionReasonText").innerHTML = `<b>Diagnostic Assessment:</b> ${reason}`;
+            showToast("Scan Rejected: Non-retinal image detected", "error");
+            alert("🚫 Scan Rejected (Non-Retinal or Ungradable Image)\n\n" + reason + "\n\nAction Required: Please recapture and upload an authentic retinal fundus photograph.");
+            return;
+        }
+    }
+
     const formData = new FormData();
     formData.append("file", selectedFile);
     if (currentUser) {
@@ -1127,6 +1426,8 @@ async function runPatientScreening() {
         formData.append("patient_gender", currentUser.gender || "Female");
     }
 
+    const initPlaceholder = document.getElementById("screeningInitialState");
+    if (initPlaceholder) initPlaceholder.classList.add("hidden");
     document.getElementById("patientLoadingState").classList.remove("hidden");
     document.getElementById("rejectionCard").classList.add("hidden");
     document.getElementById("patientResultContainer").classList.add("hidden");
@@ -1139,12 +1440,22 @@ async function runPatientScreening() {
         const result = await res.json();
         document.getElementById("patientLoadingState").classList.add("hidden");
 
-        if (result.status === "rejected" || result.status === "warning" || result.is_gradable === false) {
-            document.getElementById("rejectionCard").classList.remove("hidden");
+        if (result.status === "rejected" || result.status === "warning" || result.is_gradable === false || !res.ok) {
+            if (initPlaceholder) initPlaceholder.classList.add("hidden");
+            const rejectionCard = document.getElementById("rejectionCard");
+            if (rejectionCard) {
+                rejectionCard.classList.remove("hidden");
+                rejectionCard.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
             document.getElementById("patientResultContainer").classList.add("hidden");
-            const reason = result.message || (result.quality_assessment ? result.quality_assessment.rejection_reason : "Image quality is unsuitable for clinical grading. Please retake photo.");
-            document.getElementById("rejectionReasonText").innerText = reason;
-            showToast("Quality Check Failed: Please retake a clear retinal photograph.", "error");
+            localStorage.removeItem("netra_active_session_id");
+            
+            const reason = result.message || result.error || (result.quality_assessment ? result.quality_assessment.rejection_reason : "Image is not suitable for clinical grading. Please capture an authentic eye fundus photograph.");
+            document.getElementById("rejectionReasonText").innerHTML = `<b>Diagnostic Assessment:</b> ${reason}`;
+            const isNonRetina = reason.toLowerCase().includes("non-retinal");
+            const alertTitle = isNonRetina ? "🚫 Scan Rejected (Non-Retinal Image Detected)" : "⚠️ Image Quality Insufficient (Please Capture Photo Again)";
+            showToast(isNonRetina ? "🚫 Non-Retinal Image Detected" : "⚠️ Poor Quality: Please Retake Photo", "error");
+            alert(`${alertTitle}\n\n${reason}\n\nAction Required: Please steady the fundus camera, balance illumination, and capture photo again.`);
             return;
         }
 
@@ -1163,17 +1474,457 @@ async function runPatientScreening() {
 
 async function restoreLastSession(sessionId) {
     try {
+        showToast("Loading diagnostic report...", "info");
         const res = await fetch(`${API_BASE}/session/${sessionId}`);
         const data = await res.json();
         if (data.status === "success" && data.data) {
-            renderPatientResults(data.data);
-            switchPatientTab("screening");
+            renderPastScanModal(data.data);
+        } else {
+            showToast("Failed to load past screening report.", "error");
         }
-    } catch (e) {}
+    } catch (e) {
+        showToast("Error loading past scan: " + e.message, "error");
+    }
+}
+
+function renderPastScanModal(data) {
+    const modal = document.getElementById("modalPastScanViewer");
+    if (!modal) return;
+
+    const qual = data.quality_assessment || {};
+    const pred = data.prediction || {};
+    const bio = data.biomarkers || {};
+    const rev = data.clinician_review || {};
+
+    const qBadge = document.getElementById("pastResQualityBadge");
+    if (qBadge) {
+        qBadge.innerText = qual.quality_label || "GOOD";
+        qBadge.className = (qual.quality_label === "GOOD" ? "px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800" : "px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800");
+    }
+    const qScore = document.getElementById("pastResQualityScore");
+    if (qScore) qScore.innerText = (qual.quality_score || 92) + "%";
+    const fScore = document.getElementById("pastResFocusScore");
+    if (fScore) fScore.innerText = `Focus: ${qual.blur_score || 180.2} • FOV: ${(qual.fov_ratio ? (qual.fov_ratio * 100).toFixed(1) : 74)}%`;
+
+    const sevName = document.getElementById("pastResSeverityName");
+    if (sevName) sevName.innerText = pred.severity_name || "Diagnostic Complete";
+    const conf = document.getElementById("pastResConfidence");
+    if (conf) conf.innerText = `Confidence: ${(pred.confidence ? (pred.confidence * 100).toFixed(1) : 95.0)}%`;
+
+    const refBadge = document.getElementById("pastResReferralBadge");
+    if (refBadge) {
+        if (pred.is_referable) {
+            refBadge.className = "mt-1 inline-block px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-700";
+            refBadge.innerText = "🚨 REFERRAL RECOMMENDED";
+        } else {
+            refBadge.className = "mt-1 inline-block px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700";
+            refBadge.innerText = "🟢 ROUTINE ANNUAL SCREENING";
+        }
+    }
+    const triage = document.getElementById("pastResTriageAction");
+    if (triage) triage.innerText = pred.triage_action || "Specialist Clinical Review";
+
+    const imgOrig = document.getElementById("pastViewImgOriginal");
+    if (imgOrig) imgOrig.src = `${API_BASE}/files/${data.id}/original`;
+    const imgVess = document.getElementById("pastViewImgVessels");
+    if (imgVess) imgVess.src = `${API_BASE}/files/${data.id}/vessels`;
+    const imgLes = document.getElementById("pastViewImgLesions");
+    if (imgLes) imgLes.src = `${API_BASE}/files/${data.id}/lesions`;
+    const imgCam = document.getElementById("pastViewImgGradcam");
+    if (imgCam) imgCam.src = `${API_BASE}/files/${data.id}/gradcam`;
+
+    const rCount = document.getElementById("pastBioRedCount");
+    if (rCount) rCount.innerText = bio.red_dots_count || 0;
+    const yCount = document.getElementById("pastBioYellowCount");
+    if (yCount) yCount.innerText = bio.yellow_dots_count || 0;
+    const wCount = document.getElementById("pastBioWhiteCount");
+    if (wCount) wCount.innerText = bio.white_dots_count || 0;
+    const oDisc = document.getElementById("pastBioOpticDisc");
+    if (oDisc) oDisc.innerText = bio.optic_disc_coord || "(N/A)";
+
+    const dStatus = document.getElementById("pastPatientDocStatus");
+    if (dStatus) {
+        const isVal = rev.status === "Confirmed" || rev.status === "Clinically Validated";
+        dStatus.innerText = rev.status || "Pending Review";
+        dStatus.className = isVal ? "text-emerald-600 font-bold" : "text-amber-600 font-bold";
+    }
+    const dNotes = document.getElementById("pastPatientDocNotes");
+    if (dNotes) dNotes.innerText = rev.notes || "Awaiting ophthalmologist sign-off.";
+
+    const pdfBtn = document.getElementById("pastModalPdfBtn");
+    if (pdfBtn) pdfBtn.href = `${API_BASE}/report/${data.id}/pdf`;
+
+    const subTitle = document.getElementById("pastModalSubtitle");
+    if (subTitle) subTitle.innerText = `Screening ID: ${data.id.substring(0, 16)}... • ${data.created_at ? new Date(data.created_at).toLocaleString() : 'Past Report'}`;
+
+    currentViewedScanData = data;
+    modal.classList.remove("hidden");
+}
+
+function closePastScanModal() {
+    const modal = document.getElementById("modalPastScanViewer");
+    if (modal) modal.classList.add("hidden");
+}
+
+// -----------------------------------------------------------------------------
+// 7B. Doctor Reviews & Ratings
+// -----------------------------------------------------------------------------
+let currentViewedScanData = null;
+let currentRatingValue = 5;
+
+function setDoctorRating(val) {
+    currentRatingValue = val;
+    const stars = document.querySelectorAll("#starRatingSelector .star-btn");
+    stars.forEach(s => {
+        const v = parseInt(s.getAttribute("data-val"));
+        if (v <= val) {
+            s.className = "fa-solid fa-star star-btn text-amber-400";
+        } else {
+            s.className = "fa-regular fa-star star-btn text-slate-300";
+        }
+    });
+    const labels = {
+        1: "1.0 / 5.0 (Poor - Needs Improvement)",
+        2: "2.0 / 5.0 (Fair)",
+        3: "3.0 / 5.0 (Good)",
+        4: "4.0 / 5.0 (Very Good)",
+        5: "5.0 / 5.0 (Excellent - Highly Recommended)"
+    };
+    const lbl = document.getElementById("labelSelectedRating");
+    if (lbl) lbl.innerText = labels[val] || `${val}.0 / 5.0`;
+}
+
+function openDoctorReviewModal(docId = null, docName = null, scanId = null) {
+    const modal = document.getElementById("modalRateDoctor");
+    if (!modal) return;
+    const nameEl = document.getElementById("rateDoctorName");
+    const docIdInput = document.getElementById("rateDoctorId");
+    const scanIdInput = document.getElementById("rateScreeningId");
+
+    const resolvedDocName = docName || (currentUser && currentUser.assigned_doctor_name) || "Assigned Ophthalmologist";
+    const resolvedDocId = docId || (currentUser && currentUser.assigned_doctor_id);
+    const resolvedScanId = scanId || (currentViewedScanData && currentViewedScanData.id) || activeSessionId || "";
+
+    if (nameEl) nameEl.innerText = `Reviewing: ${resolvedDocName}`;
+    if (docIdInput) docIdInput.value = resolvedDocId || "";
+    if (scanIdInput) scanIdInput.value = resolvedScanId;
+
+    setDoctorRating(5);
+    const commentInput = document.getElementById("rateDoctorComment");
+    if (commentInput) commentInput.value = "";
+
+    modal.classList.remove("hidden");
+}
+
+function openRateDoctorModalFromScan() {
+    openDoctorReviewModal(
+        (currentViewedScanData && currentViewedScanData.assigned_doctor_id) || (currentUser && currentUser.assigned_doctor_id),
+        (currentViewedScanData && currentViewedScanData.assigned_doctor_name) || (currentUser && currentUser.assigned_doctor_name),
+        (currentViewedScanData && currentViewedScanData.id) || activeSessionId
+    );
+}
+
+function closeRateDoctorModal() {
+    const modal = document.getElementById("modalRateDoctor");
+    if (modal) modal.classList.add("hidden");
+}
+
+async function handleDoctorReviewSubmit(e) {
+    e.preventDefault();
+    if (!currentUser) {
+        showToast("Please log in to submit a doctor review.", "warning");
+        return;
+    }
+    const docId = document.getElementById("rateDoctorId").value || currentUser.assigned_doctor_id;
+    const scanId = document.getElementById("rateScreeningId").value || activeSessionId;
+    const comment = document.getElementById("rateDoctorComment").value.trim();
+
+    if (!docId) {
+        showToast("No doctor specified for review.", "error");
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API_BASE}/doctor/${docId}/review`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                patient_id: currentUser.id,
+                patient_name: currentUser.full_name || currentUser.username,
+                rating: currentRatingValue,
+                comment: comment,
+                screening_id: scanId
+            })
+        });
+        const data = await res.json();
+        if (data.status === "success") {
+            showToast("⭐ Thank you! Your doctor consultation review has been recorded.", "success");
+            closeRateDoctorModal();
+            loadDoctorsDirectory();
+        } else {
+            showToast(data.error || "Failed to submit review.", "error");
+        }
+    } catch (err) {
+        showToast("Error submitting review: " + err.message, "error");
+    }
+}
+
+// -----------------------------------------------------------------------------
+// 7C. Verified Ophthalmologists Directory & 2nd Opinion Workflow
+// -----------------------------------------------------------------------------
+let allDoctorsDirectoryData = [];
+let activeDoctorFilter = "all";
+
+function setDoctorFilter(filterType) {
+    activeDoctorFilter = filterType;
+    const btnAll = document.getElementById("btnFilterDocAll");
+    const btnTop = document.getElementById("btnFilterDocTop");
+    const btnFast = document.getElementById("btnFilterDocFast");
+
+    if (btnAll) btnAll.className = filterType === "all" ? "px-3 py-1.5 rounded-lg bg-slate-800 text-white font-bold transition" : "px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition";
+    if (btnTop) btnTop.className = filterType === "top" ? "px-3 py-1.5 rounded-lg bg-amber-500 text-white font-bold transition" : "px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition";
+    if (btnFast) btnFast.className = filterType === "fast" ? "px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-bold transition" : "px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition";
+
+    filterDoctorsList();
+}
+
+function filterDoctorsList() {
+    const searchInput = document.getElementById("inputSearchDoctors");
+    const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
+
+    let list = [...allDoctorsDirectoryData];
+
+    if (query) {
+        list = list.filter(d => 
+            (d.full_name && d.full_name.toLowerCase().includes(query)) ||
+            (d.specialization && d.specialization.toLowerCase().includes(query)) ||
+            (d.hospital_name && d.hospital_name.toLowerCase().includes(query))
+        );
+    }
+
+    if (activeDoctorFilter === "top") {
+        list = list.filter(d => (d.rating || 0) >= 4.8);
+    } else if (activeDoctorFilter === "fast") {
+        list = list.filter(d => (d.active_queue_count || 0) <= 2);
+    }
+
+    renderDoctorsCards(list);
+}
+
+async function loadDoctorsDirectory() {
+    const grid = document.getElementById("patientDoctorsDirectoryGrid");
+    if (!grid) return;
+
+    try {
+        const patientId = currentUser ? currentUser.id : "";
+        const res = await fetch(`${API_BASE}/doctors/directory?patient_id=${patientId}`);
+        const data = await res.json();
+        allDoctorsDirectoryData = data.doctors || [];
+        filterDoctorsList();
+    } catch (e) {
+        console.error("loadDoctorsDirectory error:", e);
+    }
+}
+
+function renderDoctorsCards(doctors) {
+    const grid = document.getElementById("patientDoctorsDirectoryGrid");
+    if (!grid) return;
+    grid.innerHTML = "";
+
+    const activeName = document.getElementById("activeAssignedDocName");
+    const activeMeta = document.getElementById("activeAssignedDocMeta");
+
+    if (doctors.length === 0) {
+        if (activeName) activeName.innerText = "No Doctor Assigned (No Doctors in Network)";
+        if (activeMeta) activeMeta.innerText = "Please wait for an ophthalmologist to register and get approved by the admin.";
+        grid.innerHTML = `
+            <div class="col-span-full p-8 bg-amber-50/70 border border-amber-200 rounded-3xl text-center space-y-3">
+                <div class="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto text-lg shadow-xs">
+                    <i class="fa-solid fa-user-doctor"></i>
+                </div>
+                <h4 class="font-bold text-amber-900 text-sm">No Ophthalmologists Registered in Network Yet</h4>
+                <p class="text-xs text-amber-700 max-w-md mx-auto leading-relaxed">
+                    There are currently no approved eye specialists registered in the tele-ophthalmology network. 
+                    Once an ophthalmologist registers and is approved by the admin, their profile, ratings, and reviews will appear here.
+                </p>
+            </div>
+        `;
+        return;
+    }
+
+    doctors.forEach(doc => {
+        const isAssigned = doc.is_currently_assigned;
+        if (isAssigned) {
+            if (activeName) activeName.innerText = doc.full_name;
+            if (activeMeta) activeMeta.innerText = `${doc.specialization} • ${doc.hospital_name}`;
+        }
+
+        const starsCount = Math.min(5, Math.max(1, Math.round(doc.rating || 5)));
+        const starsHtml = "★".repeat(starsCount) + "☆".repeat(5 - starsCount);
+
+        const card = document.createElement("div");
+        card.className = `p-5 rounded-3xl border ${isAssigned ? 'bg-indigo-50/40 border-indigo-400 shadow-lg ring-2 ring-indigo-500/20' : 'bg-white border-slate-200 shadow-sm hover:shadow-md'} flex flex-col justify-between space-y-4 transition`;
+        
+        // Amazon/Flipkart style review cards
+        const reviews = doc.reviews || [];
+        const reviewsHtml = reviews.slice(0, 2).map(r => `
+            <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100 text-xs space-y-1">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-1.5 text-amber-500 font-bold text-[11px]">
+                        <span>${"★".repeat(r.rating || 5)}</span>
+                        <span class="text-slate-800 font-semibold ml-1">${r.patient_name}</span>
+                    </div>
+                    <span class="text-[9px] text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded font-semibold">✓ Verified Patient</span>
+                </div>
+                <p class="text-slate-600 text-[11px] leading-relaxed italic">"${r.comment}"</p>
+            </div>
+        `).join("");
+
+        card.innerHTML = `
+            <div class="space-y-4">
+                <!-- Header -->
+                <div class="flex items-start justify-between gap-3">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-14 h-14 rounded-2xl ${isAssigned ? 'bg-indigo-600 text-white' : 'bg-gradient-to-br from-indigo-500 to-indigo-700 text-white'} flex items-center justify-center font-bold text-xl shadow-sm flex-shrink-0">
+                            <i class="fa-solid fa-user-doctor"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center space-x-1.5">
+                                <h4 class="font-bold text-slate-800 text-base">${doc.full_name}</h4>
+                                <i class="fa-solid fa-circle-check text-emerald-500 text-xs" title="MCI Verified Doctor"></i>
+                            </div>
+                            <span class="text-xs font-semibold text-indigo-600 block">${doc.specialization}</span>
+                            <span class="text-[11px] text-slate-500 block">${doc.hospital_name}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Amazon / Flipkart Star Rating Summary -->
+                <div class="bg-amber-50/60 p-3 rounded-2xl border border-amber-200/80 space-y-1.5">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-lg font-black text-slate-800">${doc.review_count > 0 ? doc.rating : '0.0'}</span>
+                            <div class="text-amber-400 text-sm tracking-tight">${doc.review_count > 0 ? starsHtml : '☆☆☆☆☆'}</div>
+                            <span class="text-xs text-indigo-700 font-bold hover:underline cursor-pointer">(${doc.review_count} ratings)</span>
+                        </div>
+                        <span class="text-[10px] font-bold px-2.5 py-0.5 rounded-full ${doc.active_queue_count <= 2 ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">
+                            ${doc.active_queue_count} pending
+                        </span>
+                    </div>
+
+                    <!-- 5-Star Breakdown Progress Bar -->
+                    <div class="space-y-1 pt-1 text-[10px] text-slate-600">
+                        <div class="flex items-center space-x-2">
+                            <span class="w-8 font-semibold">5 Star</span>
+                            <div class="flex-1 bg-amber-200/40 h-2 rounded-full overflow-hidden">
+                                <div class="bg-amber-400 h-full rounded-full transition-all duration-300" style="width: ${doc.star_breakdown ? doc.star_breakdown.star_5 : 0}%;"></div>
+                            </div>
+                            <span class="w-6 text-right font-bold text-slate-500">${doc.star_breakdown ? doc.star_breakdown.star_5 : 0}%</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="w-8 font-semibold">4 Star</span>
+                            <div class="flex-1 bg-amber-200/40 h-2 rounded-full overflow-hidden">
+                                <div class="bg-amber-400 h-full rounded-full transition-all duration-300" style="width: ${doc.star_breakdown ? doc.star_breakdown.star_4 : 0}%;"></div>
+                            </div>
+                            <span class="w-6 text-right font-bold text-slate-500">${doc.star_breakdown ? doc.star_breakdown.star_4 : 0}%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Verified Customer Reviews -->
+                <div class="space-y-2">
+                    <div class="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center justify-between">
+                        <span>Patient Reviews & Comments</span>
+                        <span class="text-indigo-600 text-[10px] lowercase font-semibold">Verified feedback</span>
+                    </div>
+                    ${reviewsHtml || '<div class="text-xs text-slate-400 italic">No reviews yet. Complete a screening with this doctor to be the first to leave a review!</div>'}
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="pt-3 border-t border-slate-100 space-y-2">
+                ${isAssigned ? `
+                    <button disabled class="w-full py-2.5 bg-emerald-600 text-white font-bold rounded-xl text-xs flex items-center justify-center space-x-1.5 shadow-sm">
+                        <i class="fa-solid fa-circle-check"></i>
+                        <span>Your Selected Consulting Doctor</span>
+                    </button>
+                ` : `
+                    <button onclick="requestSecondOpinion('${doc.id}', '${doc.full_name}')" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs shadow-md transition flex items-center justify-center space-x-1.5">
+                        <i class="fa-solid fa-user-check"></i>
+                        <span>Select as My Consulting Doctor</span>
+                    </button>
+                `}
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="openDoctorChatDirectly('${doc.id}', '${doc.full_name}')" class="py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition flex items-center justify-center space-x-1 border border-slate-200">
+                        <i class="fa-solid fa-comment-dots text-indigo-600"></i>
+                        <span>Message</span>
+                    </button>
+                    <button onclick="openDoctorReviewModal('${doc.id}', '${doc.full_name}', null)" class="py-2 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold rounded-xl text-xs transition flex items-center justify-center space-x-1 border border-amber-200">
+                        <i class="fa-solid fa-star text-amber-500"></i>
+                        <span>Rate & Review</span>
+                    </button>
+                </div>
+            </div>
+        `;
+        grid.appendChild(card);
+    });
+}
+
+function openDoctorChatDirectly(doctorId, doctorName) {
+    if (!currentUser) {
+        showToast("Please log in to message this specialist.", "warning");
+        return;
+    }
+    currentUser.assigned_doctor_id = doctorId;
+    currentUser.assigned_doctor_name = doctorName;
+    localStorage.setItem("netra_user", JSON.stringify(currentUser));
+    switchPatientTab("chat");
+    showToast(`Connected to ${doctorName} in Messages!`, "success");
+}
+
+async function requestSecondOpinion(doctorId, doctorName) {
+    if (!currentUser) {
+        showToast("Please log in to switch ophthalmologists.", "warning");
+        return;
+    }
+
+    const confirmSwitch = confirm(`Confirm requesting a Second Clinical Opinion from ${doctorName}?\n\nThis will transfer your active care and direct messaging to ${doctorName}, and dispatch your latest retinal screening report for priority re-evaluation.`);
+    if (!confirmSwitch) return;
+
+    try {
+        showToast(`Transferring care to ${doctorName}...`, "info");
+        const res = await fetch(`${API_BASE}/patient/switch-doctor`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                patient_id: currentUser.id,
+                doctor_id: doctorId,
+                reason: "Patient requested Second Opinion"
+            })
+        });
+        const data = await res.json();
+        if (data.status === "success") {
+            currentUser.assigned_doctor_id = doctorId;
+            currentUser.assigned_doctor_name = doctorName;
+            localStorage.setItem("netra_user", JSON.stringify(currentUser));
+            showToast(`Assigned care transferred to ${doctorName} for Second Opinion!`, "success");
+            loadDoctorsDirectory();
+            loadPatientHistory();
+            switchPatientTab("chat");
+        } else {
+            showToast(data.error || "Failed to switch doctor.", "error");
+        }
+    } catch (e) {
+        showToast("Error switching doctor: " + e.message, "error");
+    }
 }
 
 function renderPatientResults(data) {
     activeSessionId = data.id;
+    const initPlaceholder = document.getElementById("screeningInitialState");
+    if (initPlaceholder) initPlaceholder.classList.add("hidden");
+    const rejectionCard = document.getElementById("rejectionCard");
+    if (rejectionCard) rejectionCard.classList.add("hidden");
     document.getElementById("patientResultContainer").classList.remove("hidden");
 
     const qual = data.quality_assessment;
@@ -1207,14 +1958,41 @@ function renderPatientResults(data) {
     document.getElementById("bioOpticDisc").innerText = bio.optic_disc_coord || "(N/A)";
     document.getElementById("labelVessels").innerText = `2. Vessels (${bio.vessel_density_pct}%)`;
 
-    const rev = data.clinician_review;
-    document.getElementById("patientDocStatus").innerText = rev.status;
-    document.getElementById("patientDocNotes").innerText = rev.notes || `Assigned to ${data.assigned_doctor_name || 'Ophthalmologist'}.`;
+    const rev = data.clinician_review || {};
+    const statusText = rev.status || data.review_status || "Pending Review";
+    const statusEl = document.getElementById("patientDocStatus");
+    if (statusEl) {
+        statusEl.innerText = statusText;
+        if (statusText === "Confirmed" || statusText === "Clinically Validated") {
+            statusEl.className = "font-bold text-emerald-600";
+        } else if (statusText === "Refer to Specialist" || statusText === "Requires Hospital Referral") {
+            statusEl.className = "font-bold text-rose-600";
+        } else {
+            statusEl.className = "font-bold text-amber-600";
+        }
+    }
+    const notesEl = document.getElementById("patientDocNotes");
+    if (notesEl) {
+        notesEl.innerText = rev.notes || (statusText === "Pending Review" ? `Awaiting examining ophthalmologist sign-off (${data.assigned_doctor_name || 'Assigned Specialist'}).` : "Clinical evaluation completed.");
+    }
     
     const assignedDocNameEl = document.getElementById("patientAssignedDoctorName");
     if (assignedDocNameEl && data.assigned_doctor_name) {
         assignedDocNameEl.innerText = data.assigned_doctor_name;
     }
+}
+
+function updateDoctorProfileUI() {
+    if (!currentUser || currentUser.role !== "doctor") return;
+    const name = currentUser.full_name || "Dr. " + currentUser.username;
+    const spec = currentUser.specialization || "Senior Vitreo-Retina Consultant";
+    const hosp = currentUser.hospital_name || "District Apex Eye Hospital";
+
+    const nameEl = document.getElementById("docHeaderFullName");
+    if (nameEl) nameEl.innerText = name;
+
+    const metaEl = document.getElementById("docHeaderMeta");
+    if (metaEl) metaEl.innerText = `${spec} • ${hosp}`;
 }
 
 // -----------------------------------------------------------------------------
@@ -1224,23 +2002,127 @@ function switchDoctorTab(tab) {
     const tabWorkstation = document.getElementById("tabDoctorWorkstation");
     const tabScreening = document.getElementById("tabDoctorScreening");
     const tabChat = document.getElementById("tabDoctorChat");
+    const tabReviews = document.getElementById("tabDoctorReviews");
     const contentWorkstation = document.getElementById("doctorTabWorkstationContent");
     const contentScreening = document.getElementById("doctorTabScreeningContent");
     const contentChat = document.getElementById("doctorTabChatContent");
+    const contentReviews = document.getElementById("doctorTabReviewsContent");
 
-    const inactiveClass = "px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition flex items-center space-x-1";
-    const activeClass = "px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center space-x-1";
+    const activeClass = "flex-1 min-w-[160px] py-2.5 px-4 bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center justify-center space-x-2";
+    const inactiveClass = "flex-1 min-w-[160px] py-2.5 px-4 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold transition flex items-center justify-center space-x-2";
 
-    if (tabWorkstation) tabWorkstation.className = (tab === "workstation" ? activeClass : inactiveClass);
+    if (tabWorkstation) tabWorkstation.className = (tab === "workstation" || !tab ? activeClass : inactiveClass);
     if (tabScreening) tabScreening.className = (tab === "screening" ? activeClass : inactiveClass);
     if (tabChat) tabChat.className = (tab === "chat" ? activeClass : inactiveClass);
+    if (tabReviews) tabReviews.className = (tab === "reviews" ? activeClass : inactiveClass);
 
-    if (contentWorkstation) contentWorkstation.classList.toggle("hidden", tab !== "workstation");
+    if (contentWorkstation) contentWorkstation.classList.toggle("hidden", tab !== "workstation" && tab !== undefined);
     if (contentScreening) contentScreening.classList.toggle("hidden", tab !== "screening");
     if (contentChat) contentChat.classList.toggle("hidden", tab !== "chat");
+    if (contentReviews) contentReviews.classList.toggle("hidden", tab !== "reviews");
 
     if (tab === "chat") loadDoctorChat();
-    if (tab === "workstation") loadDoctorQueue();
+    if (tab === "workstation" || !tab) loadDoctorQueue();
+    if (tab === "reviews") loadDoctorReviews();
+}
+
+async function loadDoctorReviews() {
+    if (!currentUser || currentUser.role !== "doctor") return;
+    const docId = currentUser.id;
+    try {
+        const res = await fetch(`${API_BASE}/doctor/${docId}/reviews`);
+        const data = await res.json();
+        if (data.status !== "success") return;
+
+        const rating = data.overall_rating !== undefined ? data.overall_rating : 0.0;
+        const count = data.review_count !== undefined ? data.review_count : 0;
+        const breakdown = data.star_breakdown || { star_5: 0, star_4: 0, star_3: 0, star_2: 0, star_1: 0 };
+        const reviews = data.reviews || [];
+
+        // Update header badge
+        const hRating = document.getElementById("docHeaderRating");
+        const hCount = document.getElementById("docHeaderReviewCount");
+        if (hRating) hRating.innerText = count > 0 ? rating : "0.0";
+        if (hCount) hCount.innerText = `(${count} Reviews)`;
+
+        // Update main reviews summary card
+        const bigRating = document.getElementById("docReviewBigRating");
+        const bigStars = document.getElementById("docReviewBigStars");
+        const totalCount = document.getElementById("docReviewTotalCount");
+        if (bigRating) bigRating.innerText = count > 0 ? rating : "0.0";
+        if (bigStars) {
+            if (count > 0) {
+                const starsCount = Math.min(5, Math.max(1, Math.round(rating)));
+                bigStars.innerText = "★".repeat(starsCount) + "☆".repeat(5 - starsCount);
+            } else {
+                bigStars.innerText = "☆☆☆☆☆";
+            }
+        }
+        if (totalCount) totalCount.innerText = `${count} verified ratings`;
+
+        // Update breakdown bars
+        const bar5 = document.getElementById("barDocStar5");
+        const pct5 = document.getElementById("pctDocStar5");
+        if (bar5) bar5.style.width = `${breakdown.star_5 || 0}%`;
+        if (pct5) pct5.innerText = `${breakdown.star_5 || 0}%`;
+
+        const bar4 = document.getElementById("barDocStar4");
+        const pct4 = document.getElementById("pctDocStar4");
+        if (bar4) bar4.style.width = `${breakdown.star_4 || 0}%`;
+        if (pct4) pct4.innerText = `${breakdown.star_4 || 0}%`;
+
+        const bar3 = document.getElementById("barDocStar3");
+        const pct3 = document.getElementById("pctDocStar3");
+        if (bar3) bar3.style.width = `${breakdown.star_3 || 0}%`;
+        if (pct3) pct3.innerText = `${breakdown.star_3 || 0}%`;
+
+        // Render reviews feed
+        const feed = document.getElementById("doctorReviewsFeed");
+        if (feed) {
+            feed.innerHTML = "";
+            if (reviews.length === 0) {
+                feed.innerHTML = `<div class="col-span-full text-center py-10 text-slate-400 text-xs">No reviews submitted yet. When screened patients submit feedback, it will appear here.</div>`;
+                return;
+            }
+
+            reviews.forEach(r => {
+                const dateStr = r.created_at ? new Date(r.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : "Recent";
+                const starsCount = Math.min(5, Math.max(1, Math.round(r.rating || 5)));
+                const starsHtml = "★".repeat(starsCount) + "☆".repeat(5 - starsCount);
+
+                const card = document.createElement("div");
+                card.className = "p-4 rounded-2xl bg-slate-50 border border-slate-200 shadow-2xs space-y-2";
+                card.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center">
+                                ${(r.patient_name || 'P')[0].toUpperCase()}
+                            </div>
+                            <div>
+                                <h5 class="font-bold text-slate-800 text-xs">${r.patient_name || 'Verified Patient'}</h5>
+                                <span class="text-[10px] text-slate-400">${dateStr}</span>
+                            </div>
+                        </div>
+                        <span class="text-[9px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full flex items-center">
+                            <i class="fa-solid fa-circle-check mr-1 text-emerald-600"></i> Verified Patient
+                        </span>
+                    </div>
+
+                    <div class="flex items-center space-x-1 text-amber-500 font-bold text-xs">
+                        <span>${starsHtml}</span>
+                        <span class="text-slate-600 text-[11px] ml-1 font-semibold">${r.rating}/5.0</span>
+                    </div>
+
+                    <p class="text-xs text-slate-600 leading-relaxed italic">
+                        "${r.comment}"
+                    </p>
+                `;
+                feed.appendChild(card);
+            });
+        }
+    } catch (e) {
+        console.error("loadDoctorReviews error:", e);
+    }
 }
 
 async function handleDoctorScreeningSubmit(e) {
@@ -1258,6 +2140,17 @@ async function handleDoctorScreeningSubmit(e) {
     const diabetesType = document.getElementById("docScanDiabetesType").value;
     const diabetesDuration = document.getElementById("docScanDiabetesDuration").value;
     const doctorNotes = document.getElementById("docScanNotes").value.trim();
+
+    const docPreview = document.getElementById("docImgPreview");
+    if (docPreview && docPreview.complete && docPreview.naturalWidth > 0) {
+        const clientCheck = validateRetinaClientSide(docPreview);
+        if (!clientCheck.valid) {
+            const reason = "Non-retinal image detected: " + clientCheck.reason;
+            showToast("Quality Assessment Failed: " + reason, "error");
+            alert("Scan Rejected (Non-Retinal or Ungradable Image)\n\n" + reason + "\n\nAction Required: Please recapture and upload an authentic retinal fundus photograph.");
+            return;
+        }
+    }
 
     const submitBtn = document.getElementById("btnDocScreenSubmit");
     const origBtnText = submitBtn.innerHTML;
@@ -1288,9 +2181,12 @@ async function handleDoctorScreeningSubmit(e) {
         submitBtn.disabled = false;
         submitBtn.innerHTML = origBtnText;
 
-        if (result.status === "rejected" || result.is_gradable === false) {
-            showToast("Quality Check Failed: " + (result.message || "Image is ungradable. Please retake photo."), "error");
-            alert("Scan Rejected (Ungradable Image Quality)\n\n" + (result.message || "The uploaded image is blurry, underexposed, or not a valid retina scan.\n\nPlease retake a clear retinal photo."));
+        if (result.status === "rejected" || result.is_gradable === false || !res.ok) {
+            const reason = result.message || result.error || (result.quality_assessment ? result.quality_assessment.rejection_reason : "The uploaded image is not a valid retina scan or is ungradable.");
+            const isNonRetina = reason.toLowerCase().includes("non-retinal");
+            const alertTitle = isNonRetina ? "🚫 Scan Rejected (Non-Retinal Image Detected)" : "⚠️ Image Quality Insufficient (Please Capture Photo Again)";
+            showToast(isNonRetina ? "🚫 Non-Retinal Image Detected" : "⚠️ Poor Quality: Please Retake Photo", "error");
+            alert(`${alertTitle}\n\n${reason}\n\nAction Required: Please steady the fundus camera, balance illumination, and capture photo again.`);
             return;
         }
 
@@ -1324,11 +2220,11 @@ async function handleDoctorScreeningSubmit(e) {
             const pwBadge = document.getElementById("docPatientTempPwBadge");
 
             if (result.is_new_patient && result.temp_password) {
-                notifText.innerHTML = `New patient account created for <b>${patientEmail}</b>. Login credentials sent to email!`;
-                pwBadge.innerText = `Temp Password: ${result.temp_password}`;
+                notifText.innerHTML = `New patient account created for <b>${patientEmail}</b>.<br><span class="text-xs text-slate-600">Patient can log in at any time with Email: <b>${patientEmail}</b> & Passcode: <code class="bg-indigo-100 text-indigo-900 px-2 py-0.5 rounded font-mono font-bold">${result.temp_password}</code></span>`;
+                pwBadge.innerText = `Login Passcode: ${result.temp_password}`;
                 pwBadge.classList.remove("hidden");
             } else {
-                notifText.innerHTML = `Diagnostic scan attached to existing patient dashboard for <b>${patientEmail}</b>. (Existing password preserved).`;
+                notifText.innerHTML = `Diagnostic scan attached to existing patient dashboard for <b>${patientEmail}</b>. (Existing credentials preserved).`;
                 pwBadge.classList.add("hidden");
             }
 
@@ -1345,10 +2241,26 @@ async function handleDoctorScreeningSubmit(e) {
     }
 }
 
+let doctorQueueScope = "all";
+
+function setDoctorQueueScope(scope) {
+    doctorQueueScope = scope;
+    const btnAll = document.getElementById("btnQueueScopeAll");
+    const btnMy = document.getElementById("btnQueueScopeMy");
+    if (scope === "all") {
+        if (btnAll) btnAll.className = "flex-1 py-1.5 rounded-lg bg-emerald-600 text-white font-bold transition shadow-xs";
+        if (btnMy) btnMy.className = "flex-1 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition";
+    } else {
+        if (btnMy) btnMy.className = "flex-1 py-1.5 rounded-lg bg-emerald-600 text-white font-bold transition shadow-xs";
+        if (btnAll) btnAll.className = "flex-1 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition";
+    }
+    loadDoctorQueue();
+}
+
 async function loadDoctorQueue() {
     const docId = currentUser && currentUser.role === "doctor" ? currentUser.id : "all";
     try {
-        const res = await fetch(`${API_BASE}/doctor/queue/${docId}`);
+        const res = await fetch(`${API_BASE}/doctor/queue/${docId}?scope=${doctorQueueScope}`);
         const data = await res.json();
         doctorQueue = data.screenings || [];
         document.getElementById("doctorQueueCount").innerText = doctorQueue.length;
@@ -1357,7 +2269,7 @@ async function loadDoctorQueue() {
         list.innerHTML = "";
 
         if (doctorQueue.length === 0) {
-            list.innerHTML = `<div class="text-xs text-slate-400 text-center py-6">All assigned patient scans have been clinically validated! No pending scans in queue.</div>`;
+            list.innerHTML = `<div class="text-xs text-slate-400 text-center py-6">No pending patient scans found in queue.</div>`;
             document.getElementById("doctorStationEmpty").classList.remove("hidden");
             document.getElementById("doctorStationContent").classList.add("hidden");
             currentDoctorSession = null;
@@ -1366,20 +2278,22 @@ async function loadDoctorQueue() {
 
         doctorQueue.forEach((s) => {
             const isRef = s.prediction && s.prediction.is_referable;
+            const reviewStatus = (s.clinician_review && s.clinician_review.status) || s.review_status || "Pending Review";
+            const dateStr = s.created_at ? new Date(s.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Just now";
             const item = document.createElement("div");
-            item.className = "p-3 rounded-2xl border border-slate-200 hover:border-emerald-500 cursor-pointer transition bg-white space-y-1";
+            item.className = "p-3 rounded-2xl border border-slate-200 hover:border-emerald-500 cursor-pointer transition bg-white space-y-1 group";
             item.onclick = () => selectDoctorPatient(s);
 
             item.innerHTML = `
                 <div class="flex items-center justify-between">
-                    <span class="font-semibold text-xs text-slate-800">${s.patient_name || 'Patient'}</span>
+                    <span class="font-bold text-xs text-slate-800 group-hover:text-emerald-700 transition">${s.patient_name || 'Patient Scan'}</span>
                     <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${isRef ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}">
-                        ${s.prediction ? s.prediction.severity_name.split('(')[0] : 'Ungradable'}
+                        ${s.prediction ? s.prediction.severity_name.split('(')[0] : 'Scanned'}
                     </span>
                 </div>
                 <div class="flex items-center justify-between text-[11px] text-slate-400">
-                    <span>Age: ${s.patient_age || 'N/A'}</span>
-                    <span class="font-medium text-slate-600">${s.clinician_review.status}</span>
+                    <span>Age: ${s.patient_age || 'N/A'} • ${s.patient_gender || 'Scan'}</span>
+                    <span class="font-semibold text-slate-600">${reviewStatus} (${dateStr})</span>
                 </div>
             `;
             list.appendChild(item);
@@ -1392,23 +2306,43 @@ async function loadDoctorQueue() {
 }
 
 function selectDoctorPatient(session) {
+    if (!session) return;
     currentDoctorSession = session;
     activeSessionId = session.id;
 
     document.getElementById("doctorStationEmpty").classList.add("hidden");
     document.getElementById("doctorStationContent").classList.remove("hidden");
 
-    document.getElementById("docPatientName").innerText = `Patient: ${session.patient_name || 'Anonymous'}`;
-    document.getElementById("docPatientMeta").innerText = `Age: ${session.patient_age || 'N/A'} • Gender: ${session.patient_gender || 'N/A'}`;
-    document.getElementById("docAIStatusBadge").innerText = session.prediction ? session.prediction.severity_name : "Ungradable";
+    const patientName = session.patient_name || 'Anonymous Patient';
+    const patientAge = session.patient_age || 'N/A';
+    const patientGender = session.patient_gender || 'N/A';
+    const diabetesInfo = session.diabetes_info || 'Type 2 Diabetes';
+
+    document.getElementById("docPatientName").innerText = `Patient: ${patientName}`;
+    document.getElementById("docPatientMeta").innerText = `Age: ${patientAge} • Gender: ${patientGender} • ${diabetesInfo}`;
+
+    const pred = session.prediction || {};
+    const aiBadge = document.getElementById("docAIStatusBadge");
+    if (aiBadge) {
+        aiBadge.innerText = pred.severity_name || "Diagnostic Complete";
+        if (pred.is_referable) {
+            aiBadge.className = "px-3 py-1 bg-rose-100 text-rose-800 rounded-full text-xs font-bold border border-rose-200";
+        } else {
+            aiBadge.className = "px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-xs font-bold border border-emerald-200";
+        }
+    }
 
     document.getElementById("docScanOrig").src = `${API_BASE}/files/${session.id}/original`;
     document.getElementById("docScanVessels").src = `${API_BASE}/files/${session.id}/vessels`;
     document.getElementById("docScanLesions").src = `${API_BASE}/files/${session.id}/lesions`;
     document.getElementById("docScanGradcam").src = `${API_BASE}/files/${session.id}/gradcam`;
 
-    document.getElementById("docSelectStatus").value = session.clinician_review.status || "Confirmed";
-    document.getElementById("docInputNotes").value = session.clinician_review.notes || "";
+    const rev = session.clinician_review || {};
+    const statusSelect = document.getElementById("docSelectStatus");
+    if (statusSelect) statusSelect.value = rev.status || session.review_status || "Confirmed";
+
+    const notesInput = document.getElementById("docInputNotes");
+    if (notesInput) notesInput.value = rev.notes || "";
 }
 
 async function submitDoctorSignOff() {
@@ -1443,33 +2377,106 @@ async function submitDoctorSignOff() {
 // -----------------------------------------------------------------------------
 async function loadPatientChat() {
     if (!currentUser) return;
-    const partnerId = currentUser.assigned_doctor_id || "doc_demo";
+    const docNameEl = document.getElementById("patientAssignedDoctorName");
+    const input = document.getElementById("inputPatientMessage");
+    const btn = document.querySelector("#patientTabChatContent form button[type='submit']");
+    const stream = document.getElementById("patientChatMessagesStream");
+
+    // Check if approved doctors exist or if patient has assigned doctor
+    let assignedDoc = null;
     try {
-        const res = await fetch(`${API_BASE}/messages/thread/${currentUser.id}/${partnerId}`);
+        const dirRes = await fetch(`${API_BASE}/doctors/directory?patient_id=${currentUser.id}`);
+        const dirData = await dirRes.json();
+        const docs = dirData.doctors || [];
+
+        if (currentUser.assigned_doctor_id) {
+            assignedDoc = docs.find(d => d.id === currentUser.assigned_doctor_id || d.user_id === currentUser.assigned_doctor_id);
+        }
+        if (!assignedDoc && docs.length > 0) {
+            assignedDoc = docs[0];
+            currentUser.assigned_doctor_id = assignedDoc.id;
+            currentUser.assigned_doctor_name = assignedDoc.full_name;
+            localStorage.setItem("netra_user", JSON.stringify(currentUser));
+        }
+    } catch (e) {
+        console.error("loadPatientChat doctor check error", e);
+    }
+
+    if (!assignedDoc) {
+        if (docNameEl) docNameEl.innerText = "No Ophthalmologist Available";
+        if (input) {
+            input.disabled = true;
+            input.placeholder = "Messaging disabled: No ophthalmologist is currently registered in the clinic network.";
+            input.value = "";
+        }
+        if (btn) {
+            btn.disabled = true;
+            btn.classList.add("opacity-50", "cursor-not-allowed");
+        }
+        if (stream) {
+            stream.innerHTML = `
+                <div class="p-6 bg-amber-50 border border-amber-200 rounded-2xl text-center space-y-2">
+                    <div class="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto text-lg shadow-xs">
+                        <i class="fa-solid fa-user-doctor"></i>
+                    </div>
+                    <h4 class="font-bold text-amber-900 text-sm">No Ophthalmologists Registered Yet</h4>
+                    <p class="text-xs text-amber-700 max-w-md mx-auto leading-relaxed">
+                        There are currently no approved eye specialists registered in the tele-ophthalmology network. 
+                        Tele-consultation messaging will automatically unlock as soon as an ophthalmologist registers and is approved by the admin.
+                    </p>
+                </div>
+            `;
+        }
+        return;
+    }
+
+    // Doctor exists and is assigned
+    if (docNameEl) docNameEl.innerText = assignedDoc.full_name;
+    if (input) {
+        input.disabled = false;
+        input.placeholder = `Type your message to ${assignedDoc.full_name}...`;
+    }
+    if (btn) {
+        btn.disabled = false;
+        btn.classList.remove("opacity-50", "cursor-not-allowed");
+    }
+
+    try {
+        const res = await fetch(`${API_BASE}/messages/patient/${currentUser.id}`);
         const data = await res.json();
-        const stream = document.getElementById("patientChatMessagesStream");
         if (!stream) return;
         stream.innerHTML = "";
 
         if (!data.messages || data.messages.length === 0) {
-            stream.innerHTML = `<div class="text-xs text-slate-400 text-center py-10">No messages yet. Send a message to your assigned ophthalmologist below.</div>`;
+            stream.innerHTML = `
+                <div class="text-xs text-slate-400 text-center py-10 space-y-1">
+                    <div class="font-semibold text-slate-600">Connected to ${assignedDoc.full_name}</div>
+                    <div>No messages yet. Send a query below to begin tele-consultation.</div>
+                </div>
+            `;
             return;
         }
 
         data.messages.forEach(m => {
             const isMe = m.sender_id === currentUser.id;
+            const timeStr = m.created_at ? new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
             const bubble = document.createElement("div");
             bubble.className = `flex ${isMe ? 'justify-end' : 'justify-start'}`;
             bubble.innerHTML = `
-                <div class="max-w-xs p-3 rounded-2xl text-xs ${isMe ? 'bg-indigo-600 text-white rounded-br-none' : 'bg-white border text-slate-800 rounded-bl-none shadow-xs'}">
-                    <div class="font-semibold text-[10px] opacity-75 mb-0.5">${m.sender_name} (${m.sender_role})</div>
-                    <div>${m.content}</div>
+                <div class="max-w-xs p-3 rounded-2xl text-xs ${isMe ? 'bg-indigo-600 text-white rounded-br-none' : 'bg-white border border-slate-200 text-slate-800 rounded-bl-none shadow-xs'} space-y-1">
+                    <div class="flex items-center justify-between text-[10px] opacity-75 space-x-2">
+                        <span class="font-bold">${m.sender_name || (isMe ? 'You' : 'Doctor')} (${m.sender_role || 'doctor'})</span>
+                        <span>${timeStr}</span>
+                    </div>
+                    <div class="leading-relaxed">${m.content}</div>
                 </div>
             `;
             stream.appendChild(bubble);
         });
         stream.scrollTop = stream.scrollHeight;
-    } catch (e) {}
+    } catch (e) {
+        console.error("loadPatientChat error:", e);
+    }
 }
 
 async function handlePatientSendMessage(e) {
@@ -1479,7 +2486,12 @@ async function handlePatientSendMessage(e) {
     const content = input.value.trim();
     if (!content) return;
 
-    const recipientId = currentUser.assigned_doctor_id || "doc_demo";
+    let recipientId = currentUser.assigned_doctor_id;
+    if (!recipientId) {
+        showToast("Cannot send message: No ophthalmologist is registered or assigned in the network yet.", "warning");
+        return;
+    }
+
     try {
         const res = await fetch(`${API_BASE}/messages/send`, {
             method: "POST",
@@ -1488,13 +2500,15 @@ async function handlePatientSendMessage(e) {
                 sender_id: currentUser.id,
                 recipient_id: recipientId,
                 content: content,
-                screening_id: activeSessionId
+                screening_id: activeSessionId || null
             })
         });
         const data = await res.json();
         if (data.status === "success") {
             input.value = "";
             loadPatientChat();
+        } else {
+            showToast(data.error || "Failed to send message.", "error");
         }
     } catch (err) {
         showToast("Error sending message: " + err.message, "error");
@@ -1799,6 +2813,17 @@ async function loadAdminDashboard() {
                         `;
                     }
 
+                    const rating = doc.rating !== undefined ? doc.rating : 0.0;
+                    const reviewCount = doc.review_count || 0;
+                    const ratingHtml = reviewCount > 0 ? `
+                        <div class="flex items-center space-x-1.5">
+                            <span class="text-amber-500 font-black"><i class="fa-solid fa-star text-xs"></i> ${rating}</span>
+                            <span class="text-indigo-700 font-bold text-[10px]">(${reviewCount})</span>
+                        </div>
+                    ` : `
+                        <span class="text-slate-400 text-[10px] italic">0.0 (0 reviews)</span>
+                    `;
+
                     tr.innerHTML = `
                         <td class="p-3 font-semibold text-slate-800">
                             <div class="flex items-center space-x-2">
@@ -1810,6 +2835,7 @@ async function loadAdminDashboard() {
                         </td>
                         <td class="p-3 font-mono text-purple-700 font-bold">${doc.license_number || 'MCI-VERIFIED'}</td>
                         <td class="p-3 text-slate-600">${doc.specialization || 'Vitreo-Retina Specialist'}</td>
+                        <td class="p-3 font-semibold">${ratingHtml}</td>
                         <td class="p-3 text-slate-600">${doc.hospital_name || 'District Apex Hospital'}</td>
                         <td class="p-3 text-slate-500">${doc.email || 'N/A'}<br><span class="text-[10px] font-mono">${doc.phone || '+91 9876543210'}</span></td>
                         <td class="p-3">${statusBadge}</td>
@@ -2034,6 +3060,8 @@ function closeAdminAddDoctorModal() {
     document.getElementById("modalAdminAddDoctor").classList.add("hidden");
 }
 
+let lastCreatedDoctorCredentials = null;
+
 async function handleAdminCreateDoctor(e) {
     e.preventDefault();
     const payload = {
@@ -2053,15 +3081,55 @@ async function handleAdminCreateDoctor(e) {
         });
         const data = await res.json();
         if (data.status === "success") {
-            showToast(data.message, "success");
+            showToast("Doctor registered and approved!", "success");
             closeAdminAddDoctorModal();
             loadAdminDashboard();
+
+            // Populate on-screen credentials display modal
+            const creds = data.credentials || payload;
+            creds.password = creds.password || "Doctor@2026";
+            lastCreatedDoctorCredentials = creds;
+
+            const nameEl = document.getElementById("docSuccessName");
+            if (nameEl) nameEl.innerText = creds.full_name;
+            const uEl = document.getElementById("docSuccessUsername");
+            if (uEl) uEl.innerText = creds.username;
+            const emEl = document.getElementById("docSuccessEmail");
+            if (emEl) emEl.innerText = creds.email;
+            const pwEl = document.getElementById("docSuccessPassword");
+            if (pwEl) pwEl.innerText = creds.password;
+            const licEl = document.getElementById("docSuccessLicense");
+            if (licEl) licEl.innerText = creds.license_number;
+
+            const modalSucc = document.getElementById("modalDoctorCreatedSuccess");
+            if (modalSucc) modalSucc.classList.remove("hidden");
         } else {
             showToast(data.error || "Failed to register doctor.", "error");
         }
     } catch (err) {
         showToast("Error: " + err.message, "error");
     }
+}
+
+function closeDoctorCreatedSuccessModal() {
+    const modalSucc = document.getElementById("modalDoctorCreatedSuccess");
+    if (modalSucc) modalSucc.classList.add("hidden");
+}
+
+function copyDoctorCredentialsToClipboard() {
+    if (!lastCreatedDoctorCredentials) return;
+    const text = `Netra Setu Doctor Portal Credentials:
+Name: ${lastCreatedDoctorCredentials.full_name}
+Username: ${lastCreatedDoctorCredentials.username}
+Email: ${lastCreatedDoctorCredentials.email}
+Password: ${lastCreatedDoctorCredentials.password || 'Doctor@2026'}
+License: ${lastCreatedDoctorCredentials.license_number}`;
+
+    navigator.clipboard.writeText(text).then(() => {
+        showToast("Doctor login credentials copied to clipboard!", "success");
+    }).catch(() => {
+        showToast("Password: " + (lastCreatedDoctorCredentials.password || "Doctor@2026"), "info");
+    });
 }
 
 async function runSimulinkSimulation() {
