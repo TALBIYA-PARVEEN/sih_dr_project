@@ -808,7 +808,7 @@ def create_app():
         })
 
     @app.route("/api/doctor/<doctor_id>/review", methods=["POST"])
-    def submit_doctor_review(doctor_id):
+    def submit_patient_doctor_rating(doctor_id):
         """Submits a patient rating & written review for an ophthalmologist."""
         data = request.get_json() or {}
         patient_id = data.get("patient_id")
