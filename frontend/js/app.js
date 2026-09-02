@@ -1,9 +1,9 @@
 // Netra Setu Tele-Ophthalmology Fullstack Frontend Logic
 // Set your live Render URL here after deploying:
 const LIVE_BACKEND_URL = "https://sih-dr-project.onrender.com";
-const API_BASE = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.port === "5000")
-    ? (window.location.port === "5000" ? "/api" : "http://127.0.0.1:5000/api")
-    : `${LIVE_BACKEND_URL}/api`;
+const API_BASE = window.location.protocol.startsWith("http")
+    ? (["5500", "3000", "8080"].includes(window.location.port) ? "http://127.0.0.1:5050/api" : "/api")
+    : "http://127.0.0.1:5050/api";
 
 // Reactive State
 let currentUser = JSON.parse(localStorage.getItem("netra_user") || "null");
@@ -22,7 +22,7 @@ document.addEventListener("DOMContentLoaded", () => {
     fetchDoctors();
     
     const initialHash = window.location.hash.replace("#", "");
-    const validPages = ["home", "models", "login", "register", "patient", "doctor", "admin"];
+    const validPages = ["home", "login", "register", "patient", "doctor", "admin"];
     
     if (initialHash && validPages.includes(initialHash)) {
         navigateTo(initialHash, false);
@@ -70,7 +70,7 @@ function resetPatientScreeningView() {
 // 1. Navigation & Browser History
 // -----------------------------------------------------------------------------
 function navigateTo(pageId, pushState = true) {
-    const pages = ["home", "patient", "doctor", "admin", "models", "login", "register"];
+    const pages = ["home", "patient", "doctor", "admin", "login", "register"];
     
     pages.forEach(p => {
         const el = document.getElementById("page" + p.charAt(0).toUpperCase() + p.slice(1));
@@ -146,7 +146,7 @@ function updateNavbarForPage(pageId) {
     const doctorNav = document.getElementById("doctorNavSection");
     const adminNav = document.getElementById("adminNavSection");
 
-    const isPublicPage = (pageId === "home" || pageId === "models" || pageId === "login" || pageId === "register");
+    const isPublicPage = (pageId === "home" || pageId === "login" || pageId === "register");
 
     if (isPublicPage || !currentUser || !authToken) {
         publicNav.classList.remove("hidden");

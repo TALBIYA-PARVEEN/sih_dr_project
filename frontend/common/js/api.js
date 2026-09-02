@@ -1,8 +1,8 @@
 // NetraAI API Configuration & Network Layer
 const LIVE_BACKEND_URL = "https://sih-dr-project.onrender.com";
-const API_BASE = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.port === "5000")
-    ? (window.location.port === "5000" ? "/api" : "http://127.0.0.1:5000/api")
-    : `${LIVE_BACKEND_URL}/api`;
+const API_BASE = window.location.protocol.startsWith("http")
+    ? (["5500", "3000", "8080"].includes(window.location.port) ? "http://127.0.0.1:5050/api" : "/api")
+    : "http://127.0.0.1:5050/api";
 
 const ApiClient = {
     get: async (endpoint) => {
