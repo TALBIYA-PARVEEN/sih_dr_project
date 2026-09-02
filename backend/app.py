@@ -677,6 +677,7 @@ def create_app():
     # 3. Patient Screening Upload & Reports Generation
     # --------------------------------------------------------------------------
     @app.route("/api/screen", methods=["POST"])
+    @app.route("/screen", methods=["POST"])
     def screen_fundus_image():
         if "file" not in request.files:
             return jsonify({"error": "No image file provided. Field 'file' is required."}), 400
@@ -893,6 +894,7 @@ def create_app():
     # 3B. Doctor-Initiated Patient Screening & Automated Account Setup
     # --------------------------------------------------------------------------
     @app.route("/api/doctor/screen", methods=["POST"])
+    @app.route("/doctor/screen", methods=["POST"])
     def doctor_screen_patient():
         if "file" not in request.files:
             return jsonify({"error": "No retinal image provided."}), 400

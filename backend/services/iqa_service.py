@@ -7,11 +7,10 @@ class ImageQualityAssessmentService:
     Automated Clinical Retinal Anatomical & Image Quality Assessment (IQA) Engine:
     
     1. Retinal Anatomical Verification Gate:
-       - Validates Red/Orange Hemoglobin & Melanin Reflectance Spectrum (R >> B, R >> G)
-       - Detects Circular Fundus Optical Aperture vs. rectangular everyday photos
-       - Verifies Retinal Blood Vessel Tree Architecture via Green-channel Morphological Top-Hat & Curvilinear Filter
-       - Verifies Optic Nerve Head (Optic Disc) localized focal cluster in Red/Green composite
-       - Rejects all non-retinal objects (orange fruits, pumpkins, basketballs, sunsets, tigers, everyday photos)
+       - Multi-scale Gaussian-blurred tubular vessel extraction (eliminates sensor noise and surface textures)
+       - Major vascular arcade continuity requirement (primary arcade span >= 40px, elongated branches >= 6)
+       - Optic Nerve Head (Optic Disc) localized focal cluster detection
+       - Rejects all non-retinal objects (orange fruits, plain circles, sunsets, everyday photos)
        
     2. Optical Degradation & Quality Gates:
        - Rejects pitch-dark / underexposed captures (< 12.0)
@@ -115,7 +114,7 @@ class ImageQualityAssessmentService:
                     "rejection_reason": "Non-retinal image detected: Insufficient ocular reflectance spectrum. Please upload an authentic eye fundus photograph."
                 }
 
-            if b_mean >= r_mean * 0.85 and b_mean > 32.0:
+            if b_mean >= r_mean * 0.85 and b_mean > 30.0:
                 return {
                     "quality_label": "NOT A RETINA IMAGE",
                     "quality_score": 0.0,
@@ -127,7 +126,7 @@ class ImageQualityAssessmentService:
                     "rejection_reason": f"Non-retinal image detected: Unnatural color spectrum (Blue: {b_mean:.1f}, Red: {r_mean:.1f}). Please upload an authentic eye fundus photograph."
                 }
 
-            if (r_mean / max(1.0, b_mean)) < 1.25 and b_mean > 28.0:
+            if (r_mean / max(1.0, b_mean)) < 1.25 and b_mean > 25.0:
                 return {
                     "quality_label": "NOT A RETINA IMAGE",
                     "quality_score": 0.0,
@@ -159,14 +158,16 @@ class ImageQualityAssessmentService:
                 "rejection_reason": "Pupil occlusion or partial field: Retinal field of view is too small (<8%). Please align patient pupil and recapture."
             }
 
-        # Check image corners: fundus cameras have dark/black corners due to the circular aperture
+        # Check image corners
         c1 = float(np.mean(gray[:max(5, int(h * 0.05)), :max(5, int(w * 0.05))]))
         c2 = float(np.mean(gray[:max(5, int(h * 0.05)), -max(5, int(w * 0.05)):]))
         c3 = float(np.mean(gray[-max(5, int(h * 0.05)):, :max(5, int(w * 0.05))]))
         c4 = float(np.mean(gray[-max(5, int(h * 0.05)):, -max(5, int(w * 0.05)):]))
         corners_mean = (c1 + c2 + c3 + c4) / 4.0
 
-        # Extract active retinal region
+        fov_eroded = cv2.erode(fov_mask, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (18, 18)))
+        active_pixels = int(np.count_nonzero(fov_eroded))
+
         if retinal_pixels > 200:
             active_gray = gray[fov_mask > 0]
             brightness = float(np.mean(active_gray))
@@ -179,29 +180,31 @@ class ImageQualityAssessmentService:
             blur_score = float(np.var(cv2.Laplacian(gray, cv2.CV_64F)))
 
         # -------------------------------------------------------------
-        # 3. RETINAL VASCULAR TREE ARCHITECTURE VERIFICATION
+        # 3. MULTI-SCALE TUBULAR VESSEL TREE EXTRACTION
         # -------------------------------------------------------------
-        g_channel = image_np[:, :, 1] if len(image_np.shape) == 3 else gray
-        clahe = cv2.createCLAHE(clipLimit=3.5, tileGridSize=(8, 8))
-        g_enhanced = clahe.apply(g_channel)
+        g_raw = image_np[:, :, 1] if len(image_np.shape) == 3 else gray
+        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+        g_enhanced = clahe.apply(g_raw)
 
-        k1 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
-        k2 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9))
-        blackhat = cv2.addWeighted(
-            cv2.morphologyEx(g_enhanced, cv2.MORPH_BLACKHAT, k1), 0.5,
-            cv2.morphologyEx(g_enhanced, cv2.MORPH_BLACKHAT, k2), 0.5, 0
-        )
+        # Multi-scale Gaussian blur to suppress noise while preserving continuous vessels
+        blur1 = cv2.GaussianBlur(g_enhanced, (3, 3), 1.0)
+        blur2 = cv2.GaussianBlur(g_enhanced, (7, 7), 2.0)
 
-        fov_eroded = cv2.erode(fov_mask, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (16, 16)))
-        vessel_signal = cv2.bitwise_and(blackhat, blackhat, mask=fov_eroded)
+        k1 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
+        k2 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11, 11))
+        vessel_resp1 = cv2.morphologyEx(blur1, cv2.MORPH_BLACKHAT, k1)
+        vessel_resp2 = cv2.morphologyEx(blur2, cv2.MORPH_BLACKHAT, k2)
+        vessel_combined = cv2.addWeighted(vessel_resp1, 0.6, vessel_resp2, 0.4, 0)
+        vessel_signal = cv2.bitwise_and(vessel_combined, vessel_combined, mask=fov_eroded)
 
-        vessel_thresh = cv2.adaptiveThreshold(vessel_signal, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 15, -4)
+        vessel_thresh = cv2.adaptiveThreshold(vessel_signal, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 21, -6)
         vessel_thresh = cv2.bitwise_and(vessel_thresh, vessel_thresh, mask=fov_eroded)
 
         num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(vessel_thresh)
         elongated_vessels = 0
         total_vessel_pixels = 0
         max_vessel_len = 0.0
+        major_arcades = 0
 
         for i in range(1, num_labels):
             area = stats[i, cv2.CC_STAT_AREA]
@@ -210,36 +213,33 @@ class ImageQualityAssessmentService:
             aspect = max(width, height) / max(1.0, float(min(width, height)))
             diag = np.sqrt(width**2 + height**2)
 
-            if area >= 14 and aspect >= 2.2:
+            if area >= 25 and aspect >= 2.5:
                 elongated_vessels += 1
                 total_vessel_pixels += area
                 if diag > max_vessel_len:
                     max_vessel_len = diag
+                if diag >= 40.0:
+                    major_arcades += 1
 
         # -------------------------------------------------------------
-        # 4. OPTIC NERVE HEAD (OPTIC DISC) VERIFICATION
+        # 4. OPTIC NERVE HEAD (OPTIC DISC) COMPACT NODE VERIFICATION
         # -------------------------------------------------------------
-        rg_composite = cv2.addWeighted(image_np[:, :, 0] if len(image_np.shape) == 3 else gray, 0.6, g_channel, 0.4, 0)
+        rg_composite = cv2.addWeighted(image_np[:, :, 0] if len(image_np.shape) == 3 else gray, 0.6, g_raw, 0.4, 0)
         rg_fov = rg_composite[fov_eroded > 0]
-        disc_contrast = 0.0
-        valid_optic_disc = False
+        has_optic_disc = False
 
-        if len(rg_fov) > 0:
-            p98 = float(np.percentile(rg_fov, 98))
-            p50 = float(np.percentile(rg_fov, 50))
-            disc_contrast = p98 - p50
-
-            thresh_disc = np.percentile(rg_fov, 90)
-            _, disc_cand = cv2.threshold(rg_composite, thresh_disc, 255, cv2.THRESH_BINARY)
-            disc_cand = cv2.bitwise_and(disc_cand, disc_cand, mask=fov_eroded)
-            n_d, _, st_d, _ = cv2.connectedComponentsWithStats(disc_cand)
+        if len(rg_fov) > 0 and active_pixels > 200:
+            thresh_disc = np.percentile(rg_fov, 93)
+            _, disc_mask = cv2.threshold(rg_composite, thresh_disc, 255, cv2.THRESH_BINARY)
+            disc_mask = cv2.bitwise_and(disc_mask, disc_mask, mask=fov_eroded)
+            n_d, _, st_d, _ = cv2.connectedComponentsWithStats(disc_mask)
             for i in range(1, n_d):
-                a = st_d[i, cv2.CC_STAT_AREA]
-                if 0.003 * retinal_pixels <= a <= 0.15 * retinal_pixels:
-                    wb, hb = st_d[i, cv2.CC_STAT_WIDTH], st_d[i, cv2.CC_STAT_HEIGHT]
-                    asp = max(wb, hb) / max(1.0, float(min(wb, hb)))
-                    if asp <= 2.5:
-                        valid_optic_disc = True
+                d_area = st_d[i, cv2.CC_STAT_AREA]
+                if 0.003 * active_pixels <= d_area <= 0.08 * active_pixels:
+                    dw, dh = st_d[i, cv2.CC_STAT_WIDTH], st_d[i, cv2.CC_STAT_HEIGHT]
+                    d_asp = max(dw, dh) / max(1.0, float(min(dw, dh)))
+                    if d_asp <= 1.8:
+                        has_optic_disc = True
                         break
 
         # Check HSV Hue Coverage
@@ -255,7 +255,7 @@ class ImageQualityAssessmentService:
         # -------------------------------------------------------------
         # 5. REJECTION GATES
         # -------------------------------------------------------------
-        # Gate A: Non-Retina Everyday Photo (Rectangular scene with bright corners and no vessel structure)
+        # Gate A: Non-Retina Everyday Photo
         if corners_mean > 45.0 and fov_ratio > 0.95 and elongated_vessels < 5:
             return {
                 "quality_label": "NOT A RETINA IMAGE",
@@ -269,7 +269,8 @@ class ImageQualityAssessmentService:
             }
 
         # Gate B: Non-Retina Objects / Orange Circles / Fruits / Textures
-        if elongated_vessels < 10 or total_vessel_pixels < 120 or max_vessel_len < 20.0:
+        # Genuine retinas have continuous vascular arcades spanning >= 40px and multiple branches
+        if max_vessel_len < 38.0 or elongated_vessels < 6:
             return {
                 "quality_label": "NOT A RETINA IMAGE",
                 "quality_score": 0.0,
@@ -278,11 +279,11 @@ class ImageQualityAssessmentService:
                 "brightness_score": round(brightness, 2),
                 "contrast_score": round(contrast, 2),
                 "fov_ratio": round(fov_ratio, 4),
-                "rejection_reason": f"Non-retinal image detected: Missing retinal blood vessel tree (Vessels found: {elongated_vessels}, Max span: {max_vessel_len:.1f}px). An authentic retinal photograph must display branching blood vessels radiating from the optic nerve head. Please upload an authentic eye fundus scan."
+                "rejection_reason": f"Non-retinal image detected: Missing continuous retinal vascular tree (Longest vessel span: {max_vessel_len:.1f}px, Vessels: {elongated_vessels}). An authentic retinal photograph must display branching blood vessels radiating from the optic nerve head. Please upload an authentic eye fundus scan."
             }
 
-        # Gate C: Optic Nerve Head (Optic Disc) Gate
-        if disc_contrast < 15.0 and not valid_optic_disc:
+        # Gate C: Optic Nerve Head Gate
+        if not has_optic_disc and major_arcades < 2:
             return {
                 "quality_label": "NOT A RETINA IMAGE",
                 "quality_score": 0.0,
@@ -291,11 +292,11 @@ class ImageQualityAssessmentService:
                 "brightness_score": round(brightness, 2),
                 "contrast_score": round(contrast, 2),
                 "fov_ratio": round(fov_ratio, 4),
-                "rejection_reason": f"Non-retinal image detected: Missing anatomical Optic Nerve Head focal point. A genuine retinal fundus photograph must contain a localized optic disc where blood vessels emerge. Please upload an authentic eye fundus scan."
+                "rejection_reason": "Non-retinal image detected: Missing localized Optic Nerve Head focal point. A genuine retinal fundus photograph must contain a localized optic disc where blood vessels emerge. Please upload an authentic eye fundus scan."
             }
 
         # Gate D: Non-Retina Hue & Topology mismatch
-        if retina_hue_pct < 0.28 and elongated_vessels < 12:
+        if retina_hue_pct < 0.28 and elongated_vessels < 10:
             return {
                 "quality_label": "NOT A RETINA IMAGE",
                 "quality_score": 0.0,
