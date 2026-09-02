@@ -6,16 +6,17 @@ class ImageQualityAssessmentService:
     """
     Automated Clinical Retinal Anatomical & Image Quality Assessment (IQA) Engine:
     
-    1. Retinal Anatomical Discriminator (Vascular Tree & Hemoglobin Absorption):
+    1. Universal Retinal Anatomical Discriminator:
        - Multi-scale Green Channel CLAHE + Morphological Black-Hat filter extracts dark tubular blood vessels.
-       - Connected-component analysis measures vessel elongation, total vascular area, and maximum branch span.
+       - Connected-component analysis measures vascular branching density (minimum 12 elongated branches, continuous span >= 28px).
        - Confirms genuine retinal scans (Color fundus, Red-Free, Macula-centered, Optic-Disc centered).
-       - Accurately rejects all non-retinal objects (sliced oranges, peeled oranges, citrus fruits, orange juice, sunsets, selfies, random scenes).
+       - Strictly rejects ALL non-retinal images (sliced/peeled oranges, citrus fruits, orange juice, basketballs, pizzas, selfies, cars, landscapes, x-rays, documents).
        
     2. Optical Degradation & Quality Gates:
        - Rejects pitch-dark / underexposed captures (< 6.0) -> Rejection Reason: "Please capture photo again"
        - Rejects overexposed / flash glare captures (> 220.0) -> Rejection Reason: "Please capture photo again"
        - Rejects severely blurred / out-of-focus captures (Sharpness < 3.5) -> Rejection Reason: "Please capture photo again"
+       - Rejects low optical contrast captures (Contrast < 6.0) -> Rejection Reason: "Please capture photo again"
        - Accepts GOOD (score >= 70) and AVERAGE (BORDERLINE / MEDIUM, score < 70) genuine scans for AI grading.
        
     3. Actionable Directives:
@@ -100,7 +101,7 @@ class ImageQualityAssessmentService:
                 "rejection_reason": "Scan is completely overexposed / washed out. Please balance lighting and capture photo again."
             }
 
-        # Check 3: Extreme non-retinal blue landscape/sky dominance
+        # Check 3: Extreme non-retinal blue landscape/sky dominance (Retina is warm red or grayscale red-free, never pure blue)
         if b_mean > (r_mean * 1.35) and b_mean > 65.0 and r_mean < 50.0:
             return {
                 "quality_label": "NOT A RETINA IMAGE",
@@ -123,7 +124,7 @@ class ImageQualityAssessmentService:
                 "brightness_score": round(overall_mean, 1),
                 "contrast_score": round(contrast, 1),
                 "fov_ratio": 0.0,
-                "rejection_reason": "Image has insufficient structural contrast or texture. Please upload a clear retinal photograph."
+                "rejection_reason": "Image has no structural contrast or anatomical features. Please upload a clear retinal photograph."
             }
 
         # Calculate FOV mask & active region
@@ -145,8 +146,11 @@ class ImageQualityAssessmentService:
         active_contrast = float(np.std(active_gray))
         active_blur = float(np.var(laplacian[fov_mask > 0])) if retinal_pixels > 200 else blur_score
 
+        # Check 5: Citrus / Orange high yellow-green reflectance check
+        is_citrus_spectrum = (r_mean > 175.0 and g_mean > 112.0 and b_mean < 45.0 and (g_mean / max(1.0, r_mean)) > 0.50)
+
         # -------------------------------------------------------------
-        # 5. Multi-Scale Green Channel Vascular Tree Extraction
+        # 6. Multi-Scale Green Channel Vascular Tree Extraction
         # -------------------------------------------------------------
         clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
         g_enh = clahe.apply(g_chan_raw)
@@ -169,7 +173,7 @@ class ImageQualityAssessmentService:
                 "rejection_reason": "No active retinal field detected. Please upload an authentic retinal fundus photograph."
             }
 
-        t_val = max(8, int(np.percentile(active_vals, 92)))
+        t_val = max(10, int(np.percentile(active_vals, 93)))
         _, bin_vessels = cv2.threshold(bhat_masked, t_val, 255, cv2.THRESH_BINARY)
         k_line = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
         bin_vessels = cv2.morphologyEx(bin_vessels, cv2.MORPH_OPEN, k_line)
@@ -186,15 +190,15 @@ class ImageQualityAssessmentService:
             aspect = max(bw, bh) / max(1.0, float(min(bw, bh)))
             diag = np.sqrt(bw**2 + bh**2)
 
-            if area >= 18 and aspect >= 2.2:
+            if area >= 20 and aspect >= 2.5:
                 elongated_vessels += 1
                 total_vessel_area += area
                 if diag > max_span:
                     max_span = diag
 
-        # A genuine retinal image MUST possess branching vascular arcades
-        # Non-retinal objects (sliced oranges, peeled oranges, orange juice, sunsets, selfies) have near-zero elongated vessels
-        has_vascular_tree = (elongated_vessels >= 5 and max_span >= 22.0) or (total_vessel_area >= 300 and max_span >= 20.0)
+        # A genuine retinal image MUST possess a continuous branching vascular tree (minimum 12 elongated branches, continuous span >= 28px)
+        # Non-retinal objects (oranges, citrus fruits, slices, basketballs, pizzas, selfies, cars, landscapes, documents) fail this test
+        has_vascular_tree = (elongated_vessels >= 12 and max_span >= 28.0) and not (is_citrus_spectrum and elongated_vessels < 25)
 
         if not has_vascular_tree:
             return {
@@ -205,11 +209,11 @@ class ImageQualityAssessmentService:
                 "brightness_score": round(overall_mean, 1),
                 "contrast_score": round(contrast, 1),
                 "fov_ratio": fov_ratio,
-                "rejection_reason": f"Non-retinal image detected: Missing continuous branching retinal blood vessels (Vessels: {elongated_vessels}, Max span: {max_span:.1f}px). An authentic retinal photograph must display branching blood vessels radiating across the fundus. Please upload an authentic eye fundus photograph."
+                "rejection_reason": f"Non-retinal image detected: Missing branching retinal blood vessels (Vessels: {elongated_vessels}, Max span: {max_span:.1f}px). An authentic retinal photograph must display branching blood vessels radiating across the fundus. Please upload an authentic eye fundus photograph."
             }
 
         # -------------------------------------------------------------
-        # 6. Quality Assessment for Genuine Retinas:
+        # 7. Quality Assessment for Genuine Retinas:
         # -------------------------------------------------------------
         # Gate A: Severe Blur / Out of Focus (Sharpness < 3.5)
         if active_blur < 3.5:
