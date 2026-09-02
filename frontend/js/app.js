@@ -860,13 +860,6 @@ async function loadPatientHistory() {
             `;
             tbody.appendChild(tr);
         });
-        if (history.length > 0) {
-            const container = document.getElementById("patientResultContainer");
-            if (container && container.classList.contains("hidden")) {
-                const latestId = history[0].screening_id || history[0].id;
-                restoreLastSession(latestId);
-            }
-        }
     } catch (e) {
         console.error("History load error", e);
     }
@@ -1187,6 +1180,25 @@ async function runPatientScreening() {
         return;
     }
 
+    const previewImg = document.getElementById("imgPreview");
+    if (previewImg && previewImg.complete && previewImg.naturalWidth > 0) {
+        const clientCheck = validateRetinaClientSide(previewImg);
+        if (!clientCheck.valid) {
+            const rejectionCard = document.getElementById("rejectionCard");
+            if (rejectionCard) {
+                rejectionCard.classList.remove("hidden");
+                rejectionCard.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
+            document.getElementById("patientResultContainer").classList.add("hidden");
+            localStorage.removeItem("netra_active_session_id");
+            const reason = "Non-retinal image detected: " + clientCheck.reason + " (Please upload an authentic eye fundus scan).";
+            document.getElementById("rejectionReasonText").innerHTML = `<b>Diagnostic Assessment:</b> ${reason}`;
+            showToast("Scan Rejected: Non-retinal image detected", "error");
+            alert("🚫 Scan Rejected (Non-Retinal or Ungradable Image)\n\n" + reason + "\n\nAction Required: Please recapture and upload an authentic retinal fundus photograph.");
+            return;
+        }
+    }
+
     const formData = new FormData();
     formData.append("file", selectedFile);
     if (currentUser) {
@@ -1348,6 +1360,17 @@ async function handleDoctorScreeningSubmit(e) {
     const diabetesType = document.getElementById("docScanDiabetesType").value;
     const diabetesDuration = document.getElementById("docScanDiabetesDuration").value;
     const doctorNotes = document.getElementById("docScanNotes").value.trim();
+
+    const docPreview = document.getElementById("docImgPreview");
+    if (docPreview && docPreview.complete && docPreview.naturalWidth > 0) {
+        const clientCheck = validateRetinaClientSide(docPreview);
+        if (!clientCheck.valid) {
+            const reason = "Non-retinal image detected: " + clientCheck.reason;
+            showToast("Quality Assessment Failed: " + reason, "error");
+            alert("Scan Rejected (Non-Retinal or Ungradable Image)\n\n" + reason + "\n\nAction Required: Please recapture and upload an authentic retinal fundus photograph.");
+            return;
+        }
+    }
 
     const submitBtn = document.getElementById("btnDocScreenSubmit");
     const origBtnText = submitBtn.innerHTML;
