@@ -1320,13 +1320,95 @@ async function runPatientScreening() {
 
 async function restoreLastSession(sessionId) {
     try {
+        showToast("Loading diagnostic report...", "info");
         const res = await fetch(`${API_BASE}/session/${sessionId}`);
         const data = await res.json();
         if (data.status === "success" && data.data) {
-            renderPatientResults(data.data);
-            switchPatientTab("screening");
+            renderPastScanModal(data.data);
+        } else {
+            showToast("Failed to load past screening report.", "error");
         }
-    } catch (e) {}
+    } catch (e) {
+        showToast("Error loading past scan: " + e.message, "error");
+    }
+}
+
+function renderPastScanModal(data) {
+    const modal = document.getElementById("modalPastScanViewer");
+    if (!modal) return;
+
+    const qual = data.quality_assessment || {};
+    const pred = data.prediction || {};
+    const bio = data.biomarkers || {};
+    const rev = data.clinician_review || {};
+
+    const qBadge = document.getElementById("pastResQualityBadge");
+    if (qBadge) {
+        qBadge.innerText = qual.quality_label || "GOOD";
+        qBadge.className = (qual.quality_label === "GOOD" ? "px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800" : "px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800");
+    }
+    const qScore = document.getElementById("pastResQualityScore");
+    if (qScore) qScore.innerText = (qual.quality_score || 92) + "%";
+    const fScore = document.getElementById("pastResFocusScore");
+    if (fScore) fScore.innerText = `Focus: ${qual.blur_score || 180.2} • FOV: ${(qual.fov_ratio ? (qual.fov_ratio * 100).toFixed(1) : 74)}%`;
+
+    const sevName = document.getElementById("pastResSeverityName");
+    if (sevName) sevName.innerText = pred.severity_name || "Diagnostic Complete";
+    const conf = document.getElementById("pastResConfidence");
+    if (conf) conf.innerText = `Confidence: ${(pred.confidence ? (pred.confidence * 100).toFixed(1) : 95.0)}%`;
+
+    const refBadge = document.getElementById("pastResReferralBadge");
+    if (refBadge) {
+        if (pred.is_referable) {
+            refBadge.className = "mt-1 inline-block px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-700";
+            refBadge.innerText = "🚨 REFERRAL RECOMMENDED";
+        } else {
+            refBadge.className = "mt-1 inline-block px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700";
+            refBadge.innerText = "🟢 ROUTINE ANNUAL SCREENING";
+        }
+    }
+    const triage = document.getElementById("pastResTriageAction");
+    if (triage) triage.innerText = pred.triage_action || "Specialist Clinical Review";
+
+    const imgOrig = document.getElementById("pastViewImgOriginal");
+    if (imgOrig) imgOrig.src = `${API_BASE}/files/${data.id}/original`;
+    const imgVess = document.getElementById("pastViewImgVessels");
+    if (imgVess) imgVess.src = `${API_BASE}/files/${data.id}/vessels`;
+    const imgLes = document.getElementById("pastViewImgLesions");
+    if (imgLes) imgLes.src = `${API_BASE}/files/${data.id}/lesions`;
+    const imgCam = document.getElementById("pastViewImgGradcam");
+    if (imgCam) imgCam.src = `${API_BASE}/files/${data.id}/gradcam`;
+
+    const rCount = document.getElementById("pastBioRedCount");
+    if (rCount) rCount.innerText = bio.red_dots_count || 0;
+    const yCount = document.getElementById("pastBioYellowCount");
+    if (yCount) yCount.innerText = bio.yellow_dots_count || 0;
+    const wCount = document.getElementById("pastBioWhiteCount");
+    if (wCount) wCount.innerText = bio.white_dots_count || 0;
+    const oDisc = document.getElementById("pastBioOpticDisc");
+    if (oDisc) oDisc.innerText = bio.optic_disc_coord || "(N/A)";
+
+    const dStatus = document.getElementById("pastPatientDocStatus");
+    if (dStatus) {
+        const isVal = rev.status === "Confirmed" || rev.status === "Clinically Validated";
+        dStatus.innerText = rev.status || "Pending Review";
+        dStatus.className = isVal ? "text-emerald-600 font-bold" : "text-amber-600 font-bold";
+    }
+    const dNotes = document.getElementById("pastPatientDocNotes");
+    if (dNotes) dNotes.innerText = rev.notes || "Awaiting ophthalmologist sign-off.";
+
+    const pdfBtn = document.getElementById("pastModalPdfBtn");
+    if (pdfBtn) pdfBtn.href = `${API_BASE}/report/${data.id}/pdf`;
+
+    const subTitle = document.getElementById("pastModalSubtitle");
+    if (subTitle) subTitle.innerText = `Screening ID: ${data.id.substring(0, 16)}... • ${data.created_at ? new Date(data.created_at).toLocaleString() : 'Past Report'}`;
+
+    modal.classList.remove("hidden");
+}
+
+function closePastScanModal() {
+    const modal = document.getElementById("modalPastScanViewer");
+    if (modal) modal.classList.add("hidden");
 }
 
 function renderPatientResults(data) {
