@@ -157,7 +157,7 @@ class AuthService:
                     "Content-Type": "application/json"
                 }
                 payload = {
-                    "sender": {"name": "NetraAI Healthcare", "email": "2k24.cs1q.2413756@gmail.com"},
+                    "sender": {"name": "Netra Setu Healthcare", "email": "2k24.cs1q.2413756@gmail.com"},
                     "to": [{"email": to_email}],
                     "subject": subject,
                     "textContent": text_body
@@ -189,7 +189,7 @@ class AuthService:
                     "Content-Type": "application/json"
                 }
                 payload = {
-                    "from": os.environ.get("RESEND_FROM", "NetraAI Healthcare <onboarding@resend.dev>"),
+                    "from": os.environ.get("RESEND_FROM", "Netra Setu Healthcare <onboarding@resend.dev>"),
                     "to": [to_email],
                     "subject": subject,
                     "text": text_body
@@ -251,13 +251,13 @@ class AuthService:
     @staticmethod
     def send_otp_email(to_email, otp_code, purpose="verification"):
         """Sends clean email OTP via Resend HTTPS API / SMTP in a background worker."""
-        subject = f"Your NetraAI Verification Code: {otp_code}"
-        text_body = f"Hello,\n\nYour NetraAI verification code is: {otp_code}\n\nThis code is valid for 15 minutes.\n\nThank you,\nNetraAI Tele-Ophthalmology Team"
+        subject = f"Your Netra Setu Verification Code: {otp_code}"
+        text_body = f"Hello,\n\nYour Netra Setu verification code is: {otp_code}\n\nThis code is valid for 15 minutes.\n\nThank you,\nNetra Setu Tele-Ophthalmology Team"
         html_body = f"""<!DOCTYPE html>
 <html>
 <body style="font-family: Arial, sans-serif; background-color: #f8fafc; padding: 20px; color: #1e293b;">
   <div style="max-width: 480px; margin: auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; text-align: center;">
-    <h3 style="color: #4338ca; margin-bottom: 12px;">NetraAI Tele-Ophthalmology</h3>
+    <h3 style="color: #4338ca; margin-bottom: 12px;">Netra Setu Tele-Ophthalmology</h3>
     <p style="color: #475569; font-size: 14px;">Your 6-digit verification code is:</p>
     <div style="display: inline-block; font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #4338ca; background: #eef2ff; padding: 12px 24px; border-radius: 10px; margin: 16px 0;">
       {otp_code}
@@ -275,7 +275,7 @@ class AuthService:
     @staticmethod
     def send_doctor_credentials_email(to_email, doctor_name, username, password, hospital_name="District Eye Hospital", license_number="MCI-VERIFIED"):
         """Sends official credentials and login access email when Master Admin registers a new doctor."""
-        subject = "Doctor Account Credentials & Clinical Clearance • NetraAI"
+        subject = "Doctor Account Credentials & Clinical Clearance • Netra Setu"
 
         html_body = f"""
         <!DOCTYPE html>
@@ -327,7 +327,7 @@ class AuthService:
         </html>
         """
 
-        text_body = f"""Official Doctor Account Credentials - NetraAI Tele-Ophthalmology
+        text_body = f"""Official Doctor Account Credentials - Netra Setu Tele-Ophthalmology
 
 Dear {doctor_name},
 
@@ -339,7 +339,7 @@ Your Doctor Portal Login Credentials:
 Email / Username: {to_email} (or {username})
 Password: {password}
 
-You may now log in to the NetraAI Doctor Portal to examine patient screenings and sign diagnostic reports.
+You may now log in to the Netra Setu Doctor Portal to examine patient screenings and sign diagnostic reports.
 Smart India Hackathon 2026."""
 
         import threading
@@ -351,7 +351,7 @@ Smart India Hackathon 2026."""
     @staticmethod
     def send_doctor_approval_email(to_email, doctor_name, hospital_name="District Eye Hospital", license_number="MCI-VERIFIED"):
         """Sends official confirmation email to the doctor when Master Admin approves their registration."""
-        subject = "Official Account Approval • NetraAI Tele-Ophthalmology Network"
+        subject = "Official Account Approval • Netra Setu Tele-Ophthalmology Network"
 
         html_body = f"""
         <!DOCTYPE html>
@@ -393,13 +393,13 @@ Smart India Hackathon 2026."""
         </html>
         """
 
-        text_body = f"""Official Approval Notification - NetraAI Tele-Ophthalmology
+        text_body = f"""Official Approval Notification - Netra Setu Tele-Ophthalmology
 
 Dear {doctor_name},
 
 Your clinical credentials ({license_number}, {hospital_name}) have been officially APPROVED by the District Master Admin.
 
-You may now log in to the NetraAI Doctor Portal to examine assigned patient fundus screenings and sign diagnostic reports.
+You may now log in to the Netra Setu Doctor Portal to examine assigned patient fundus screenings and sign diagnostic reports.
 Smart India Hackathon 2026."""
 
         import threading
@@ -412,7 +412,7 @@ Smart India Hackathon 2026."""
     def send_patient_welcome_report_email(to_email, patient_name, temp_password, doctor_name, severity_name, doctor_notes="", pdf_filename=""):
         """Sends patient diagnostic report notification along with login credentials to view past scans & consult doctor."""
         if temp_password:
-            subject = f"Your Diabetic Retinopathy Diagnostic Report & Login Credentials • NetraAI"
+            subject = f"Your Diabetic Retinopathy Diagnostic Report & Login Credentials • Netra Setu"
             credentials_box = f"""
                 <div style="background-color: #eef2ff; border: 1px solid #c7d2fe; border-radius: 14px; padding: 18px; margin: 20px 0;">
                     <div style="font-size: 12px; font-weight: bold; color: #3730a3; text-transform: uppercase;">Your Patient Portal Login Credentials:</div>
@@ -426,11 +426,11 @@ Smart India Hackathon 2026."""
             """
             credentials_text = f"Your Patient Portal Login Credentials:\nEmail/Username: {to_email}\nPassword: {temp_password}"
         else:
-            subject = f"Your New Diabetic Retinopathy Diagnostic Report • NetraAI"
+            subject = f"Your New Diabetic Retinopathy Diagnostic Report • Netra Setu"
             credentials_box = f"""
                 <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 14px; padding: 18px; margin: 20px 0;">
                     <div style="font-size: 12px; font-weight: bold; color: #166534; text-transform: uppercase;">Scan Added to Your Existing Patient Portal:</div>
-                    <p style="font-size: 13px; color: #15803d; margin: 6px 0 12px 0;">This new retinal screening and clinical examination has been linked to your existing NetraAI patient account.</p>
+                    <p style="font-size: 13px; color: #15803d; margin: 6px 0 12px 0;">This new retinal screening and clinical examination has been linked to your existing Netra Setu patient account.</p>
                     
                     <div style="background: #ffffff; border: 1px solid #dcfce7; border-radius: 10px; padding: 12px; font-size: 13px; color: #14532d;">
                         <div><b>Login Email:</b> {to_email}</div>
@@ -481,7 +481,7 @@ Smart India Hackathon 2026."""
         </html>
         """
 
-        text_body = f"""NetraAI Retinal Diagnostic Report
+        text_body = f"""Netra Setu Retinal Diagnostic Report
 
 Hello {patient_name},
 

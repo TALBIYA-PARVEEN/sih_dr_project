@@ -1,4 +1,4 @@
-// NetraAI Authentication, Security & Session Management Module
+// Netra Setu Authentication, Security & Session Management Module
 
 let currentUser = null;
 let authToken = null;
@@ -151,7 +151,7 @@ async function loginWithGoogleAccount(name, email) {
             localStorage.setItem("netra_user", JSON.stringify(currentUser));
             localStorage.setItem("netra_token", authToken);
             if (typeof updateHeaderAuthUI === "function") updateHeaderAuthUI();
-            showToast("Welcome to NetraAI, " + (currentUser.full_name || currentUser.username) + "!", "success");
+            showToast("Welcome to Netra Setu, " + (currentUser.full_name || currentUser.username) + "!", "success");
             if (currentUser.role === "doctor") navigateTo("doctor");
             else if (currentUser.role === "admin") navigateTo("admin");
             else navigateTo("patient");
@@ -315,7 +315,7 @@ async function handleVerifyOtp() {
             } else if (currentUser && currentUser.role === "admin") {
                 navigateTo("admin");
             } else {
-                showToast("Email verified successfully! Welcome to NetraAI, " + (currentUser.full_name || currentUser.username) + "!", "success");
+                showToast("Email verified successfully! Welcome to Netra Setu, " + (currentUser.full_name || currentUser.username) + "!", "success");
                 navigateTo("patient");
             }
         } else {

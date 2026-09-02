@@ -171,7 +171,7 @@ def create_app():
     def health():
         return jsonify({
             "status": "healthy",
-            "system": "NetraAI SIH 2026 Tele-Ophthalmology Platform",
+            "system": "Netra Setu SIH 2026 Tele-Ophthalmology Platform",
             "database": "MongoDB Atlas Cloud Connected" if hasattr(mongo, "users") else "In-Memory Datastore",
             "ai_engine": "CNN Global ICDR + YOLO Lesion Detectors",
             "version": "3.0-Atlas"
@@ -209,7 +209,7 @@ def create_app():
             if not any(kw in spec_lower for kw in valid_ophthalmic_keywords):
                 return jsonify({
                     "status": "error",
-                    "error": "Clinical Registration Restricted: Only licensed Ophthalmologists and Vitreo-Retina Specialists are authorized to register as doctors on NetraAI. Other specialties (e.g. Cardiology, Dermatology) are not permitted."
+                    "error": "Clinical Registration Restricted: Only licensed Ophthalmologists and Vitreo-Retina Specialists are authorized to register as doctors on Netra Setu. Other specialties (e.g. Cardiology, Dermatology) are not permitted."
                 }), 422
 
         # Strict duplicate check: If email already exists in users, do not allow re-registration
@@ -1212,7 +1212,7 @@ def create_app():
             mongo.messages.insert_one({
                 "id": str(uuid.uuid4()),
                 "sender_id": "system",
-                "sender_name": "NetraAI Triage Engine",
+                "sender_name": "Netra Setu Triage Engine",
                 "sender_role": "admin",
                 "recipient_id": assigned_doctor_id,
                 "recipient_name": doctor_name,
@@ -1977,7 +1977,7 @@ def create_app():
                 "confirmed_reviews": confirmed_reviews,
                 "registered_patients": max(total_patients, len(patients_list)),
                 "registered_doctors": max(total_doctors, len(doctors_list)),
-                "database_cluster": "MongoDB Atlas Cloud Cluster (NetraAI-db)",
+                "database_cluster": "MongoDB Atlas Cloud Cluster (NetraSetu-db)",
                 "system_status": "Operational • 99.9% Uptime"
             },
             "doctors": doctors_list,
@@ -2234,10 +2234,10 @@ def create_app():
                     "https://api.resend.com/emails",
                     headers={"Authorization": f"Bearer {resend_key}", "Content-Type": "application/json"},
                     json={
-                        "from": os.environ.get("RESEND_FROM", "NetraAI Healthcare <onboarding@resend.dev>"),
+                        "from": os.environ.get("RESEND_FROM", "Netra Setu Healthcare <onboarding@resend.dev>"),
                         "to": [target_email],
-                        "subject": "Diagnostic Test Delivery • NetraAI",
-                        "text": f"This is an automated diagnostic test from NetraAI server to {target_email}."
+                        "subject": "Diagnostic Test Delivery • Netra Setu",
+                        "text": f"This is an automated diagnostic test from Netra Setu server to {target_email}."
                     },
                     timeout=8.0
                 )
@@ -2257,10 +2257,10 @@ def create_app():
                     "https://api.brevo.com/v3/smtp/email",
                     headers={"api-key": brevo_key, "Content-Type": "application/json"},
                     json={
-                        "sender": {"name": "NetraAI Healthcare", "email": "2k24.cs1q.2413756@gmail.com"},
+                        "sender": {"name": "Netra Setu Healthcare", "email": "2k24.cs1q.2413756@gmail.com"},
                         "to": [{"email": target_email}],
-                        "subject": "Diagnostic Test Delivery • NetraAI",
-                        "textContent": f"This is an automated diagnostic test from NetraAI server to {target_email}."
+                        "subject": "Diagnostic Test Delivery • Netra Setu",
+                        "textContent": f"This is an automated diagnostic test from Netra Setu server to {target_email}."
                     },
                     timeout=8.0
                 )

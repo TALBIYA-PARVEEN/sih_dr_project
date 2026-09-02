@@ -1,4 +1,4 @@
-// NetraAI Tele-Ophthalmology Fullstack Frontend Logic
+// Netra Setu Tele-Ophthalmology Fullstack Frontend Logic
 // Set your live Render URL here after deploying:
 const LIVE_BACKEND_URL = "https://sih-dr-project.onrender.com";
 const API_BASE = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.port === "5000")
@@ -482,7 +482,7 @@ async function handleVerifyOtp() {
             } else if (currentUser && currentUser.role === "admin") {
                 showToast("Email verified! Welcome Admin.", "success");
             } else {
-                showToast("Email verified successfully! Welcome to NetraAI, " + (currentUser.full_name || currentUser.username) + "!", "success");
+                showToast("Email verified successfully! Welcome to Netra Setu, " + (currentUser.full_name || currentUser.username) + "!", "success");
             }
             navigateTo("home");
         } else {
@@ -3014,7 +3014,7 @@ function closeDoctorCreatedSuccessModal() {
 
 function copyDoctorCredentialsToClipboard() {
     if (!lastCreatedDoctorCredentials) return;
-    const text = `NetraAI Doctor Portal Credentials:
+    const text = `Netra Setu Doctor Portal Credentials:
 Name: ${lastCreatedDoctorCredentials.full_name}
 Username: ${lastCreatedDoctorCredentials.username}
 Email: ${lastCreatedDoctorCredentials.email}

@@ -39,7 +39,7 @@ class Config:
 
     # Resend & Brevo HTTPS REST API (Port 443 - Cloud Delivery)
     RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
-    RESEND_FROM = os.environ.get("RESEND_FROM", "NetraAI Healthcare <onboarding@resend.dev>")
+    RESEND_FROM = os.environ.get("RESEND_FROM", "Netra Setu Healthcare <onboarding@resend.dev>")
     BREVO_API_KEY = os.environ.get("BREVO_API_KEY", "")
 
     # Email / SMTP Configuration for Real OTP Delivery
