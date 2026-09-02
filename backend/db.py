@@ -66,6 +66,9 @@ class MongoManager:
             self.admins.create_index("user_id", unique=True)
             self.screenings.create_index("patient_id")
             self.reports.create_index("screening_id")
+            self.doctor_reviews.create_index("doctor_id")
+            self.doctor_reviews.create_index("patient_id")
+            self.doctor_reviews.create_index("screening_id")
         except Exception:
             pass
 
