@@ -1155,12 +1155,12 @@ async function runPatientScreening() {
         const result = await res.json();
         document.getElementById("patientLoadingState").classList.add("hidden");
 
-        if (result.status === "rejected" || result.status === "warning" || result.is_gradable === false) {
+        if (result.status === "rejected" || result.status === "warning" || result.is_gradable === false || !res.ok) {
             document.getElementById("rejectionCard").classList.remove("hidden");
             document.getElementById("patientResultContainer").classList.add("hidden");
-            const reason = result.message || (result.quality_assessment ? result.quality_assessment.rejection_reason : "Image quality is unsuitable for clinical grading. Please retake photo.");
-            document.getElementById("rejectionReasonText").innerText = reason;
-            showToast("Quality Check Failed: Please retake a clear retinal photograph.", "error");
+            const reason = result.message || result.error || (result.quality_assessment ? result.quality_assessment.rejection_reason : "Image is not suitable for clinical grading. Please recapture an authentic eye fundus photograph.");
+            document.getElementById("rejectionReasonText").innerHTML = `<b>Diagnostic Assessment:</b> ${reason}`;
+            showToast("Scan Rejected: " + (result.message || "Please upload an authentic retinal photo."), "error");
             return;
         }
 
@@ -1318,9 +1318,10 @@ async function handleDoctorScreeningSubmit(e) {
         submitBtn.disabled = false;
         submitBtn.innerHTML = origBtnText;
 
-        if (result.status === "rejected" || result.is_gradable === false) {
-            showToast("Quality Check Failed: " + (result.message || "Image is ungradable. Please retake photo."), "error");
-            alert("Scan Rejected (Ungradable Image Quality)\n\n" + (result.message || "The uploaded image is blurry, underexposed, or not a valid retina scan.\n\nPlease retake a clear retinal photo."));
+        if (result.status === "rejected" || result.is_gradable === false || !res.ok) {
+            const reason = result.message || result.error || (result.quality_assessment ? result.quality_assessment.rejection_reason : "The uploaded image is not a valid retina scan or is ungradable.");
+            showToast("Quality Assessment Failed: " + reason, "error");
+            alert("Scan Rejected (Non-Retinal or Ungradable Image)\n\n" + reason + "\n\nAction Required: Please recapture and upload an authentic retinal fundus photograph.");
             return;
         }
 
