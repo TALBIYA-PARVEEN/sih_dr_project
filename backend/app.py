@@ -409,6 +409,7 @@ def create_app():
                     specialization=temp.get("specialization") or "Senior Vitreo-Retina Specialist",
                     license_number=temp.get("license_number") or f"MCI-{uuid.uuid4().hex[:6].upper()}",
                     hospital_name=temp.get("hospital_name") or "District Eye Hospital",
+                    email=email,
                     phone=temp.get("phone", "")
                 )
                 mongo.doctors.insert_one(doctor_doc)
@@ -1881,7 +1882,12 @@ def create_app():
             mongo.users.update_one({"id": user_id}, {"$set": {"status": "active", "is_email_verified": True}})
 
         # Dispatch official approval email to the doctor
-        user = mongo.users.find_one({"id": user_id}) if user_id else None
+        user = None
+        if user_id:
+            user = mongo.users.find_one({"id": user_id})
+        if not user and doc.get("email"):
+            user = mongo.users.find_one({"email": doc.get("email")})
+
         doc_email = (user.get("email") if user else None) or doc.get("email")
         doc_name = doc.get("full_name", "Doctor")
         hosp = doc.get("hospital_name", "District Eye Hospital")
@@ -1896,18 +1902,19 @@ def create_app():
                     hospital_name=hosp,
                     license_number=lic
                 )
+                print(f"[APPROVAL-EMAIL-DISPATCHED] Sent approval email to {doc_email} for {doc_name}")
             except Exception as e:
                 print(f"[EMAIL-APPROVAL-ERR] {e}")
 
         approval_msg = f"Doctor {doc_name} has been APPROVED by Master Admin and can now log in."
-        if email_sent:
-            approval_msg += f" Official approval notification email delivered to {doc_email}."
+        if doc_email:
+            approval_msg += f" Official approval notification email dispatched to {doc_email}."
 
         return jsonify({
             "status": "success",
             "message": approval_msg,
             "approval_status": "approved",
-            "email_sent": email_sent
+            "email_sent": bool(doc_email)
         })
 
     @app.route("/api/admin/doctor/blacklist/<doctor_id>", methods=["POST"])

@@ -48,7 +48,7 @@ class PatientModel:
 class DoctorModel:
     """Professional clinical credentials and hospital affiliation for ophthalmologists."""
     @staticmethod
-    def create(user_id, full_name, specialization, license_number, hospital_name, qualifications="MBBS, MS (Ophthalmology)", phone="", consultation_hours="09:00 - 17:00 IST"):
+    def create(user_id, full_name, specialization, license_number, hospital_name, qualifications="MBBS, MS (Ophthalmology)", email="", phone="", consultation_hours="09:00 - 17:00 IST"):
         return {
             "id": str(uuid.uuid4()),
             "user_id": user_id,
@@ -57,6 +57,7 @@ class DoctorModel:
             "license_number": license_number.strip() or f"MCI-{uuid.uuid4().hex[:6].upper()}",
             "qualifications": qualifications.strip(),
             "hospital_name": hospital_name.strip() or "District Eye Hospital",
+            "email": email.strip().lower() if email else "",
             "phone": phone.strip(),
             "consultation_hours": consultation_hours,
             "rating": 0.0,
