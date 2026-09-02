@@ -1001,18 +1001,19 @@ function validateRetinaClientSide(imgElement) {
         }
 
         // 2. Extreme pure white
-        if (overallMean > 248.0) {
+        if (overallMean > 245.0) {
             return { valid: false, reason: "Image is completely overexposed or washed out. Please upload a valid retinal scan." };
         }
 
-        // 3. Clear non-retinal blue landscape/sky dominance (Retina is warm/red, never pure blue)
-        if (bMean > rMean * 1.35 && bMean > 65.0 && rMean < 50.0) {
-            return { valid: false, reason: `Unnatural blue spectrum (Blue: ${bMean.toFixed(0)}, Red: ${rMean.toFixed(0)}). Non-retinal photo detected.` };
+        // 3. Biophysical Spectrum Check (Warm fundus vs Non-retinal)
+        const isMonochrome = Math.abs(rMean - gMean) < 8.0 && Math.abs(gMean - bMean) < 8.0;
+        const isWarmFundus = rMean >= 35.0 && (rMean / Math.max(1.0, gMean)) >= 1.20 && (rMean / Math.max(1.0, bMean)) >= 1.40;
+
+        if (!isWarmFundus && !isMonochrome) {
+            return { valid: false, reason: `Non-retinal color spectrum (R: ${rMean.toFixed(0)}, G: ${gMean.toFixed(0)}, B: ${bMean.toFixed(0)}). Fundus photography requires ocular choroidal reflectance.` };
         }
 
         // 4. Client-side Green Channel Dark Ridge / Blood Vessel Segment Check
-        // Real retinas have dark branching vessels on the green channel.
-        // Oranges, juices, selfies, and flat surfaces have isotropic or smooth textures without tubular vessels.
         let vesselRidgePixels = 0;
         for (let y = 4; y < h - 4; y++) {
             for (let x = 4; x < w - 4; x++) {
@@ -1036,7 +1037,7 @@ function validateRetinaClientSide(imgElement) {
         }
 
         if (vesselRidgePixels < 8 && overallMean > 30.0) {
-            return { valid: false, reason: "Missing branching retinal blood vessels (Smooth orange surface / non-retinal object detected)." };
+            return { valid: false, reason: "Missing continuous branching retinal blood vessels. Please upload an authentic eye fundus photograph." };
         }
 
         return { valid: true };

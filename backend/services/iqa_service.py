@@ -6,21 +6,21 @@ class ImageQualityAssessmentService:
     """
     Automated Clinical Retinal Anatomical & Image Quality Assessment (IQA) Engine:
     
-    1. Universal Retinal Anatomical Discriminator:
-       - Multi-scale Green Channel CLAHE + Morphological Black-Hat filter extracts dark tubular blood vessels.
-       - Connected-component analysis measures vascular branching density (minimum 12 elongated branches, continuous span >= 28px).
-       - Confirms genuine retinal scans (Color fundus, Red-Free, Macula-centered, Optic-Disc centered).
-       - Strictly rejects ALL non-retinal images (sliced/peeled oranges, citrus fruits, orange juice, basketballs, pizzas, selfies, cars, landscapes, x-rays, documents).
+    1. Biophysical Retinal Anatomical Discriminator:
+       - Validates genuine ocular choroidal spectral reflection (R > G and R > B in color fundus).
+       - Extracts green-channel tubular vascular tree (CLAHE + Morphological Black-Hat + Connected-Components).
+       - Requires minimum 15 continuous elongated branching vessel segments with max branch span >= 30.0px.
+       - Strictly rejects ALL non-retinal images (faces/selfies, fruits/oranges, animals, cars, landscapes, documents, x-rays, objects).
        
-    2. Optical Degradation & Quality Gates:
-       - Rejects pitch-dark / underexposed captures (< 6.0) -> Rejection Reason: "Please capture photo again"
-       - Rejects overexposed / flash glare captures (> 220.0) -> Rejection Reason: "Please capture photo again"
-       - Rejects severely blurred / out-of-focus captures (Sharpness < 3.5) -> Rejection Reason: "Please capture photo again"
-       - Rejects low optical contrast captures (Contrast < 6.0) -> Rejection Reason: "Please capture photo again"
+    2. Clinical Optical Degradation & Quality Gates:
+       - Rejects pitch-dark / underexposed captures (< 6.0) -> Directive: "Please capture photo again"
+       - Rejects overexposed / flash glare captures (> 220.0) -> Directive: "Please capture photo again"
+       - Rejects severely blurred / out-of-focus captures (Sharpness < 3.5) -> Directive: "Please capture photo again"
+       - Rejects low optical contrast captures (Contrast < 6.0) -> Directive: "Please capture photo again"
        - Accepts GOOD (score >= 70) and AVERAGE (BORDERLINE / MEDIUM, score < 70) genuine scans for AI grading.
        
     3. Actionable Directives:
-       - Returns clear, human-readable guidance to the clinician / patient instructing them to retake the scan if quality is poor.
+       - Returns clear, diagnostic feedback to the clinician / patient instructing them to retake the scan if quality is poor.
     """
     def __init__(self, blur_threshold=3.5, min_brightness=18.0, max_brightness=220.0, min_fov_ratio=0.10):
         self.blur_threshold = blur_threshold
@@ -44,7 +44,7 @@ class ImageQualityAssessmentService:
 
         # Check resolution
         h, w = image_np.shape[:2]
-        if h < 60 or w < 60:
+        if h < 80 or w < 80:
             return {
                 "quality_label": "POOR (UNGRADABLE)",
                 "quality_score": 0.0,
@@ -89,7 +89,7 @@ class ImageQualityAssessmentService:
             }
 
         # Check 2: Completely white / washed out image
-        if overall_mean > 248.0:
+        if overall_mean > 245.0:
             return {
                 "quality_label": "POOR (UNGRADABLE)",
                 "quality_score": 0.0,
@@ -101,20 +101,7 @@ class ImageQualityAssessmentService:
                 "rejection_reason": "Scan is completely overexposed / washed out. Please balance lighting and capture photo again."
             }
 
-        # Check 3: Extreme non-retinal blue landscape/sky dominance (Retina is warm red or grayscale red-free, never pure blue)
-        if b_mean > (r_mean * 1.35) and b_mean > 65.0 and r_mean < 50.0:
-            return {
-                "quality_label": "NOT A RETINA IMAGE",
-                "quality_score": 0.0,
-                "is_gradable": False,
-                "blur_score": round(blur_score, 1),
-                "brightness_score": round(overall_mean, 1),
-                "contrast_score": round(contrast, 1),
-                "fov_ratio": 0.0,
-                "rejection_reason": f"Non-retinal image detected: Unnatural blue spectrum (Blue: {b_mean:.1f}, Red: {r_mean:.1f}). Please upload an authentic eye fundus photograph."
-            }
-
-        # Check 4: Zero texture / flat synthetic color fill
+        # Check 3: Zero texture / flat synthetic color fill
         if contrast < 4.0:
             return {
                 "quality_label": "POOR (UNGRADABLE)",
@@ -125,6 +112,25 @@ class ImageQualityAssessmentService:
                 "contrast_score": round(contrast, 1),
                 "fov_ratio": 0.0,
                 "rejection_reason": "Image has no structural contrast or anatomical features. Please upload a clear retinal photograph."
+            }
+
+        # Check 4: Biophysical Ocular Fundus Spectrum Validation
+        # In authentic color fundus photography, choroidal melanin and hemoglobin absorb blue and green light:
+        # Red channel is strongly dominant over Green (R/G >= 1.20) and Blue (R/B >= 1.40).
+        # Or in clinical Red-Free monochromatic fundus: R ~ G ~ B.
+        is_monochrome = (abs(r_mean - g_mean) < 8.0 and abs(g_mean - b_mean) < 8.0)
+        is_warm_fundus = (r_mean >= 35.0 and (r_mean / max(1.0, g_mean)) >= 1.20 and (r_mean / max(1.0, b_mean)) >= 1.40)
+
+        if not (is_warm_fundus or is_monochrome):
+            return {
+                "quality_label": "NOT A RETINA IMAGE",
+                "quality_score": 0.0,
+                "is_gradable": False,
+                "blur_score": round(blur_score, 1),
+                "brightness_score": round(overall_mean, 1),
+                "contrast_score": round(contrast, 1),
+                "fov_ratio": 0.0,
+                "rejection_reason": f"Non-retinal image detected: Unnatural color spectrum (Red: {r_mean:.1f}, Green: {g_mean:.1f}, Blue: {b_mean:.1f}). Fundus photography requires authentic ocular choroidal reflectance. Please upload an eye fundus scan."
             }
 
         # Calculate FOV mask & active region
@@ -146,11 +152,8 @@ class ImageQualityAssessmentService:
         active_contrast = float(np.std(active_gray))
         active_blur = float(np.var(laplacian[fov_mask > 0])) if retinal_pixels > 200 else blur_score
 
-        # Check 5: Citrus / Orange high yellow-green reflectance check
-        is_citrus_spectrum = (r_mean > 175.0 and g_mean > 112.0 and b_mean < 45.0 and (g_mean / max(1.0, r_mean)) > 0.50)
-
         # -------------------------------------------------------------
-        # 6. Multi-Scale Green Channel Vascular Tree Extraction
+        # 5. Multi-Scale Green Channel Vascular Tree Extraction
         # -------------------------------------------------------------
         clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
         g_enh = clahe.apply(g_chan_raw)
@@ -196,9 +199,10 @@ class ImageQualityAssessmentService:
                 if diag > max_span:
                     max_span = diag
 
-        # A genuine retinal image MUST possess a continuous branching vascular tree (minimum 12 elongated branches, continuous span >= 28px)
-        # Non-retinal objects (oranges, citrus fruits, slices, basketballs, pizzas, selfies, cars, landscapes, documents) fail this test
-        has_vascular_tree = (elongated_vessels >= 12 and max_span >= 28.0) and not (is_citrus_spectrum and elongated_vessels < 25)
+        min_vessels = 25 if is_monochrome else 15
+        min_len = 50.0 if is_monochrome else 30.0
+
+        has_vascular_tree = (elongated_vessels >= min_vessels and max_span >= min_len)
 
         if not has_vascular_tree:
             return {
@@ -213,7 +217,7 @@ class ImageQualityAssessmentService:
             }
 
         # -------------------------------------------------------------
-        # 7. Quality Assessment for Genuine Retinas:
+        # 6. Quality Assessment for Genuine Retinas:
         # -------------------------------------------------------------
         # Gate A: Severe Blur / Out of Focus (Sharpness < 3.5)
         if active_blur < 3.5:
