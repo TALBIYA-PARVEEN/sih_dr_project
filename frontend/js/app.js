@@ -1698,8 +1698,8 @@ function renderDoctorsCards(doctors) {
                 <div class="bg-amber-50/60 p-3 rounded-2xl border border-amber-200/80 space-y-1.5">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center space-x-2">
-                            <span class="text-lg font-black text-slate-800">${doc.rating}</span>
-                            <div class="text-amber-400 text-sm tracking-tight">${starsHtml}</div>
+                            <span class="text-lg font-black text-slate-800">${doc.review_count > 0 ? doc.rating : '0.0'}</span>
+                            <div class="text-amber-400 text-sm tracking-tight">${doc.review_count > 0 ? starsHtml : '☆☆☆☆☆'}</div>
                             <span class="text-xs text-indigo-700 font-bold hover:underline cursor-pointer">(${doc.review_count} ratings)</span>
                         </div>
                         <span class="text-[10px] font-bold px-2.5 py-0.5 rounded-full ${doc.active_queue_count <= 2 ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">
@@ -1711,17 +1711,17 @@ function renderDoctorsCards(doctors) {
                     <div class="space-y-1 pt-1 text-[10px] text-slate-600">
                         <div class="flex items-center space-x-2">
                             <span class="w-8 font-semibold">5 Star</span>
-                            <div class="flex-1 bg-amber-200/50 h-2 rounded-full overflow-hidden">
-                                <div class="bg-amber-400 h-full rounded-full" style="width: 85%;"></div>
+                            <div class="flex-1 bg-amber-200/40 h-2 rounded-full overflow-hidden">
+                                <div class="bg-amber-400 h-full rounded-full transition-all duration-300" style="width: ${doc.star_breakdown ? doc.star_breakdown.star_5 : 0}%;"></div>
                             </div>
-                            <span class="w-6 text-right font-bold text-slate-500">85%</span>
+                            <span class="w-6 text-right font-bold text-slate-500">${doc.star_breakdown ? doc.star_breakdown.star_5 : 0}%</span>
                         </div>
                         <div class="flex items-center space-x-2">
                             <span class="w-8 font-semibold">4 Star</span>
-                            <div class="flex-1 bg-amber-200/50 h-2 rounded-full overflow-hidden">
-                                <div class="bg-amber-400 h-full rounded-full" style="width: 12%;"></div>
+                            <div class="flex-1 bg-amber-200/40 h-2 rounded-full overflow-hidden">
+                                <div class="bg-amber-400 h-full rounded-full transition-all duration-300" style="width: ${doc.star_breakdown ? doc.star_breakdown.star_4 : 0}%;"></div>
                             </div>
-                            <span class="w-6 text-right font-bold text-slate-500">12%</span>
+                            <span class="w-6 text-right font-bold text-slate-500">${doc.star_breakdown ? doc.star_breakdown.star_4 : 0}%</span>
                         </div>
                     </div>
                 </div>
@@ -1730,9 +1730,9 @@ function renderDoctorsCards(doctors) {
                 <div class="space-y-2">
                     <div class="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center justify-between">
                         <span>Patient Reviews & Comments</span>
-                        <span class="text-indigo-600 text-[10px] lowercase font-semibold">Top verified feedback</span>
+                        <span class="text-indigo-600 text-[10px] lowercase font-semibold">Verified feedback</span>
                     </div>
-                    ${reviewsHtml || '<div class="text-xs text-slate-400 italic">No written reviews yet. Be the first to review!</div>'}
+                    ${reviewsHtml || '<div class="text-xs text-slate-400 italic">No reviews yet. Complete a screening with this doctor to be the first to leave a review!</div>'}
                 </div>
             </div>
 
@@ -1910,25 +1910,29 @@ async function loadDoctorReviews() {
         const data = await res.json();
         if (data.status !== "success") return;
 
-        const rating = data.overall_rating || 4.9;
-        const count = data.review_count || 0;
-        const breakdown = data.star_breakdown || { star_5: 85, star_4: 12, star_3: 3, star_2: 0, star_1: 0 };
+        const rating = data.overall_rating !== undefined ? data.overall_rating : 0.0;
+        const count = data.review_count !== undefined ? data.review_count : 0;
+        const breakdown = data.star_breakdown || { star_5: 0, star_4: 0, star_3: 0, star_2: 0, star_1: 0 };
         const reviews = data.reviews || [];
 
         // Update header badge
         const hRating = document.getElementById("docHeaderRating");
         const hCount = document.getElementById("docHeaderReviewCount");
-        if (hRating) hRating.innerText = rating;
+        if (hRating) hRating.innerText = count > 0 ? rating : "0.0";
         if (hCount) hCount.innerText = `(${count} Reviews)`;
 
         // Update main reviews summary card
         const bigRating = document.getElementById("docReviewBigRating");
         const bigStars = document.getElementById("docReviewBigStars");
         const totalCount = document.getElementById("docReviewTotalCount");
-        if (bigRating) bigRating.innerText = rating;
+        if (bigRating) bigRating.innerText = count > 0 ? rating : "0.0";
         if (bigStars) {
-            const starsCount = Math.min(5, Math.max(1, Math.round(rating)));
-            bigStars.innerText = "★".repeat(starsCount) + "☆".repeat(5 - starsCount);
+            if (count > 0) {
+                const starsCount = Math.min(5, Math.max(1, Math.round(rating)));
+                bigStars.innerText = "★".repeat(starsCount) + "☆".repeat(5 - starsCount);
+            } else {
+                bigStars.innerText = "☆☆☆☆☆";
+            }
         }
         if (totalCount) totalCount.innerText = `${count} verified ratings`;
 

@@ -59,10 +59,27 @@ class DoctorModel:
             "hospital_name": hospital_name.strip() or "District Eye Hospital",
             "phone": phone.strip(),
             "consultation_hours": consultation_hours,
+            "rating": 0.0,
+            "review_count": 0,
             "approval_status": "pending_approval",  # "pending_approval" | "approved" | "blacklisted"
             "active_status": False,  # False until Master Admin approves
             "created_at": datetime.utcnow().isoformat(),
             "updated_at": datetime.utcnow().isoformat()
+        }
+
+class DoctorReviewModel:
+    """Patient clinical review, star rating, and feedback for an ophthalmologist."""
+    @staticmethod
+    def create(doctor_id, patient_id, patient_name, rating, comment="", screening_id=None):
+        return {
+            "id": str(uuid.uuid4()),
+            "doctor_id": doctor_id,
+            "patient_id": patient_id,
+            "patient_name": patient_name.strip(),
+            "rating": max(1, min(5, int(rating))),
+            "comment": comment.strip(),
+            "screening_id": screening_id,
+            "created_at": datetime.utcnow().isoformat()
         }
 
 class AdminModel:

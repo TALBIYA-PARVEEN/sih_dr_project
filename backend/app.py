@@ -714,42 +714,24 @@ def create_app():
                 avg_rating = round(sum(r.get("rating", 5) for r in stored_reviews) / len(stored_reviews), 1)
                 review_count = len(stored_reviews)
                 reviews_data = [serialize_doc(r) for r in stored_reviews]
+                c5 = sum(1 for r in stored_reviews if r.get("rating") == 5)
+                c4 = sum(1 for r in stored_reviews if r.get("rating") == 4)
+                c3 = sum(1 for r in stored_reviews if r.get("rating") == 3)
+                c2 = sum(1 for r in stored_reviews if r.get("rating") == 2)
+                c1 = sum(1 for r in stored_reviews if r.get("rating") == 1)
+                total = len(stored_reviews)
+                breakdown = {
+                    "star_5": round((c5 / total) * 100),
+                    "star_4": round((c4 / total) * 100),
+                    "star_3": round((c3 / total) * 100),
+                    "star_2": round((c2 / total) * 100),
+                    "star_1": round((c1 / total) * 100)
+                }
             else:
-                avg_rating = float(d.get("rating", 4.9))
-                review_count = int(d.get("review_count", 24))
-                reviews_data = [
-                    {
-                        "id": str(uuid.uuid4()),
-                        "patient_name": "Talbiya P.",
-                        "rating": 5,
-                        "comment": "Very thorough examination of my fundus scan. Provided clear prescriptions and lifestyle directives.",
-                        "created_at": "2026-09-02T08:30:00Z",
-                        "verified_purchase": True
-                    },
-                    {
-                        "id": str(uuid.uuid4()),
-                        "patient_name": "Rajesh K. (Type 2 Diabetes)",
-                        "rating": 5,
-                        "comment": "Prompt response and verified my Stage 2 NPDR microaneurysms within minutes.",
-                        "created_at": "2026-09-01T14:15:00Z",
-                        "verified_purchase": True
-                    },
-                    {
-                        "id": str(uuid.uuid4()),
-                        "patient_name": "Ananya S.",
-                        "rating": 4,
-                        "comment": "Excellent tele-consultation advice regarding glycemic control and annual screening schedule.",
-                        "created_at": "2026-08-30T11:00:00Z",
-                        "verified_purchase": True
-                    }
-                ]
-
-            # Calculate Star Distribution Breakdown (Amazon/Flipkart Style)
-            star_5_pct = 85
-            star_4_pct = 12
-            star_3_pct = 3
-            star_2_pct = 0
-            star_1_pct = 0
+                avg_rating = float(d.get("rating", 0.0))
+                review_count = int(d.get("review_count", 0))
+                reviews_data = []
+                breakdown = {"star_5": 0, "star_4": 0, "star_3": 0, "star_2": 0, "star_1": 0}
 
             # Active screening queue count for this doctor
             active_queue_count = mongo.screenings.count_documents({
@@ -931,35 +913,10 @@ def create_app():
                 "star_1": round((c1 / total) * 100)
             }
         else:
-            avg_rating = float(doc_record.get("rating", 4.9)) if doc_record else 4.9
-            review_count = int(doc_record.get("review_count", 24)) if doc_record else 24
-            breakdown = {"star_5": 85, "star_4": 12, "star_3": 3, "star_2": 0, "star_1": 0}
-            reviews_list = [
-                {
-                    "id": str(uuid.uuid4()),
-                    "patient_name": "Talbiya Parveen",
-                    "rating": 5,
-                    "comment": "Very thorough examination of my fundus scan. Provided clear prescriptions and lifestyle directives.",
-                    "created_at": "2026-09-02T08:30:00Z",
-                    "verified_patient": True
-                },
-                {
-                    "id": str(uuid.uuid4()),
-                    "patient_name": "Rajesh K. (Type 2 Diabetes)",
-                    "rating": 5,
-                    "comment": "Prompt clinical validation of my NPDR scan within minutes. Extremely reassuring and professional.",
-                    "created_at": "2026-09-01T14:15:00Z",
-                    "verified_patient": True
-                },
-                {
-                    "id": str(uuid.uuid4()),
-                    "patient_name": "Ananya S.",
-                    "rating": 4,
-                    "comment": "Clear explanation of microaneurysm findings and routine follow-up schedule.",
-                    "created_at": "2026-08-30T11:00:00Z",
-                    "verified_patient": True
-                }
-            ]
+            avg_rating = float(doc_record.get("rating", 0.0)) if doc_record else 0.0
+            review_count = int(doc_record.get("review_count", 0)) if doc_record else 0
+            breakdown = {"star_5": 0, "star_4": 0, "star_3": 0, "star_2": 0, "star_1": 0}
+            reviews_list = []
 
         return jsonify({
             "status": "success",
