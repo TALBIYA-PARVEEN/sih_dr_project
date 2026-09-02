@@ -402,7 +402,11 @@ Your clinical credentials ({license_number}, {hospital_name}) have been official
 You may now log in to the NetraAI Doctor Portal to examine assigned patient fundus screenings and sign diagnostic reports.
 Smart India Hackathon 2026."""
 
-        return AuthService._deliver_email(to_email, subject, text_body, html_body)
+        import threading
+        t = threading.Thread(target=AuthService._deliver_email, args=(to_email, subject, text_body, html_body))
+        t.daemon = True
+        t.start()
+        return True
 
     @staticmethod
     def send_patient_welcome_report_email(to_email, patient_name, temp_password, doctor_name, severity_name, doctor_notes="", pdf_filename=""):

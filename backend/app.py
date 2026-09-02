@@ -1782,12 +1782,25 @@ def create_app():
         raw_doctors = list(mongo.doctors.find(sort=[("created_at", -1)]))
         doctors_list = []
         for d in raw_doctors:
+            doc_id = d.get("id") or d.get("user_id")
             u = mongo.users.find_one({"$or": [{"id": d.get("user_id")}, {"id": d.get("id")}]})
             doc_info = serialize_doc(d)
             if u:
                 doc_info["email"] = u.get("email")
                 doc_info["username"] = u.get("username")
                 doc_info["is_email_verified"] = u.get("is_email_verified", True)
+
+            # Calculate real ratings and reviews
+            stored_reviews = list(mongo.doctor_reviews.find({"doctor_id": doc_id})) if hasattr(mongo, "doctor_reviews") else []
+            if stored_reviews:
+                avg_rating = round(sum(r.get("rating", 5) for r in stored_reviews) / len(stored_reviews), 1)
+                review_count = len(stored_reviews)
+            else:
+                avg_rating = float(d.get("rating", 0.0))
+                review_count = int(d.get("review_count", 0))
+
+            doc_info["rating"] = avg_rating
+            doc_info["review_count"] = review_count
             doctors_list.append(doc_info)
 
         # 2. Patients Management List

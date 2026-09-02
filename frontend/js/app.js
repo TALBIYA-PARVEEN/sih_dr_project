@@ -2710,6 +2710,17 @@ async function loadAdminDashboard() {
                         `;
                     }
 
+                    const rating = doc.rating !== undefined ? doc.rating : 0.0;
+                    const reviewCount = doc.review_count || 0;
+                    const ratingHtml = reviewCount > 0 ? `
+                        <div class="flex items-center space-x-1.5">
+                            <span class="text-amber-500 font-black"><i class="fa-solid fa-star text-xs"></i> ${rating}</span>
+                            <span class="text-indigo-700 font-bold text-[10px]">(${reviewCount})</span>
+                        </div>
+                    ` : `
+                        <span class="text-slate-400 text-[10px] italic">0.0 (0 reviews)</span>
+                    `;
+
                     tr.innerHTML = `
                         <td class="p-3 font-semibold text-slate-800">
                             <div class="flex items-center space-x-2">
@@ -2721,6 +2732,7 @@ async function loadAdminDashboard() {
                         </td>
                         <td class="p-3 font-mono text-purple-700 font-bold">${doc.license_number || 'MCI-VERIFIED'}</td>
                         <td class="p-3 text-slate-600">${doc.specialization || 'Vitreo-Retina Specialist'}</td>
+                        <td class="p-3 font-semibold">${ratingHtml}</td>
                         <td class="p-3 text-slate-600">${doc.hospital_name || 'District Apex Hospital'}</td>
                         <td class="p-3 text-slate-500">${doc.email || 'N/A'}<br><span class="text-[10px] font-mono">${doc.phone || '+91 9876543210'}</span></td>
                         <td class="p-3">${statusBadge}</td>
