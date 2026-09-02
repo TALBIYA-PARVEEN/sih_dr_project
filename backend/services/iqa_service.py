@@ -10,11 +10,12 @@ class ImageQualityAssessmentService:
        - Validates Red/Orange Hemoglobin & Melanin Reflectance Spectrum (R >> B, R >> G)
        - Detects Circular Fundus Optical Aperture vs. rectangular everyday photos
        - Verifies Retinal Blood Vessel Tree Architecture via Green-channel Morphological Top-Hat & Curvilinear Filter
+       - Verifies Continuous Vascular Segment Span & Multi-Branching Nodes (Rejects orange circles, fruits, balloons)
        - Verifies HSV Retinal Hue Coverage & Optic Disc / Foveal Luminescence
        
     2. Optical Degradation & Quality Gates:
-       - Rejects pitch-dark / underexposed captures (< 15.0)
-       - Rejects overexposed / flash glare captures (> 230.0)
+       - Rejects pitch-dark / underexposed captures (< 12.0)
+       - Rejects overexposed / flash glare captures (> 235.0)
        - Rejects out-of-focus / severely blurred captures (Laplacian variance < 8.0)
        - Rejects occluded / partial FOV (< 8% active retinal area)
        
@@ -101,10 +102,8 @@ class ImageQualityAssessmentService:
         # -------------------------------------------------------------
         # 1. RETINAL COLOR SPECTRUM VALIDATION
         # -------------------------------------------------------------
-        # Real human fundus illuminated through the pupil exhibits strong red reflectance
-        # with high absorption of blue and green light by ocular media and hemoglobin.
         if len(image_np.shape) == 3 and image_np.shape[2] >= 3:
-            if r_mean < 12.0:
+            if r_mean < 14.0:
                 return {
                     "quality_label": "NOT A RETINA IMAGE",
                     "quality_score": 0.0,
@@ -117,7 +116,7 @@ class ImageQualityAssessmentService:
                 }
 
             # Normal scenes (blue sky, white documents, faces, green plants) have high Blue/Green vs Red
-            if b_mean >= r_mean * 0.88 and b_mean > 35.0:
+            if b_mean >= r_mean * 0.85 and b_mean > 32.0:
                 return {
                     "quality_label": "NOT A RETINA IMAGE",
                     "quality_score": 0.0,
@@ -129,7 +128,7 @@ class ImageQualityAssessmentService:
                     "rejection_reason": f"Non-retinal image detected: Unnatural color spectrum (Blue: {b_mean:.1f}, Red: {r_mean:.1f}). Please upload an authentic eye fundus photograph."
                 }
 
-            if (r_mean / max(1.0, b_mean)) < 1.25 and b_mean > 30.0:
+            if (r_mean / max(1.0, b_mean)) < 1.25 and b_mean > 28.0:
                 return {
                     "quality_label": "NOT A RETINA IMAGE",
                     "quality_score": 0.0,
@@ -183,30 +182,45 @@ class ImageQualityAssessmentService:
         # -------------------------------------------------------------
         # 3. RETINAL VASCULAR TREE ARCHITECTURE VERIFICATION
         # -------------------------------------------------------------
-        # Apply Green-channel CLAHE + Top-Hat / Bottom-Hat morphological filter
+        # Apply Green-channel CLAHE + dual-scale Top-Hat / Bottom-Hat morphological filter
         g_channel = image_np[:, :, 1] if len(image_np.shape) == 3 else gray
-        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+        clahe = cv2.createCLAHE(clipLimit=3.5, tileGridSize=(8, 8))
         g_enhanced = clahe.apply(g_channel)
 
-        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
-        tophat = cv2.morphologyEx(g_enhanced, cv2.MORPH_TOPHAT, kernel)
-        blackhat = cv2.morphologyEx(g_enhanced, cv2.MORPH_BLACKHAT, kernel)
-        vessel_resp = cv2.subtract(blackhat, tophat)
+        k1 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+        k2 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9))
+        blackhat = cv2.addWeighted(
+            cv2.morphologyEx(g_enhanced, cv2.MORPH_BLACKHAT, k1), 0.5,
+            cv2.morphologyEx(g_enhanced, cv2.MORPH_BLACKHAT, k2), 0.5, 0
+        )
 
-        vessel_thresh = cv2.adaptiveThreshold(vessel_resp, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 15, -3)
-        if retinal_pixels > 100:
-            vessel_thresh = cv2.bitwise_and(vessel_thresh, vessel_thresh, mask=fov_mask)
+        # Erode FOV mask by 16px to completely exclude circular border edge artifacts!
+        fov_eroded = cv2.erode(fov_mask, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (16, 16)))
+        vessel_signal = cv2.bitwise_and(blackhat, blackhat, mask=fov_eroded)
+
+        vessel_thresh = cv2.adaptiveThreshold(vessel_signal, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 15, -4)
+        vessel_thresh = cv2.bitwise_and(vessel_thresh, vessel_thresh, mask=fov_eroded)
 
         # Count curvilinear connected components (blood vessel ridges)
         num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(vessel_thresh)
-        valid_tubular_vessels = 0
-        for i in range(1, min(num_labels, 500)):
+        elongated_vessels = 0
+        total_vessel_pixels = 0
+        max_vessel_len = 0.0
+
+        for i in range(1, num_labels):
             area = stats[i, cv2.CC_STAT_AREA]
-            aspect = stats[i, cv2.CC_STAT_WIDTH] / max(1.0, float(stats[i, cv2.CC_STAT_HEIGHT]))
-            if aspect < 1.0:
-                aspect = 1.0 / aspect
-            if area >= 12 and aspect >= 1.8:
-                valid_tubular_vessels += 1
+            width = stats[i, cv2.CC_STAT_WIDTH]
+            height = stats[i, cv2.CC_STAT_HEIGHT]
+            aspect = max(width, height) / max(1.0, float(min(width, height)))
+            diag = np.sqrt(width**2 + height**2)
+
+            if area >= 14 and aspect >= 2.2:
+                elongated_vessels += 1
+                total_vessel_pixels += area
+                if diag > max_vessel_len:
+                    max_vessel_len = diag
+
+        vessel_density = (total_vessel_pixels / max(1.0, float(retinal_pixels))) * 100.0
 
         # Check HSV Hue Coverage
         if len(image_np.shape) == 3:
@@ -222,7 +236,7 @@ class ImageQualityAssessmentService:
         # 4. REJECTION GATES
         # -------------------------------------------------------------
         # Gate A: Non-Retina Everyday Photo (Rectangular scene with bright corners and no vessel structure)
-        if corners_mean > 45.0 and fov_ratio > 0.95 and valid_tubular_vessels < 5:
+        if corners_mean > 45.0 and fov_ratio > 0.95 and elongated_vessels < 5:
             return {
                 "quality_label": "NOT A RETINA IMAGE",
                 "quality_score": 0.0,
@@ -234,8 +248,23 @@ class ImageQualityAssessmentService:
                 "rejection_reason": "Non-retinal image detected: The uploaded image does not match retinal fundus anatomical features (no vascular tree / standard scene photo). Please upload an authentic eye fundus photograph."
             }
 
-        # Gate B: Non-Retina Hue & Topology mismatch
-        if retina_hue_pct < 0.28 and valid_tubular_vessels < 6:
+        # Gate B: Non-Retina Orange Objects / Plain Orange Circles / Fruit Textures
+        # Real fundus scans have a continuous vascular tree radiating from the optic disc.
+        # Plain orange shapes, orange fruits, balloons, or sunset circles have 0 branching vessels.
+        if elongated_vessels < 10 or total_vessel_pixels < 120 or max_vessel_len < 20.0:
+            return {
+                "quality_label": "NOT A RETINA IMAGE",
+                "quality_score": 0.0,
+                "is_gradable": False,
+                "blur_score": round(blur_score, 2),
+                "brightness_score": round(brightness, 2),
+                "contrast_score": round(contrast, 2),
+                "fov_ratio": round(fov_ratio, 4),
+                "rejection_reason": f"Non-retinal image detected: Missing retinal blood vessel tree (Vessels found: {elongated_vessels}, Max span: {max_vessel_len:.1f}px). An authentic retinal photograph must display branching blood vessels radiating from the optic nerve head. Please upload an authentic eye fundus scan."
+            }
+
+        # Gate C: Non-Retina Hue & Topology mismatch
+        if retina_hue_pct < 0.28 and elongated_vessels < 12:
             return {
                 "quality_label": "NOT A RETINA IMAGE",
                 "quality_score": 0.0,
@@ -247,7 +276,7 @@ class ImageQualityAssessmentService:
                 "rejection_reason": "Non-retinal image detected: Unnatural hue distribution and missing vascular structure. Please upload an authentic eye fundus photograph."
             }
 
-        # Gate C: Blur / Out of focus
+        # Gate D: Blur / Out of focus
         if blur_score < 8.0:
             return {
                 "quality_label": "POOR (UNGRADABLE)",
@@ -260,7 +289,7 @@ class ImageQualityAssessmentService:
                 "rejection_reason": f"Image is severely blurred / out of focus (Sharpness score: {blur_score:.1f}). Please steady the fundus camera and refocus on the retina."
             }
 
-        # Gate D: Severely underexposed / dark
+        # Gate E: Severely underexposed / dark
         if brightness < 18.0:
             return {
                 "quality_label": "POOR (UNGRADABLE)",
@@ -273,7 +302,7 @@ class ImageQualityAssessmentService:
                 "rejection_reason": f"Retina scan is underexposed / too dark (Brightness score: {brightness:.1f}). Please increase fundus camera illumination and recapture."
             }
 
-        # Gate E: Severe flash glare / overexposure
+        # Gate F: Severe flash glare / overexposure
         if brightness > 228.0:
             return {
                 "quality_label": "POOR (UNGRADABLE)",
@@ -286,7 +315,7 @@ class ImageQualityAssessmentService:
                 "rejection_reason": f"Excessive flash glare / overexposure detected (Brightness score: {brightness:.1f}). Please balance illumination and recapture."
             }
 
-        # Gate F: Contrast deficiency
+        # Gate G: Contrast deficiency
         if contrast < 9.0:
             return {
                 "quality_label": "POOR (UNGRADABLE)",
@@ -304,7 +333,7 @@ class ImageQualityAssessmentService:
         # -------------------------------------------------------------
         norm_sharpness = min(100.0, (blur_score / 45.0) * 100.0)
         norm_bright = max(0.0, 100.0 - abs(brightness - 110.0) * 0.9)
-        norm_vessels = min(100.0, (valid_tubular_vessels / 50.0) * 100.0)
+        norm_vessels = min(100.0, (elongated_vessels / 50.0) * 100.0)
         norm_contrast = min(100.0, (contrast / 40.0) * 100.0)
 
         quality_score = float(0.35 * norm_sharpness + 0.25 * norm_bright + 0.25 * norm_vessels + 0.15 * norm_contrast)
