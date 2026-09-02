@@ -742,59 +742,61 @@
         <!-- 6. PATIENT SCREENING DASHBOARD (WITH SAVED DETAILS & HISTORY) -->
         <!-- =============================================================== -->
         <section id="pagePatient" class="hidden space-y-6">
-            <!-- Back to Landing Page and Log Out Row -->
-            <div class="flex items-center justify-between">
-                <button onclick="navigateTo('home')" class="text-xs text-slate-500 hover:text-indigo-600 font-semibold flex items-center space-x-1.5 transition">
-                    <i class="fa-solid fa-arrow-left"></i>
-                    <span>Back to Landing Page</span>
-                </button>
-                <button onclick="handleLogout()" class="px-3.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 border border-rose-200 shadow-2xs">
-                    <i class="fa-solid fa-right-from-bracket"></i>
-                    <span>Log Out</span>
-                </button>
-            </div>
-
-            <!-- Patient Banner with Profile Summary & Controls -->
-            <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4">
+            <!-- Patient Header Hero & Profile Card -->
+            <div class="bg-white p-5 md:p-6 rounded-3xl shadow-xs border border-slate-200/90 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5">
+                <!-- Patient Profile Info -->
                 <div class="flex items-center space-x-4">
-                    <div class="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-xl font-bold shadow-md">
-                        <i class="fa-solid fa-id-card-clip"></i>
+                    <div class="relative">
+                        <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-700 text-white flex items-center justify-center text-2xl font-bold shadow-md shadow-indigo-500/20">
+                            <i class="fa-solid fa-id-card-clip"></i>
+                        </div>
+                        <span class="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full"></span>
                     </div>
                     <div>
-                        <div class="flex items-center space-x-2">
-                            <h2 class="text-lg font-bold text-slate-800" id="patientCardFullName">Patient Name</h2>
-                            <span class="text-[10px] bg-indigo-100 text-indigo-800 font-bold px-2 py-0.5 rounded-full" id="patientCardAgeGender">Age: 48 • Female</span>
+                        <div class="flex items-center space-x-2.5 flex-wrap">
+                            <h2 class="text-xl font-bold text-slate-800" id="patientCardFullName">Patient Name</h2>
+                            <span class="text-[11px] bg-indigo-100 text-indigo-800 font-bold px-2.5 py-0.5 rounded-full" id="patientCardAgeGender">Age: -- • Gender: --</span>
+                            <span class="text-[11px] bg-emerald-100 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full">Active Tele-Patient</span>
                         </div>
-                        <p class="text-xs text-slate-400 mt-0.5" id="patientCardContact">Email: user@gmail.com • Phone: N/A</p>
+                        <p class="text-xs text-slate-500 mt-1" id="patientCardContact">Email: user@gmail.com • Phone: N/A</p>
                     </div>
                 </div>
 
-                <div class="flex items-center space-x-2 flex-wrap gap-y-2">
-                    <button onclick="openEditProfileModal()" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 border border-slate-200">
-                        <i class="fa-solid fa-user-pen"></i>
+                <!-- Right Side: Profile Controls -->
+                <div class="flex items-center space-x-2.5 flex-wrap self-stretch lg:self-auto justify-between lg:justify-end border-t lg:border-t-0 pt-3 lg:pt-0 border-slate-100">
+                    <button onclick="openEditProfileModal()" class="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 border border-slate-200 shadow-2xs">
+                        <i class="fa-solid fa-user-pen text-slate-500"></i>
                         <span>Edit Profile</span>
                     </button>
-                    <button onclick="openChangePasswordModal()" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 border border-slate-200">
+                    <button onclick="openChangePasswordModal()" class="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 border border-slate-200 shadow-2xs">
                         <i class="fa-solid fa-key text-indigo-600"></i>
-                        <span>Change Password</span>
+                        <span>Password</span>
                     </button>
-                    <button onclick="switchPatientTab('screening')" id="tabPatientScreening" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-sm transition">
-                        <i class="fa-solid fa-upload mr-1"></i> New Screening
-                    </button>
-                    <button onclick="switchPatientTab('history')" id="tabPatientHistory" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition">
-                        <i class="fa-solid fa-clock-rotate-left mr-1"></i> Past Reports
-                    </button>
-                    <button onclick="switchPatientTab('chat')" id="tabPatientChat" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition">
-                        <i class="fa-solid fa-comments mr-1"></i> Messages
-                    </button>
-                    <button onclick="switchPatientTab('doctors')" id="tabPatientDoctors" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition">
-                        <i class="fa-solid fa-user-doctor mr-1"></i> 2nd Opinion
-                    </button>
-                    <button onclick="handleLogout()" class="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition flex items-center space-x-1.5 shadow-sm">
+                    <button onclick="handleLogout()" class="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 border border-rose-200 shadow-2xs">
                         <i class="fa-solid fa-right-from-bracket"></i>
                         <span>Log Out</span>
                     </button>
                 </div>
+            </div>
+
+            <!-- Patient Segmented Navigation Bar -->
+            <div class="bg-white p-1.5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center space-x-1.5 overflow-x-auto">
+                <button onclick="switchPatientTab('screening')" id="tabPatientScreening" class="flex-1 min-w-[160px] py-2.5 px-4 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-upload"></i>
+                    <span>New Screening</span>
+                </button>
+                <button onclick="switchPatientTab('history')" id="tabPatientHistory" class="flex-1 min-w-[160px] py-2.5 px-4 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold transition flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-clock-rotate-left text-indigo-600"></i>
+                    <span>Past Reports & Scans</span>
+                </button>
+                <button onclick="switchPatientTab('chat')" id="tabPatientChat" class="flex-1 min-w-[160px] py-2.5 px-4 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold transition flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-comments text-indigo-600"></i>
+                    <span>Messages</span>
+                </button>
+                <button onclick="switchPatientTab('doctors')" id="tabPatientDoctors" class="flex-1 min-w-[160px] py-2.5 px-4 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold transition flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-star text-amber-500"></i>
+                    <span>Specialists & Reviews</span>
+                </button>
             </div>
 
             <!-- TAB A: SCREENING WORKFLOW -->
@@ -1119,55 +1121,74 @@
         <!-- 7. DOCTOR CLINICAL WORKSTATION -->
         <!-- =============================================================== -->
         <section id="pageDoctor" class="hidden space-y-6">
-            <!-- Back to Landing Page and Log Out Row -->
-            <div class="flex items-center justify-between">
-                <button onclick="navigateTo('home')" class="text-xs text-slate-500 hover:text-emerald-600 font-semibold flex items-center space-x-1.5 transition">
-                    <i class="fa-solid fa-arrow-left"></i>
-                    <span>Back to Landing Page</span>
-                </button>
-                <button onclick="handleLogout()" class="px-3.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 border border-rose-200 shadow-2xs">
-                    <i class="fa-solid fa-right-from-bracket"></i>
-                    <span>Log Out</span>
-                </button>
-            </div>
-
-            <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4">
-                <div>
-                    <span class="bg-emerald-100 text-emerald-800 text-xs font-semibold px-2.5 py-1 rounded-full">Doctor Clinical Workstation</span>
-                    <h2 class="text-2xl font-bold text-slate-800 mt-1">Tele-Ophthalmology Review Worklist</h2>
-                    <p class="text-xs text-slate-500">Review AI-annotated fundus scans and sign off in &lt;15 seconds.</p>
-                </div>
-                <div class="flex items-center space-x-2 flex-wrap gap-y-2">
-                    <!-- Doctor Overall Rating Badge -->
-                    <div onclick="switchDoctorTab('reviews')" class="flex items-center space-x-2 bg-amber-50 hover:bg-amber-100/80 border border-amber-200 px-3.5 py-2 rounded-xl cursor-pointer transition shadow-2xs">
-                        <div class="flex items-center text-amber-500 text-xs font-black">
-                            <i class="fa-solid fa-star mr-1"></i>
-                            <span id="docHeaderRating">4.9</span>
+            <!-- Doctor Header Hero & Profile Card -->
+            <div class="bg-white p-5 md:p-6 rounded-3xl shadow-xs border border-slate-200/90 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5">
+                <!-- Doctor Profile Info -->
+                <div class="flex items-center space-x-4">
+                    <div class="relative">
+                        <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white flex items-center justify-center text-2xl font-bold shadow-md shadow-emerald-500/20">
+                            <i class="fa-solid fa-user-doctor"></i>
                         </div>
-                        <span class="text-[11px] font-bold text-amber-900" id="docHeaderReviewCount">(24 Reviews)</span>
+                        <span class="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full"></span>
+                    </div>
+                    <div>
+                        <div class="flex items-center space-x-2.5 flex-wrap">
+                            <h2 class="text-xl font-bold text-slate-800" id="docHeaderFullName">Doctor Clinical Workstation</h2>
+                            <span class="text-[11px] bg-emerald-100 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full flex items-center">
+                                <i class="fa-solid fa-circle-check text-emerald-600 mr-1 text-[10px]"></i> MCI Verified Ophthalmologist
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-1" id="docHeaderMeta">Senior Vitreo-Retina Consultant • Tele-Ophthalmology Review Worklist</p>
+                    </div>
+                </div>
+
+                <!-- Right Side: Rating Pill & Profile Quick Actions -->
+                <div class="flex items-center space-x-2.5 flex-wrap self-stretch lg:self-auto justify-between lg:justify-end border-t lg:border-t-0 pt-3 lg:pt-0 border-slate-100">
+                    <!-- Amazon-Style Doctor Rating Badge -->
+                    <div onclick="switchDoctorTab('reviews')" class="flex items-center space-x-2 bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 border border-amber-200/80 px-4 py-2 rounded-2xl cursor-pointer transition shadow-2xs group" title="Click to view all patient reviews and ratings">
+                        <div class="flex items-center text-amber-500 text-sm font-black">
+                            <i class="fa-solid fa-star mr-1.5 group-hover:scale-110 transition"></i>
+                            <span id="docHeaderRating">0.0</span>
+                        </div>
+                        <div class="text-left border-l border-amber-200 pl-2">
+                            <div class="text-[11px] font-bold text-amber-900 leading-tight" id="docHeaderReviewCount">(0 Reviews)</div>
+                            <div class="text-[9px] text-amber-700 leading-none">View Feedback</div>
+                        </div>
                     </div>
 
-                    <button onclick="openEditProfileModal()" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 border border-slate-200">
-                        <i class="fa-solid fa-user-doctor"></i>
+                    <button onclick="openEditProfileModal()" class="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 border border-slate-200 shadow-2xs">
+                        <i class="fa-solid fa-user-pen text-slate-500"></i>
                         <span>Edit Profile</span>
                     </button>
-                    <button onclick="switchDoctorTab('workstation')" id="tabDoctorWorkstation" class="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-sm transition">
-                        <i class="fa-solid fa-list-check mr-1"></i> Patient Queue
+                    <button onclick="openChangePasswordModal()" class="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 border border-slate-200 shadow-2xs">
+                        <i class="fa-solid fa-key text-emerald-600"></i>
+                        <span>Password</span>
                     </button>
-                    <button onclick="switchDoctorTab('screening')" id="tabDoctorScreening" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center space-x-1.5">
-                        <i class="fa-solid fa-camera-retro mr-1"></i> New Patient Scan
-                    </button>
-                    <button onclick="switchDoctorTab('chat')" id="tabDoctorChat" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition flex items-center space-x-1">
-                        <i class="fa-solid fa-comments mr-1"></i> Messages
-                    </button>
-                    <button onclick="switchDoctorTab('reviews')" id="tabDoctorReviews" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition flex items-center space-x-1">
-                        <i class="fa-solid fa-star text-amber-500 mr-1"></i> Reviews & Ratings
-                    </button>
-                    <button onclick="handleLogout()" class="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition flex items-center space-x-1.5 shadow-sm">
+                    <button onclick="handleLogout()" class="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 border border-rose-200 shadow-2xs">
                         <i class="fa-solid fa-right-from-bracket"></i>
                         <span>Log Out</span>
                     </button>
                 </div>
+            </div>
+
+            <!-- Doctor Segmented Navigation Bar -->
+            <div class="bg-white p-1.5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center space-x-1.5 overflow-x-auto">
+                <button onclick="switchDoctorTab('workstation')" id="tabDoctorWorkstation" class="flex-1 min-w-[160px] py-2.5 px-4 bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-list-check"></i>
+                    <span>Review Worklist</span>
+                </button>
+                <button onclick="switchDoctorTab('screening')" id="tabDoctorScreening" class="flex-1 min-w-[160px] py-2.5 px-4 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold transition flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-camera-retro text-emerald-600"></i>
+                    <span>New Patient Scan</span>
+                </button>
+                <button onclick="switchDoctorTab('chat')" id="tabDoctorChat" class="flex-1 min-w-[160px] py-2.5 px-4 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold transition flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-comments text-indigo-600"></i>
+                    <span>Patient Messages</span>
+                </button>
+                <button onclick="switchDoctorTab('reviews')" id="tabDoctorReviews" class="flex-1 min-w-[160px] py-2.5 px-4 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold transition flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-star text-amber-500"></i>
+                    <span>Reviews & Ratings</span>
+                </button>
             </div>
 
             <!-- TAB A: DOCTOR WORKSTATION QUEUE & SIGN-OFF -->
@@ -2233,6 +2254,6 @@
     </footer>
 
     <!-- App JS -->
-    <script src="js/app.js?v=20260902_2900"></script>
+    <script src="js/app.js?v=20260902_3000"></script>
 </body>
 </html>
