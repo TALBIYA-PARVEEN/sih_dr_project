@@ -352,6 +352,77 @@ function updateHeaderAuthUI() {
     }
 }
 
+// Strong Password Verification & Live Checklist Engine
+function checkRegPasswordStrength(pwd) {
+    pwd = pwd || "";
+    const hasLen = pwd.length >= 8;
+    const hasUpper = /[A-Z]/.test(pwd);
+    const hasLower = /[a-z]/.test(pwd);
+    const hasNum = /[0-9]/.test(pwd);
+    const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(pwd);
+
+    updateReqIcon("reqLen", hasLen);
+    updateReqIcon("reqUpper", hasUpper);
+    updateReqIcon("reqLower", hasLower);
+    updateReqIcon("reqNum", hasNum);
+    updateReqIcon("reqSpecial", hasSpecial);
+
+    const score = [hasLen, hasUpper, hasLower, hasNum, hasSpecial].filter(Boolean).length;
+    const scoreBadge = document.getElementById("pwdRulesScore");
+    if (scoreBadge) scoreBadge.innerText = `${score}/5 Met`;
+
+    const bar = document.getElementById("passwordStrengthBar");
+    const label = document.getElementById("passwordStrengthLabel");
+
+    if (!bar || !label) return;
+
+    if (!pwd || pwd.length === 0) {
+        bar.style.width = "0%";
+        bar.className = "h-full bg-slate-400 transition-all duration-300";
+        label.innerText = "Required: Strong Password";
+        label.className = "text-[11px] font-bold text-slate-400";
+    } else if (score <= 2) {
+        bar.style.width = "30%";
+        bar.className = "h-full bg-rose-500 transition-all duration-300";
+        label.innerText = "Weak Password (Ineligible)";
+        label.className = "text-[11px] font-bold text-rose-600";
+    } else if (score < 5) {
+        bar.style.width = `${score * 18}%`;
+        bar.className = "h-full bg-amber-500 transition-all duration-300";
+        label.innerText = "Moderate Password (Ineligible)";
+        label.className = "text-[11px] font-bold text-amber-600";
+    } else {
+        bar.style.width = "100%";
+        bar.className = "h-full bg-emerald-500 transition-all duration-300";
+        label.innerText = "Strong Password ✓ (Eligible)";
+        label.className = "text-[11px] font-bold text-emerald-600";
+    }
+}
+
+function updateReqIcon(elId, valid) {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    const icon = el.querySelector("i");
+    if (valid) {
+        el.className = "flex items-center space-x-2 text-emerald-600 font-semibold";
+        if (icon) icon.className = "fa-solid fa-circle-check text-emerald-600";
+    } else {
+        el.className = "flex items-center space-x-2 text-slate-400";
+        if (icon) icon.className = "fa-solid fa-circle-xmark text-slate-400";
+    }
+}
+
+function togglePasswordVisibility(inputId, btn) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    const isPass = input.type === "password";
+    input.type = isPass ? "text" : "password";
+    if (btn) {
+        const icon = btn.querySelector("i");
+        if (icon) icon.className = isPass ? "fa-solid fa-eye-slash text-indigo-600" : "fa-solid fa-eye text-slate-400";
+    }
+}
+
 async function handleRegister(e) {
     if (e && e.preventDefault) e.preventDefault();
     const btn = (e && e.target && e.target.querySelector) ? e.target.querySelector('button[type="submit"]') : document.querySelector('#formRegister button[type="submit"]');
@@ -378,8 +449,25 @@ async function handleRegister(e) {
         return;
     }
 
-    if (!payload.password || payload.password.length < 6) {
-        showToast("Password must be at least 6 characters.", "warning");
+    const pwd = payload.password || "";
+    if (pwd.length < 8) {
+        showToast("Password must be at least 8 characters long.", "error");
+        return;
+    }
+    if (!/[A-Z]/.test(pwd)) {
+        showToast("Password must contain at least 1 uppercase letter (A–Z).", "error");
+        return;
+    }
+    if (!/[a-z]/.test(pwd)) {
+        showToast("Password must contain at least 1 lowercase letter (a–z).", "error");
+        return;
+    }
+    if (!/[0-9]/.test(pwd)) {
+        showToast("Password must contain at least 1 number (0–9).", "error");
+        return;
+    }
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(pwd)) {
+        showToast("Password must contain at least 1 special character (e.g. @, #, $, %, !, *).", "error");
         return;
     }
 
@@ -627,8 +715,24 @@ async function handleResetPasswordSubmit(e) {
         showToast("Please enter the 6-digit OTP received in your email.", "warning");
         return;
     }
-    if (!newPassword || newPassword.length < 6) {
-        showToast("New password must be at least 6 characters long.", "warning");
+    if (!newPassword || newPassword.length < 8) {
+        showToast("New password must be at least 8 characters long.", "error");
+        return;
+    }
+    if (!/[A-Z]/.test(newPassword)) {
+        showToast("Password must contain at least 1 uppercase letter (A–Z).", "error");
+        return;
+    }
+    if (!/[a-z]/.test(newPassword)) {
+        showToast("Password must contain at least 1 lowercase letter (a–z).", "error");
+        return;
+    }
+    if (!/[0-9]/.test(newPassword)) {
+        showToast("Password must contain at least 1 number (0–9).", "error");
+        return;
+    }
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(newPassword)) {
+        showToast("Password must contain at least 1 special character (e.g. @, #, $, %, !, *).", "error");
         return;
     }
     if (newPassword !== confirmPassword) {

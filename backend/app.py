@@ -202,6 +202,14 @@ def create_app():
         if not username or not email or not password or not full_name:
             return jsonify({"error": "Username, email, password, and full name are required."}), 400
 
+        # Enforce Strong Password Policy (Length >= 8, Uppercase, Lowercase, Number, Special Char)
+        is_strong, pwd_err = AuthService.validate_password_strength(password)
+        if not is_strong:
+            return jsonify({
+                "status": "error",
+                "error": f"Weak Password: {pwd_err}"
+            }), 422
+
         # Strict Doctor Registration Specialization Gate: Ophthalmology only
         if role == "doctor":
             valid_ophthalmic_keywords = ["ophthalmolog", "retina", "cornea", "glaucoma", "vitreo", "eye specialist", "cataract", "strabismus", "fundus", "ocular", "optometr", "retinopathy"]
@@ -536,8 +544,12 @@ def create_app():
         if not email or not otp or not new_password:
             return jsonify({"error": "Email, verification code, and new password are required."}), 400
 
-        if len(new_password) < 6:
-            return jsonify({"error": "Password must be at least 6 characters long."}), 400
+        is_strong, pwd_err = AuthService.validate_password_strength(new_password)
+        if not is_strong:
+            return jsonify({
+                "status": "error",
+                "error": f"Weak Password: {pwd_err}"
+            }), 422
 
         user = mongo.users.find_one({"email": email})
         if not user:
