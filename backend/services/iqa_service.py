@@ -10,8 +10,8 @@ class ImageQualityAssessmentService:
        - Validates Red/Orange Hemoglobin & Melanin Reflectance Spectrum (R >> B, R >> G)
        - Detects Circular Fundus Optical Aperture vs. rectangular everyday photos
        - Verifies Retinal Blood Vessel Tree Architecture via Green-channel Morphological Top-Hat & Curvilinear Filter
-       - Verifies Continuous Vascular Segment Span & Multi-Branching Nodes (Rejects orange circles, fruits, balloons)
-       - Verifies HSV Retinal Hue Coverage & Optic Disc / Foveal Luminescence
+       - Verifies Optic Nerve Head (Optic Disc) localized focal cluster in Red/Green composite
+       - Rejects all non-retinal objects (orange fruits, pumpkins, basketballs, sunsets, tigers, everyday photos)
        
     2. Optical Degradation & Quality Gates:
        - Rejects pitch-dark / underexposed captures (< 12.0)
@@ -115,7 +115,6 @@ class ImageQualityAssessmentService:
                     "rejection_reason": "Non-retinal image detected: Insufficient ocular reflectance spectrum. Please upload an authentic eye fundus photograph."
                 }
 
-            # Normal scenes (blue sky, white documents, faces, green plants) have high Blue/Green vs Red
             if b_mean >= r_mean * 0.85 and b_mean > 32.0:
                 return {
                     "quality_label": "NOT A RETINA IMAGE",
@@ -182,7 +181,6 @@ class ImageQualityAssessmentService:
         # -------------------------------------------------------------
         # 3. RETINAL VASCULAR TREE ARCHITECTURE VERIFICATION
         # -------------------------------------------------------------
-        # Apply Green-channel CLAHE + dual-scale Top-Hat / Bottom-Hat morphological filter
         g_channel = image_np[:, :, 1] if len(image_np.shape) == 3 else gray
         clahe = cv2.createCLAHE(clipLimit=3.5, tileGridSize=(8, 8))
         g_enhanced = clahe.apply(g_channel)
@@ -194,14 +192,12 @@ class ImageQualityAssessmentService:
             cv2.morphologyEx(g_enhanced, cv2.MORPH_BLACKHAT, k2), 0.5, 0
         )
 
-        # Erode FOV mask by 16px to completely exclude circular border edge artifacts!
         fov_eroded = cv2.erode(fov_mask, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (16, 16)))
         vessel_signal = cv2.bitwise_and(blackhat, blackhat, mask=fov_eroded)
 
         vessel_thresh = cv2.adaptiveThreshold(vessel_signal, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 15, -4)
         vessel_thresh = cv2.bitwise_and(vessel_thresh, vessel_thresh, mask=fov_eroded)
 
-        # Count curvilinear connected components (blood vessel ridges)
         num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(vessel_thresh)
         elongated_vessels = 0
         total_vessel_pixels = 0
@@ -220,7 +216,31 @@ class ImageQualityAssessmentService:
                 if diag > max_vessel_len:
                     max_vessel_len = diag
 
-        vessel_density = (total_vessel_pixels / max(1.0, float(retinal_pixels))) * 100.0
+        # -------------------------------------------------------------
+        # 4. OPTIC NERVE HEAD (OPTIC DISC) VERIFICATION
+        # -------------------------------------------------------------
+        rg_composite = cv2.addWeighted(image_np[:, :, 0] if len(image_np.shape) == 3 else gray, 0.6, g_channel, 0.4, 0)
+        rg_fov = rg_composite[fov_eroded > 0]
+        disc_contrast = 0.0
+        valid_optic_disc = False
+
+        if len(rg_fov) > 0:
+            p98 = float(np.percentile(rg_fov, 98))
+            p50 = float(np.percentile(rg_fov, 50))
+            disc_contrast = p98 - p50
+
+            thresh_disc = np.percentile(rg_fov, 90)
+            _, disc_cand = cv2.threshold(rg_composite, thresh_disc, 255, cv2.THRESH_BINARY)
+            disc_cand = cv2.bitwise_and(disc_cand, disc_cand, mask=fov_eroded)
+            n_d, _, st_d, _ = cv2.connectedComponentsWithStats(disc_cand)
+            for i in range(1, n_d):
+                a = st_d[i, cv2.CC_STAT_AREA]
+                if 0.003 * retinal_pixels <= a <= 0.15 * retinal_pixels:
+                    wb, hb = st_d[i, cv2.CC_STAT_WIDTH], st_d[i, cv2.CC_STAT_HEIGHT]
+                    asp = max(wb, hb) / max(1.0, float(min(wb, hb)))
+                    if asp <= 2.5:
+                        valid_optic_disc = True
+                        break
 
         # Check HSV Hue Coverage
         if len(image_np.shape) == 3:
@@ -233,7 +253,7 @@ class ImageQualityAssessmentService:
             retina_hue_pct = 0.50
 
         # -------------------------------------------------------------
-        # 4. REJECTION GATES
+        # 5. REJECTION GATES
         # -------------------------------------------------------------
         # Gate A: Non-Retina Everyday Photo (Rectangular scene with bright corners and no vessel structure)
         if corners_mean > 45.0 and fov_ratio > 0.95 and elongated_vessels < 5:
@@ -248,9 +268,7 @@ class ImageQualityAssessmentService:
                 "rejection_reason": "Non-retinal image detected: The uploaded image does not match retinal fundus anatomical features (no vascular tree / standard scene photo). Please upload an authentic eye fundus photograph."
             }
 
-        # Gate B: Non-Retina Orange Objects / Plain Orange Circles / Fruit Textures
-        # Real fundus scans have a continuous vascular tree radiating from the optic disc.
-        # Plain orange shapes, orange fruits, balloons, or sunset circles have 0 branching vessels.
+        # Gate B: Non-Retina Objects / Orange Circles / Fruits / Textures
         if elongated_vessels < 10 or total_vessel_pixels < 120 or max_vessel_len < 20.0:
             return {
                 "quality_label": "NOT A RETINA IMAGE",
@@ -263,7 +281,20 @@ class ImageQualityAssessmentService:
                 "rejection_reason": f"Non-retinal image detected: Missing retinal blood vessel tree (Vessels found: {elongated_vessels}, Max span: {max_vessel_len:.1f}px). An authentic retinal photograph must display branching blood vessels radiating from the optic nerve head. Please upload an authentic eye fundus scan."
             }
 
-        # Gate C: Non-Retina Hue & Topology mismatch
+        # Gate C: Optic Nerve Head (Optic Disc) Gate
+        if disc_contrast < 15.0 and not valid_optic_disc:
+            return {
+                "quality_label": "NOT A RETINA IMAGE",
+                "quality_score": 0.0,
+                "is_gradable": False,
+                "blur_score": round(blur_score, 2),
+                "brightness_score": round(brightness, 2),
+                "contrast_score": round(contrast, 2),
+                "fov_ratio": round(fov_ratio, 4),
+                "rejection_reason": f"Non-retinal image detected: Missing anatomical Optic Nerve Head focal point. A genuine retinal fundus photograph must contain a localized optic disc where blood vessels emerge. Please upload an authentic eye fundus scan."
+            }
+
+        # Gate D: Non-Retina Hue & Topology mismatch
         if retina_hue_pct < 0.28 and elongated_vessels < 12:
             return {
                 "quality_label": "NOT A RETINA IMAGE",
@@ -276,7 +307,7 @@ class ImageQualityAssessmentService:
                 "rejection_reason": "Non-retinal image detected: Unnatural hue distribution and missing vascular structure. Please upload an authentic eye fundus photograph."
             }
 
-        # Gate D: Blur / Out of focus
+        # Gate E: Blur / Out of focus
         if blur_score < 8.0:
             return {
                 "quality_label": "POOR (UNGRADABLE)",
@@ -289,7 +320,7 @@ class ImageQualityAssessmentService:
                 "rejection_reason": f"Image is severely blurred / out of focus (Sharpness score: {blur_score:.1f}). Please steady the fundus camera and refocus on the retina."
             }
 
-        # Gate E: Severely underexposed / dark
+        # Gate F: Severely underexposed / dark
         if brightness < 18.0:
             return {
                 "quality_label": "POOR (UNGRADABLE)",
@@ -302,7 +333,7 @@ class ImageQualityAssessmentService:
                 "rejection_reason": f"Retina scan is underexposed / too dark (Brightness score: {brightness:.1f}). Please increase fundus camera illumination and recapture."
             }
 
-        # Gate F: Severe flash glare / overexposure
+        # Gate G: Severe flash glare / overexposure
         if brightness > 228.0:
             return {
                 "quality_label": "POOR (UNGRADABLE)",
@@ -315,7 +346,7 @@ class ImageQualityAssessmentService:
                 "rejection_reason": f"Excessive flash glare / overexposure detected (Brightness score: {brightness:.1f}). Please balance illumination and recapture."
             }
 
-        # Gate G: Contrast deficiency
+        # Gate H: Contrast deficiency
         if contrast < 9.0:
             return {
                 "quality_label": "POOR (UNGRADABLE)",
@@ -329,7 +360,7 @@ class ImageQualityAssessmentService:
             }
 
         # -------------------------------------------------------------
-        # 5. GRADABLE RETINA IMAGE QUALITY CALCULATION (0 - 100)
+        # 6. GRADABLE RETINA IMAGE QUALITY CALCULATION (0 - 100)
         # -------------------------------------------------------------
         norm_sharpness = min(100.0, (blur_score / 45.0) * 100.0)
         norm_bright = max(0.0, 100.0 - abs(brightness - 110.0) * 0.9)
