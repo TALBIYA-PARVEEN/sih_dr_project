@@ -976,10 +976,16 @@ function validateRetinaClientSide(imgElement) {
         ctx.drawImage(imgElement, 0, 0, w, h);
         const data = ctx.getImageData(0, 0, w, h).data;
         let rSum = 0, gSum = 0, bSum = 0, count = 0;
+        const gGrid = [];
 
-        for (let i = 0; i < data.length; i += 4) {
-            const r = data[i], g = data[i+1], b = data[i+2];
-            rSum += r; gSum += g; bSum += b; count++;
+        for (let y = 0; y < h; y++) {
+            gGrid[y] = [];
+            for (let x = 0; x < w; x++) {
+                const idx = (y * w + x) * 4;
+                const r = data[idx], g = data[idx+1], b = data[idx+2];
+                rSum += r; gSum += g; bSum += b; count++;
+                gGrid[y][x] = g;
+            }
         }
 
         if (count === 0) return { valid: true };
@@ -990,18 +996,47 @@ function validateRetinaClientSide(imgElement) {
         const overallMean = (rMean + gMean + bMean) / 3;
 
         // 1. Extreme pitch dark
-        if (overallMean < 5.0) {
+        if (overallMean < 6.0) {
             return { valid: false, reason: "Image is completely dark or empty. Please upload a clear retinal fundus photo." };
         }
 
         // 2. Extreme pure white
-        if (overallMean > 250.0) {
+        if (overallMean > 248.0) {
             return { valid: false, reason: "Image is completely overexposed or washed out. Please upload a valid retinal scan." };
         }
 
         // 3. Clear non-retinal blue landscape/sky dominance (Retina is warm/red, never pure blue)
-        if (bMean > rMean * 1.45 && bMean > 70.0 && rMean < 45.0) {
+        if (bMean > rMean * 1.35 && bMean > 65.0 && rMean < 50.0) {
             return { valid: false, reason: `Unnatural blue spectrum (Blue: ${bMean.toFixed(0)}, Red: ${rMean.toFixed(0)}). Non-retinal photo detected.` };
+        }
+
+        // 4. Client-side Green Channel Dark Ridge / Blood Vessel Segment Check
+        // Real retinas have dark branching vessels on the green channel.
+        // Oranges, juices, selfies, and flat surfaces have isotropic or smooth textures without tubular vessels.
+        let vesselRidgePixels = 0;
+        for (let y = 4; y < h - 4; y++) {
+            for (let x = 4; x < w - 4; x++) {
+                const gVal = gGrid[y][x];
+                const hSurround = (gGrid[y][x-3] + gGrid[y][x+3]) / 2;
+                const vSurround = (gGrid[y-3][x] + gGrid[y+3][x]) / 2;
+                const d1Surround = (gGrid[y-2][x-2] + gGrid[y+2][x+2]) / 2;
+                const d2Surround = (gGrid[y-2][x+2] + gGrid[y+2][x-2]) / 2;
+
+                const maxDarkRidge = Math.max(
+                    hSurround - gVal,
+                    vSurround - gVal,
+                    d1Surround - gVal,
+                    d2Surround - gVal
+                );
+
+                if (maxDarkRidge >= 8.0) {
+                    vesselRidgePixels++;
+                }
+            }
+        }
+
+        if (vesselRidgePixels < 8 && overallMean > 30.0) {
+            return { valid: false, reason: "Missing branching retinal blood vessels (Smooth orange surface / non-retinal object detected)." };
         }
 
         return { valid: true };
