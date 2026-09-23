@@ -25,6 +25,7 @@ from services.model_service import ModelService
 from services.gradcam_service import GradCAMService
 from services.report_service import ReportService
 from services.simulink_service import SimulinkTelemedicineSimulator
+from services.ai_chat_service import get_ai_response
 
 def serialize_doc(doc):
     if not doc: return None
@@ -1756,6 +1757,65 @@ def create_app():
         return jsonify({"status": "success", "message": "Clinical evaluation & sign-off recorded.", "data": serialize_doc(updated_session)})
 
     # --------------------------------------------------------------------------
+    # 5b. AI Health Assistant Chatbot (Gemini)
+    # --------------------------------------------------------------------------
+    @app.route("/api/chat/ai", methods=["POST"])
+    def ai_chat():
+        """
+        POST /api/chat/ai
+        Body: {
+            message: str,
+            history: [{role: "user"|"model", parts: [{text: str}]}],   # optional
+            patient_id: str    # optional — used to inject last-screening context
+        }
+        """
+        data = request.get_json() or {}
+        user_message = (data.get("message") or "").strip()
+        history = data.get("history") or []
+        patient_id = data.get("patient_id")
+
+        if not user_message:
+            return jsonify({"error": "message is required"}), 400
+
+        # Optionally inject patient's last screening result as context
+        patient_context = None
+        if patient_id:
+            try:
+                last_screening = mongo.screenings.find_one(
+                    {"patient_user_id": patient_id},
+                    sort=[("created_at", -1)]
+                )
+                if last_screening:
+                    patient_context = {
+                        "severity_name": last_screening.get("final_severity_name") or last_screening.get("severity_name"),
+                        "icdr_grade": last_screening.get("icdr_grade") or (last_screening.get("prediction") or {}).get("icdr_grade"),
+                    }
+                # Also pull diabetes_type and age from patient profile
+                patient_profile = mongo.patients.find_one({"user_id": patient_id})
+                if patient_profile:
+                    if not patient_context:
+                        patient_context = {}
+                    patient_context["diabetes_type"] = patient_profile.get("diabetes_type", "Type 2")
+                    patient_context["age"] = patient_profile.get("age")
+            except Exception as ctx_err:
+                print(f"[AI-CHAT] Context fetch error (non-fatal): {ctx_err}")
+
+        result = get_ai_response(
+            user_message=user_message,
+            conversation_history=history,
+            patient_context=patient_context
+        )
+
+        if result["error"]:
+            return jsonify({"status": "error", "error": result["error"]}), 503
+
+        return jsonify({
+            "status": "success",
+            "reply": result["reply"],
+            "disclaimer": result["disclaimer"]
+        })
+
+    # --------------------------------------------------------------------------
     # 6. Messaging / Tele-Consultation
     # --------------------------------------------------------------------------
     @app.route("/api/messages/send", methods=["POST"])
@@ -2480,5 +2540,5 @@ def create_app():
 app = create_app()
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT", 5001))
     app.run(host="0.0.0.0", port=port, debug=False)
