@@ -1,9 +1,12 @@
 // Netra Setu Tele-Ophthalmology Fullstack Frontend Logic
 // Set your live Render URL here after deploying:
 const LIVE_BACKEND_URL = "https://sih-dr-project.onrender.com";
-const API_BASE = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.port === "5000")
-    ? (window.location.port === "5000" ? "/api" : "http://127.0.0.1:5000/api")
-    : `${LIVE_BACKEND_URL}/api`;
+const API_BASE = (() => {
+    if (window.location.protocol === "file:") return "http://127.0.0.1:5001/api";
+    if (window.location.port === "5000" || window.location.port === "5001") return "/api";
+    if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") return "http://127.0.0.1:5001/api";
+    return `${LIVE_BACKEND_URL}/api`;
+})();
 
 // Reactive State
 let currentUser = JSON.parse(localStorage.getItem("netra_user") || "null");
@@ -106,6 +109,13 @@ function navigateTo(pageId, pushState = true) {
             loadPatientHistory();
             loadPatientChat();
         }
+        // Show floating AI help bubble when on patient page
+        const bubble = document.getElementById("patientAIHelpBubble");
+        if (bubble) bubble.classList.remove("hidden");
+    } else {
+        // Hide floating bubble on all other pages
+        const bubble = document.getElementById("patientAIHelpBubble");
+        if (bubble) bubble.classList.add("hidden");
     }
     window.scrollTo({ top: 0, behavior: "smooth" });
 }
@@ -910,24 +920,40 @@ function switchPatientTab(tab) {
     const tabHistory = document.getElementById("tabPatientHistory");
     const tabChat = document.getElementById("tabPatientChat");
     const tabDoctors = document.getElementById("tabPatientDoctors");
+    const tabAIChat = document.getElementById("tabPatientAIChat");
 
     const contentScreening = document.getElementById("patientTabScreeningContent");
     const contentHistory = document.getElementById("patientTabHistoryContent");
     const contentChat = document.getElementById("patientTabChatContent");
     const contentDoctors = document.getElementById("patientTabDoctorsContent");
+    const contentAIChat = document.getElementById("patientTabAIChatContent");
 
     const activeClass = "flex-1 min-w-[160px] py-2.5 px-4 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center justify-center space-x-2";
     const inactiveClass = "flex-1 min-w-[160px] py-2.5 px-4 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold transition flex items-center justify-center space-x-2";
+    const aiActiveClass = "flex-1 min-w-[160px] py-2.5 px-4 rounded-xl text-xs font-bold shadow-sm transition flex items-center justify-center space-x-2 text-white" +
+        " " + "bg-gradient-to-r from-purple-600 to-indigo-600";
 
     if (tabScreening) tabScreening.className = (tab === "screening" || !tab ? activeClass : inactiveClass);
     if (tabHistory) tabHistory.className = (tab === "history" ? activeClass : inactiveClass);
     if (tabChat) tabChat.className = (tab === "chat" ? activeClass : inactiveClass);
     if (tabDoctors) tabDoctors.className = (tab === "doctors" ? activeClass : inactiveClass);
+    if (tabAIChat) tabAIChat.className = (tab === "aichat" ? aiActiveClass : inactiveClass);
 
     if (contentScreening) contentScreening.classList.toggle("hidden", tab !== "screening" && tab !== undefined);
     if (contentHistory) contentHistory.classList.toggle("hidden", tab !== "history");
     if (contentChat) contentChat.classList.toggle("hidden", tab !== "chat");
     if (contentDoctors) contentDoctors.classList.toggle("hidden", tab !== "doctors");
+    if (contentAIChat) contentAIChat.classList.toggle("hidden", tab !== "aichat");
+
+    // Show/hide the floating help bubble (hide when user is already in AI chat tab)
+    const bubble = document.getElementById("patientAIHelpBubble");
+    if (bubble) {
+        if (tab === "aichat") {
+            bubble.classList.add("hidden");
+        } else {
+            bubble.classList.remove("hidden");
+        }
+    }
 
     if (tab === "history") {
         loadPatientHistory();
@@ -935,6 +961,8 @@ function switchPatientTab(tab) {
         loadPatientChat();
     } else if (tab === "doctors") {
         loadDoctorsDirectory();
+    } else if (tab === "aichat") {
+        initAIChat();
     } else {
         if (!activeSessionId) {
             const resCont = document.getElementById("patientResultContainer");
@@ -1957,6 +1985,12 @@ function renderPatientResults(data) {
     document.getElementById("bioWhiteCount").innerText = bio.white_dots_count;
     document.getElementById("bioOpticDisc").innerText = bio.optic_disc_coord || "(N/A)";
     document.getElementById("labelVessels").innerText = `2. Vessels (${bio.vessel_density_pct}%)`;
+
+    // Store bounding boxes for YOLO Lesion Explorer lightbox
+    if (bio.bounding_boxes) {
+        yoloLightboxData.boxes = bio.bounding_boxes;
+        yoloLightboxData.opticDisc = bio.optic_disc_coord;
+    }
 
     const rev = data.clinician_review || {};
     const statusText = rev.status || data.review_status || "Pending Review";
@@ -3201,4 +3235,710 @@ function showToast(message, type = "info") {
     setTimeout(() => {
         toast.remove();
     }, 4000);
+}
+
+// -----------------------------------------------------------------------------
+// Mission Video & AI Pipeline Interactive Simulation Modal
+// -----------------------------------------------------------------------------
+let missionSimInterval = null;
+let missionSimStep = 0;
+
+function openMissionVideoModal() {
+    const modal = document.getElementById("modalMissionVideo");
+    if (!modal) return;
+    modal.classList.remove("hidden");
+    startMissionSimulation();
+}
+
+function closeMissionVideoModal() {
+    const modal = document.getElementById("modalMissionVideo");
+    if (!modal) return;
+    modal.classList.add("hidden");
+    if (missionSimInterval) {
+        clearInterval(missionSimInterval);
+        missionSimInterval = null;
+    }
+}
+
+function startMissionSimulation() {
+    missionSimStep = 0;
+    const steps = [
+        {
+            title: "1. Autonomous Fundus Capture",
+            desc: "The autonomous camera detects pupil alignment and captures high-resolution 45° macular and disc fundus fields.",
+            pct: 20,
+            badge: "Optics Calibrated",
+            color: "text-teal-400"
+        },
+        {
+            title: "2. Image Quality Assessment (IQA)",
+            desc: "Laplacian variance blur check, Shannon entropy illumination analysis, and circular FOV validation ensure diagnostic grade.",
+            pct: 40,
+            badge: "Gradable (Focus 98.4%)",
+            color: "text-emerald-400"
+        },
+        {
+            title: "3. Preprocessing & CLAHE Normalization",
+            desc: "Ben Graham circular masking removes black margins; Contrast-Limited Adaptive Histogram Equalization accentuates deep vascular trees.",
+            pct: 60,
+            badge: "Vascular Map Extracted",
+            color: "text-cyan-400"
+        },
+        {
+            title: "4. YOLO11m Biomarker & Lesion Mapping",
+            desc: "Sub-pixel bounding boxes localize red microaneurysms, yellow hard exudates, and white cotton wool spots across macular quadrants.",
+            pct: 85,
+            badge: "Lesions Bounded",
+            color: "text-amber-400"
+        },
+        {
+            title: "5. ICDR Severity Grading & Clinical Referral",
+            desc: "Deep learning classifies ICDR Level 0–4 with Grad-CAM explainability and dispatches referral alert to district ophthalmologist in <15 seconds.",
+            pct: 100,
+            badge: "Triage Decision Ready",
+            color: "text-rose-400"
+        }
+    ];
+
+    function updateStepUI() {
+        const step = steps[missionSimStep];
+        const titleEl = document.getElementById("simStepTitle");
+        const descEl = document.getElementById("simStepDesc");
+        const progressEl = document.getElementById("simProgressBar");
+        const badgeEl = document.getElementById("simStepBadge");
+        
+        if (titleEl) titleEl.innerText = step.title;
+        if (descEl) descEl.innerText = step.desc;
+        if (progressEl) progressEl.style.width = step.pct + "%";
+        if (badgeEl) {
+            badgeEl.innerText = step.badge;
+            badgeEl.className = `px-3 py-1 rounded-full text-xs font-mono font-bold bg-slate-800 ${step.color} border border-slate-700`;
+        }
+
+        // Highlight active step indicator
+        for (let i = 0; i < steps.length; i++) {
+            const dot = document.getElementById(`simDot_${i}`);
+            if (dot) {
+                if (i <= missionSimStep) {
+                    dot.className = "w-3 h-3 rounded-full bg-teal-400 shadow-sm shadow-teal-400/50 transition-all";
+                } else {
+                    dot.className = "w-3 h-3 rounded-full bg-slate-700 transition-all";
+                }
+            }
+        }
+    }
+
+    updateStepUI();
+
+    if (missionSimInterval) clearInterval(missionSimInterval);
+    missionSimInterval = setInterval(() => {
+        missionSimStep = (missionSimStep + 1) % steps.length;
+        updateStepUI();
+    }, 3200);
+}
+
+
+// =============================================================================
+// NETRA AI HEALTH ASSISTANT CHATBOT
+// Powered by Google Gemini — Patient DR Education & Guidance
+// =============================================================================
+
+let aiChatHistory = [];        // Multi-turn conversation history (Gemini format)
+let aiChatInitialized = false; // Guard: only show welcome message once per session
+
+/**
+ * Called when user switches to AI chat tab.
+ * Shows welcome message on first open.
+ */
+function initAIChat() {
+    const stream = document.getElementById("aiChatMessagesStream");
+    if (!stream) return;
+
+    // Only inject welcome message on first load
+    if (!aiChatInitialized) {
+        aiChatInitialized = true;
+        const patientName = (currentUser && currentUser.full_name)
+            ? currentUser.full_name.split(" ")[0]
+            : "there";
+
+        stream.innerHTML = "";
+        renderAIMessage("model", `👋 Hello ${patientName}! I'm **Netra Assistant**, your AI guide for diabetic eye health.\n\nI can help you:\n• **Understand your DR screening results** in simple language\n• **Learn about warning symptoms** to watch for\n• **Prepare for your next scan**\n• **Understand if a specialist referral** is needed\n\nTap a quick chip above or just type your question below!`);
+    }
+
+    // Focus the input
+    const input = document.getElementById("aiChatInput");
+    if (input) setTimeout(() => input.focus(), 100);
+}
+
+/**
+ * Handle quick chip click — prefill and send immediately.
+ */
+function aiChipClick(text) {
+    const input = document.getElementById("aiChatInput");
+    if (input) {
+        input.value = text;
+        // Trigger send
+        const form = input.closest("form");
+        if (form) form.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+    }
+}
+
+/**
+ * Handle AI chat form submit.
+ */
+async function handleAIChatSubmit(event) {
+    event.preventDefault();
+    const input = document.getElementById("aiChatInput");
+    if (!input) return;
+    const text = input.value.trim();
+    if (!text) return;
+
+    input.value = "";
+    await sendAIChatMessage(text);
+}
+
+/**
+ * Send a message to the AI and render both the user bubble and the AI reply.
+ */
+async function sendAIChatMessage(userMessage) {
+    const stream = document.getElementById("aiChatMessagesStream");
+    const sendBtn = document.getElementById("aiSendBtn");
+    const typingIndicator = document.getElementById("aiTypingIndicator");
+    const input = document.getElementById("aiChatInput");
+
+    if (!stream) return;
+
+    // Render user bubble
+    renderAIMessage("user", userMessage);
+
+    // Disable input during request
+    if (input) input.disabled = true;
+    if (sendBtn) sendBtn.disabled = true;
+
+    // Show typing indicator
+    if (typingIndicator) typingIndicator.classList.remove("hidden");
+    stream.scrollTop = stream.scrollHeight;
+
+    // Add to history
+    aiChatHistory.push({ role: "user", parts: [{ text: userMessage }] });
+
+    try {
+        const body = {
+            message: userMessage,
+            history: aiChatHistory.slice(0, -1), // exclude the current message (it's the new one)
+        };
+        if (currentUser && currentUser.id) {
+            body.patient_id = currentUser.id;
+        }
+
+        const res = await fetch(`${API_BASE}/chat/ai`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body)
+        });
+
+        const data = await res.json();
+
+        if (typingIndicator) typingIndicator.classList.add("hidden");
+
+        if (data.status === "success" && data.reply) {
+            renderAIMessage("model", data.reply);
+            // Add assistant reply to history
+            aiChatHistory.push({ role: "model", parts: [{ text: data.reply }] });
+            // Keep history to last 20 turns to avoid token bloat
+            if (aiChatHistory.length > 20) aiChatHistory = aiChatHistory.slice(-20);
+        } else {
+            const errMsg = data.error || "Sorry, I couldn't get a response. Please try again.";
+            renderAIMessage("error", errMsg);
+            // Remove the failed user message from history
+            aiChatHistory.pop();
+        }
+    } catch (err) {
+        if (typingIndicator) typingIndicator.classList.add("hidden");
+        renderAIMessage("error", "Network error — please check your connection and try again.");
+        aiChatHistory.pop();
+    }
+
+    if (input) input.disabled = false;
+    if (sendBtn) sendBtn.disabled = false;
+    if (input) input.focus();
+    stream.scrollTop = stream.scrollHeight;
+}
+
+/**
+ * Render a chat bubble in the AI message stream.
+ * role: "user" | "model" | "error"
+ */
+function renderAIMessage(role, text) {
+    const stream = document.getElementById("aiChatMessagesStream");
+    if (!stream) return;
+
+    // Remove empty placeholder if present
+    const placeholder = stream.querySelector(".ai-placeholder");
+    if (placeholder) placeholder.remove();
+
+    const wrapper = document.createElement("div");
+    const isUser = role === "user";
+    const isError = role === "error";
+
+    // Format text: bold **text**, newlines
+    const formatted = text
+        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+        .replace(/\n/g, "<br>");
+
+    if (isUser) {
+        wrapper.className = "flex justify-end";
+        wrapper.innerHTML = `
+            <div class="max-w-[75%] px-4 py-3 rounded-2xl rounded-br-none text-xs leading-relaxed text-white"
+                 style="background: linear-gradient(135deg, #4f46e5, #7c3aed);">
+                ${formatted}
+            </div>`;
+    } else if (isError) {
+        wrapper.className = "flex justify-center";
+        wrapper.innerHTML = `
+            <div class="max-w-[85%] px-4 py-2.5 rounded-xl text-xs leading-relaxed text-amber-300"
+                 style="background: rgba(251,191,36,0.12); border: 1px solid rgba(251,191,36,0.2);">
+                ⚠️ ${formatted}
+            </div>`;
+    } else {
+        // AI model message
+        wrapper.className = "flex justify-start space-x-2";
+        wrapper.innerHTML = `
+            <div class="w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
+                 style="background: linear-gradient(135deg, #7c3aed, #4f46e5);">
+                <i class="fa-solid fa-robot text-white" style="font-size: 10px;"></i>
+            </div>
+            <div class="max-w-[78%] px-4 py-3 rounded-2xl rounded-bl-none text-xs leading-relaxed ai-msg-text"
+                 style="background: rgba(124,58,237,0.13); border: 1px solid rgba(124,58,237,0.18); color: #e2e8f0;">
+                ${formatted}
+            </div>`;
+    }
+
+    stream.appendChild(wrapper);
+    stream.scrollTop = stream.scrollHeight;
+}
+
+/**
+ * Clear the chat history and reset to welcome state.
+ */
+function clearAIChatHistory() {
+    aiChatHistory = [];
+    aiChatInitialized = false;
+    const stream = document.getElementById("aiChatMessagesStream");
+    if (stream) stream.innerHTML = "";
+    initAIChat();
+}
+
+// =============================================================================
+// YOLO LESION EXPLORER — Animated Zoom-Tour + Pan/Zoom Lightbox
+// =============================================================================
+
+/** Persistent state for the YOLO lesion lightbox */
+const yoloLightboxData = {
+    boxes: null,          // { microaneurysms_red: [], hard_exudates_yellow: [], cotton_wool_white: [] }
+    opticDisc: null,      // "(x, y)" string from API
+    img: null,            // HTMLImageElement loaded into canvas
+    canvas: null,
+    ctx: null,
+    // Pan/zoom state
+    scale: 1,
+    originX: 0,
+    originY: 0,
+    // Tour state
+    tourActive: false,
+    tourTimeout: null,
+    isDragging: false,
+    dragStartX: 0,
+    dragStartY: 0,
+    dragOriginX: 0,
+    dragOriginY: 0
+};
+
+/**
+ * Opens the YOLO Lesion Explorer lightbox and starts the animated tour.
+ */
+function openYoloLightbox() {
+    const imgEl = document.getElementById("viewImgLesions");
+    if (!imgEl || !imgEl.src || imgEl.src.endsWith("/") || imgEl.naturalWidth === 0) {
+        showToast("Run a scan first to explore YOLO lesion annotations.", "warning");
+        return;
+    }
+
+    const lb = document.getElementById("yoloLightbox");
+    lb.style.display = "flex";
+    lb.style.flexDirection = "column";
+    document.body.style.overflow = "hidden";
+
+    const canvas = document.getElementById("yoloCanvas");
+    const ctx = canvas.getContext("2d");
+    yoloLightboxData.canvas = canvas;
+    yoloLightboxData.ctx = ctx;
+
+    // Load the image into a fresh Image object so we get natural dimensions
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+        yoloLightboxData.img = img;
+        _yoloFitCanvas();
+        _yoloCancelTour();
+        _yoloDrawFrame();
+        startYoloTour();
+        _yoloSetupInteraction();
+    };
+    img.onerror = () => {
+        showToast("Could not load lesion image for explorer.", "error");
+        closeYoloLightbox();
+    };
+    img.src = imgEl.src;
+}
+
+/** Fit canvas to the wrap container */
+function _yoloFitCanvas() {
+    const wrap = document.getElementById("yoloCanvasWrap");
+    const img = yoloLightboxData.img;
+    const canvas = yoloLightboxData.canvas;
+    const maxW = wrap.clientWidth - 32;
+    const maxH = wrap.clientHeight - 32;
+    const ratio = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight, 1);
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    canvas.style.width = Math.round(img.naturalWidth * ratio) + "px";
+    canvas.style.height = Math.round(img.naturalHeight * ratio) + "px";
+    yoloLightboxData.scale = 1;
+    yoloLightboxData.originX = 0;
+    yoloLightboxData.originY = 0;
+}
+
+/**
+ * Renders the current frame: image + transform + highlight ring around active region.
+ * @param {Object|null} highlight - { cx, cy, r, color } optional spotlight
+ * @param {number} alpha - spotlight ring opacity (0-1)
+ */
+function _yoloDrawFrame(highlight = null, alpha = 0) {
+    const { canvas, ctx, img, scale, originX, originY } = yoloLightboxData;
+    if (!ctx || !img) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.save();
+    ctx.translate(originX, originY);
+    ctx.scale(scale, scale);
+    ctx.drawImage(img, 0, 0);
+    ctx.restore();
+
+    if (highlight && alpha > 0) {
+        const sx = highlight.cx * scale + originX;
+        const sy = highlight.cy * scale + originY;
+        const sr = highlight.r * scale;
+
+        // Pulsing spotlight ring
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = highlight.color;
+        ctx.lineWidth = Math.max(2, 3 / scale);
+        ctx.shadowBlur = 18;
+        ctx.shadowColor = highlight.color;
+        ctx.beginPath();
+        ctx.arc(sx, sy, sr + 6, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Label
+        ctx.globalAlpha = alpha * 0.95;
+        ctx.fillStyle = highlight.color;
+        ctx.font = `bold ${Math.max(11, 13 / scale)}px 'Plus Jakarta Sans', sans-serif`;
+        ctx.fillText(highlight.label, sx - sr, sy - sr - 8);
+        ctx.restore();
+    }
+}
+
+/** Collect all annotated regions for the tour */
+function _yoloBuildTourStops() {
+    const boxes = yoloLightboxData.boxes || {};
+    const stops = [];
+
+    const addBoxes = (list, color, label) => {
+        if (!list || !list.length) return;
+        // Cluster close boxes together; take up to 8 stops per type
+        const sampled = list.slice(0, 8);
+        sampled.forEach(b => {
+            const cx = (b[0] + b[2]) / 2;
+            const cy = (b[1] + b[3]) / 2;
+            const r = Math.max((b[2] - b[0]), (b[3] - b[1])) / 2 + 12;
+            stops.push({ cx, cy, r, color, label });
+        });
+    };
+
+    addBoxes(boxes.microaneurysms_red,    "#ff4444", "Microaneurysm");
+    addBoxes(boxes.hard_exudates_yellow,  "#facc15", "Hard Exudate");
+    addBoxes(boxes.cotton_wool_white,     "#ffffff", "Cotton Wool Spot");
+
+    // Shuffle to mix lesion types for a more interesting tour
+    for (let i = stops.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [stops[i], stops[j]] = [stops[j], stops[i]];
+    }
+    // Cap at 12 stops for reasonable duration
+    return stops.slice(0, 12);
+}
+
+/** Animate smooth pan+zoom to a target stop */
+function _yoloAnimateTo(targetStop, onComplete) {
+    const { canvas, img } = yoloLightboxData;
+    if (!img) { onComplete && onComplete(); return; }
+
+    const W = canvas.width;
+    const H = canvas.height;
+
+    // Desired zoom: fit the lesion with 2x padding
+    const padding = targetStop.r * 4;
+    const desiredScale = Math.min(W / (padding * 2), H / (padding * 2), 6);
+    const clampedScale = Math.max(1.5, desiredScale);
+
+    // Desired origin so lesion center is canvas center
+    const targetOriginX = W / 2 - targetStop.cx * clampedScale;
+    const targetOriginY = H / 2 - targetStop.cy * clampedScale;
+
+    const startScale = yoloLightboxData.scale;
+    const startOriginX = yoloLightboxData.originX;
+    const startOriginY = yoloLightboxData.originY;
+
+    const DURATION = 900; // ms
+    let start = null;
+
+    // Easing: ease-in-out cubic
+    const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+    let rafId;
+    function step(ts) {
+        if (!yoloLightboxData.tourActive) { cancelAnimationFrame(rafId); return; }
+        if (!start) start = ts;
+        const t = Math.min((ts - start) / DURATION, 1);
+        const e = ease(t);
+
+        yoloLightboxData.scale   = startScale   + (clampedScale  - startScale)   * e;
+        yoloLightboxData.originX = startOriginX + (targetOriginX - startOriginX) * e;
+        yoloLightboxData.originY = startOriginY + (targetOriginY - startOriginY) * e;
+
+        // Spotlight alpha: fade in during first half, fade out during last quarter
+        const spotAlpha = t < 0.5 ? t * 2 : t < 0.75 ? 1 : (1 - t) * 4;
+        _yoloDrawFrame(targetStop, spotAlpha);
+        _yoloUpdateZoomLabel();
+
+        if (t < 1) {
+            rafId = requestAnimationFrame(step);
+        } else {
+            onComplete && onComplete();
+        }
+    }
+    rafId = requestAnimationFrame(step);
+}
+
+/** Update progress dots */
+function _yoloUpdateDots(total, current) {
+    const el = document.getElementById("yoloProgressDots");
+    if (!el) return;
+    el.innerHTML = Array.from({ length: total }, (_, i) =>
+        `<span style="width:6px;height:6px;border-radius:50%;display:inline-block;background:${
+            i === current ? '#6366f1' : 'rgba(255,255,255,0.25)'
+        };transition:background 0.3s"></span>`
+    ).join("");
+}
+
+/** Update zoom label */
+function _yoloUpdateZoomLabel() {
+    const el = document.getElementById("yoloZoomLevel");
+    if (el) el.textContent = `Zoom: ${Math.round(yoloLightboxData.scale * 100)}%`;
+}
+
+/** Cancel any running tour */
+function _yoloCancelTour() {
+    yoloLightboxData.tourActive = false;
+    if (yoloLightboxData.tourTimeout) {
+        clearTimeout(yoloLightboxData.tourTimeout);
+        yoloLightboxData.tourTimeout = null;
+    }
+}
+
+/**
+ * Starts the animated zoom-tour through all lesion stops.
+ * Called on open and by Replay button.
+ */
+function startYoloTour() {
+    _yoloCancelTour();
+    yoloLightboxData.tourActive = true;
+
+    const stops = _yoloBuildTourStops();
+    const statusEl = document.getElementById("yoloTourStatus");
+    const hintEl = document.getElementById("yoloZoomHint");
+    const annoEl = document.getElementById("yoloAnnotationCount");
+    if (hintEl) hintEl.style.opacity = "0";
+
+    const boxes = yoloLightboxData.boxes || {};
+    const totalAnnotations =
+        (boxes.microaneurysms_red    || []).length +
+        (boxes.hard_exudates_yellow  || []).length +
+        (boxes.cotton_wool_white     || []).length;
+    if (annoEl) annoEl.textContent = `${totalAnnotations} annotated lesion${totalAnnotations !== 1 ? "s" : ""} detected`;
+
+    if (stops.length === 0) {
+        if (statusEl) statusEl.textContent = "No lesions detected — retina appears clear.";
+        resetYoloView();
+        return;
+    }
+
+    if (statusEl) statusEl.textContent = `Auto-touring ${stops.length} annotated region${stops.length !== 1 ? "s" : ""}…`;
+
+    // Reset view before starting
+    yoloLightboxData.scale = 1;
+    yoloLightboxData.originX = 0;
+    yoloLightboxData.originY = 0;
+
+    let i = 0;
+    function visitNext() {
+        if (!yoloLightboxData.tourActive || i >= stops.length) {
+            // Tour complete — settle and enter interactive mode
+            yoloLightboxData.tourActive = false;
+            if (statusEl) statusEl.textContent = "Tour complete — scroll or drag to explore";
+            document.getElementById("yoloCanvas").style.cursor = "grab";
+            _yoloUpdateDots(stops.length, -1);
+            // Show pan/zoom hint briefly
+            if (hintEl) {
+                hintEl.style.opacity = "1";
+                setTimeout(() => { hintEl.style.opacity = "0"; }, 3000);
+            }
+            return;
+        }
+        _yoloUpdateDots(stops.length, i);
+        if (statusEl) statusEl.textContent = `Region ${i + 1}/${stops.length}: ${stops[i].label}`;
+        document.getElementById("yoloCanvas").style.cursor = "default";
+
+        _yoloAnimateTo(stops[i], () => {
+            i++;
+            // Dwell 1.1s on each stop before moving
+            yoloLightboxData.tourTimeout = setTimeout(visitNext, 1100);
+        });
+    }
+
+    // Brief pause before first move
+    yoloLightboxData.tourTimeout = setTimeout(visitNext, 400);
+}
+
+/** Reset zoom back to full fit view */
+function resetYoloView() {
+    _yoloCancelTour();
+    const { canvas, img } = yoloLightboxData;
+    if (!img || !canvas) return;
+    yoloLightboxData.scale = 1;
+    yoloLightboxData.originX = 0;
+    yoloLightboxData.originY = 0;
+    _yoloDrawFrame();
+    _yoloUpdateZoomLabel();
+    const statusEl = document.getElementById("yoloTourStatus");
+    if (statusEl) statusEl.textContent = "Scroll to zoom • Drag to pan";
+    document.getElementById("yoloCanvas").style.cursor = "grab";
+}
+
+/** Close the lightbox and clean up */
+function closeYoloLightbox() {
+    _yoloCancelTour();
+    yoloLightboxData.tourActive = false;
+    const lb = document.getElementById("yoloLightbox");
+    if (lb) lb.style.display = "none";
+    document.body.style.overflow = "";
+}
+
+/** Set up mouse/touch pan and scroll-to-zoom interactions */
+function _yoloSetupInteraction() {
+    const canvas = yoloLightboxData.canvas;
+    if (!canvas || canvas._yoloInteractionBound) return;
+    canvas._yoloInteractionBound = true;
+
+    // Scroll to zoom
+    canvas.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        const cssToCanvasX = canvas.width  / rect.width;
+        const cssToCanvasY = canvas.height / rect.height;
+        const mx = (e.clientX - rect.left) * cssToCanvasX;
+        const my = (e.clientY - rect.top)  * cssToCanvasY;
+
+        const delta = e.deltaY < 0 ? 1.12 : 0.89;
+        const newScale = Math.min(Math.max(yoloLightboxData.scale * delta, 0.5), 12);
+        const factor = newScale / yoloLightboxData.scale;
+
+        yoloLightboxData.originX = mx - factor * (mx - yoloLightboxData.originX);
+        yoloLightboxData.originY = my - factor * (my - yoloLightboxData.originY);
+        yoloLightboxData.scale = newScale;
+
+        _yoloDrawFrame();
+        _yoloUpdateZoomLabel();
+    }, { passive: false });
+
+    // Mouse drag to pan
+    canvas.addEventListener("mousedown", (e) => {
+        if (yoloLightboxData.tourActive) return;
+        yoloLightboxData.isDragging = true;
+        yoloLightboxData.dragStartX = e.clientX;
+        yoloLightboxData.dragStartY = e.clientY;
+        yoloLightboxData.dragOriginX = yoloLightboxData.originX;
+        yoloLightboxData.dragOriginY = yoloLightboxData.originY;
+        canvas.style.cursor = "grabbing";
+    });
+    window.addEventListener("mousemove", (e) => {
+        if (!yoloLightboxData.isDragging) return;
+        const rect = canvas.getBoundingClientRect();
+        const cssToCanvasX = canvas.width  / rect.width;
+        const cssToCanvasY = canvas.height / rect.height;
+        yoloLightboxData.originX = yoloLightboxData.dragOriginX + (e.clientX - yoloLightboxData.dragStartX) * cssToCanvasX;
+        yoloLightboxData.originY = yoloLightboxData.dragOriginY + (e.clientY - yoloLightboxData.dragStartY) * cssToCanvasY;
+        _yoloDrawFrame();
+    });
+    window.addEventListener("mouseup", () => {
+        yoloLightboxData.isDragging = false;
+        if (canvas) canvas.style.cursor = "grab";
+    });
+
+    // Touch drag/pinch
+    let lastTouchDist = null;
+    canvas.addEventListener("touchstart", (e) => {
+        if (e.touches.length === 1) {
+            yoloLightboxData.isDragging = true;
+            yoloLightboxData.dragStartX = e.touches[0].clientX;
+            yoloLightboxData.dragStartY = e.touches[0].clientY;
+            yoloLightboxData.dragOriginX = yoloLightboxData.originX;
+            yoloLightboxData.dragOriginY = yoloLightboxData.originY;
+        } else if (e.touches.length === 2) {
+            const dx = e.touches[0].clientX - e.touches[1].clientX;
+            const dy = e.touches[0].clientY - e.touches[1].clientY;
+            lastTouchDist = Math.hypot(dx, dy);
+        }
+    }, { passive: true });
+    canvas.addEventListener("touchmove", (e) => {
+        e.preventDefault();
+        if (e.touches.length === 1 && yoloLightboxData.isDragging) {
+            const rect = canvas.getBoundingClientRect();
+            const cssToCanvasX = canvas.width  / rect.width;
+            const cssToCanvasY = canvas.height / rect.height;
+            yoloLightboxData.originX = yoloLightboxData.dragOriginX + (e.touches[0].clientX - yoloLightboxData.dragStartX) * cssToCanvasX;
+            yoloLightboxData.originY = yoloLightboxData.dragOriginY + (e.touches[0].clientY - yoloLightboxData.dragStartY) * cssToCanvasY;
+            _yoloDrawFrame();
+        } else if (e.touches.length === 2 && lastTouchDist !== null) {
+            const dx = e.touches[0].clientX - e.touches[1].clientX;
+            const dy = e.touches[0].clientY - e.touches[1].clientY;
+            const dist = Math.hypot(dx, dy);
+            const factor = dist / lastTouchDist;
+            const newScale = Math.min(Math.max(yoloLightboxData.scale * factor, 0.5), 12);
+            yoloLightboxData.scale = newScale;
+            lastTouchDist = dist;
+            _yoloDrawFrame();
+            _yoloUpdateZoomLabel();
+        }
+    }, { passive: false });
+    canvas.addEventListener("touchend", () => {
+        yoloLightboxData.isDragging = false;
+        lastTouchDist = null;
+    });
+
+    // Escape key closes
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") closeYoloLightbox();
+    });
 }

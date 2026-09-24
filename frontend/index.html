@@ -6,7 +6,11 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>Netra Setu • National Tele-Ophthalmology DR Screening Network | SIH 2026</title>
+    <title>Netra Diagnostics • Autonomous Tele-Ophthalmology AI Network | SIH 2026</title>
+    <!-- Google Fonts: Plus Jakarta Sans & Outfit & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome 6 CDN -->
@@ -35,72 +39,86 @@
         })();
     </script>
 </head>
-<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col antialiased">
+<body class="bg-[#F8FAFC] text-slate-800 font-sans min-h-screen flex flex-col antialiased">
 
-    <!-- Global Top Navbar -->
-    <header class="bg-indigo-950 text-white shadow-lg sticky top-0 z-50 border-b border-indigo-900">
-        <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-            <!-- Brand Logo -->
+    <!-- Global Top Navbar (Digital Diagnostics Themed) -->
+    <header class="bg-[#012832] text-white shadow-lg sticky top-0 z-50 border-b border-teal-900/60 backdrop-blur-md bg-opacity-95">
+        <div class="max-w-7xl mx-auto px-4 py-3.5 flex items-center justify-between">
+            <!-- Brand Logo (Aperture Iris Motif matching Digital Diagnostics) -->
             <div class="flex items-center space-x-3 cursor-pointer" onclick="navigateTo('home')">
-                <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-md">
-                    <i class="fa-solid fa-eye text-xl"></i>
+                <div class="iris-logo-ring shadow-sm">
+                    <div class="iris-logo-inner">
+                        <div class="iris-logo-dot"></div>
+                    </div>
                 </div>
                 <div>
-                    <h1 class="font-bold text-lg leading-tight tracking-wide flex items-center gap-2">
-                        <span>Netra Setu</span>
-                        <span class="text-[10px] bg-indigo-800 px-2 py-0.5 rounded-full text-indigo-300 uppercase font-mono border border-indigo-700">SIH 2026</span>
-                    </h1>
-                    <p class="text-xs text-indigo-300">National Tele-Ophthalmology Screening Network</p>
+                    <div class="flex items-baseline space-x-1.5 leading-none">
+                        <span class="font-extrabold text-base md:text-lg tracking-wider text-white uppercase font-heading">NETRA</span>
+                        <span class="font-bold text-xs md:text-sm tracking-widest text-teal-300 uppercase font-heading">DIAGNOSTICS</span>
+                    </div>
+                    <p class="text-[9px] text-teal-200/80 font-mono tracking-tight mt-0.5">SIH 2026 • Autonomous Tele-Ophthalmology</p>
                 </div>
             </div>
 
             <!-- 1. PUBLIC NAVBAR (Only shown on Public Pages) -->
-            <nav id="publicNavLinks" class="flex items-center space-x-1">
-                <button onclick="navigateTo('home')" id="navLinkHome" class="nav-link px-3.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-indigo-900 transition text-indigo-200">
-                    <i class="fa-solid fa-house mr-1.5"></i> Home
+            <nav id="publicNavLinks" class="hidden md:flex items-center space-x-1 lg:space-x-2 text-xs font-semibold text-slate-200">
+                <button onclick="navigateTo('home')" id="navLinkHome" class="nav-link px-3.5 py-1.5 rounded-full hover:text-white hover:bg-white/10 transition text-white">
+                    Home
                 </button>
+                <a href="#featuredProducts" class="px-3.5 py-1.5 rounded-full hover:text-white hover:bg-white/10 transition flex items-center gap-1">
+                    <span>Products</span> <i class="fa-solid fa-chevron-down text-[9px] opacity-70"></i>
+                </a>
+                <a href="#clinicalPipeline" class="px-3.5 py-1.5 rounded-full hover:text-white hover:bg-white/10 transition flex items-center gap-1">
+                    <span>Clinical AI</span> <i class="fa-solid fa-chevron-down text-[9px] opacity-70"></i>
+                </a>
+                <a href="#telemedicineNetwork" class="px-3.5 py-1.5 rounded-full hover:text-white hover:bg-white/10 transition">
+                    Telemedicine
+                </a>
+                <a href="#portalGateways" class="px-3.5 py-1.5 rounded-full hover:text-white hover:bg-white/10 transition">
+                    Portals
+                </a>
             </nav>
 
             <!-- 2. AUTHENTICATED NAVBAR (Only shown when logged in inside Dashboard) -->
             <nav id="authNavLinks" class="hidden items-center space-x-1">
                 <div id="patientNavSection" class="hidden flex items-center space-x-1">
-                    <button onclick="navigateTo('patient')" id="navLinkPatient" class="nav-link px-3.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-indigo-900 transition text-indigo-200">
+                    <button onclick="navigateTo('patient')" id="navLinkPatient" class="nav-link px-3.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-teal-900 transition text-teal-200">
                         <i class="fa-solid fa-cloud-arrow-up mr-1.5"></i> Screening Station
                     </button>
-                    <button onclick="switchPatientTab('history')" class="nav-link px-3.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-indigo-900 transition text-indigo-200">
+                    <button onclick="switchPatientTab('history')" class="nav-link px-3.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-teal-900 transition text-teal-200">
                         <i class="fa-solid fa-clock-rotate-left mr-1.5"></i> My Past Scans
                     </button>
-                    <button onclick="switchPatientTab('chat')" class="nav-link px-3.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-indigo-900 transition text-indigo-200">
+                    <button onclick="switchPatientTab('chat')" class="nav-link px-3.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-teal-900 transition text-teal-200">
                         <i class="fa-solid fa-comments mr-1.5"></i> Messages
                     </button>
-                    <button onclick="switchPatientTab('doctors')" class="nav-link px-3.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-indigo-900 transition text-indigo-200">
+                    <button onclick="switchPatientTab('doctors')" class="nav-link px-3.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-teal-900 transition text-teal-200">
                         <i class="fa-solid fa-user-doctor mr-1.5"></i> 2nd Opinion
                     </button>
                 </div>
 
                 <div id="doctorNavSection" class="hidden flex items-center space-x-1">
-                    <button onclick="navigateTo('doctor')" id="navLinkDoctor" class="nav-link px-3.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-indigo-900 transition text-indigo-200">
+                    <button onclick="navigateTo('doctor')" id="navLinkDoctor" class="nav-link px-3.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-teal-900 transition text-teal-200">
                         <i class="fa-solid fa-list-check mr-1.5"></i> Review Queue
                     </button>
-                    <button onclick="switchDoctorTab('chat')" class="nav-link px-3.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-indigo-900 transition text-indigo-200">
+                    <button onclick="switchDoctorTab('chat')" class="nav-link px-3.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-teal-900 transition text-teal-200">
                         <i class="fa-solid fa-comments mr-1.5"></i> Patient Messages
                     </button>
                 </div>
 
                 <div id="adminNavSection" class="hidden flex items-center space-x-1">
-                    <button onclick="navigateTo('admin'); switchAdminTab('overview')" id="navLinkAdmin" class="nav-link px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-indigo-900 transition text-indigo-200">
+                    <button onclick="navigateTo('admin'); switchAdminTab('overview')" id="navLinkAdmin" class="nav-link px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-teal-900 transition text-teal-200">
                         <i class="fa-solid fa-chart-pie mr-1"></i> Command Overview
                     </button>
-                    <button onclick="navigateTo('admin'); switchAdminTab('doctors')" class="nav-link px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-indigo-900 transition text-indigo-200">
+                    <button onclick="navigateTo('admin'); switchAdminTab('doctors')" class="nav-link px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-teal-900 transition text-teal-200">
                         <i class="fa-solid fa-user-doctor mr-1"></i> Doctor Staff
                     </button>
-                    <button onclick="navigateTo('admin'); switchAdminTab('patients')" class="nav-link px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-indigo-900 transition text-indigo-200">
+                    <button onclick="navigateTo('admin'); switchAdminTab('patients')" class="nav-link px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-teal-900 transition text-teal-200">
                         <i class="fa-solid fa-users mr-1"></i> Patient Directory
                     </button>
-                    <button onclick="navigateTo('admin'); switchAdminTab('simulink')" class="nav-link px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-indigo-900 transition text-indigo-200">
+                    <button onclick="navigateTo('admin'); switchAdminTab('simulink')" class="nav-link px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-teal-900 transition text-teal-200">
                         <i class="fa-solid fa-network-wired mr-1"></i> Simulink Telemetry
                     </button>
-                    <button onclick="navigateTo('admin'); switchAdminTab('audit')" class="nav-link px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-indigo-900 transition text-indigo-200">
+                    <button onclick="navigateTo('admin'); switchAdminTab('audit')" class="nav-link px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-teal-900 transition text-teal-200">
                         <i class="fa-solid fa-shield-halved mr-1"></i> Audit Logs
                     </button>
                 </div>
@@ -108,23 +126,23 @@
 
             <!-- Right Profile / Guest Action Buttons -->
             <div class="flex items-center space-x-3">
-                <div id="userProfileBar" class="hidden flex items-center space-x-3 bg-indigo-900/90 px-3.5 py-1.5 rounded-full border border-indigo-700">
+                <div id="userProfileBar" class="hidden flex items-center space-x-3 bg-teal-900/90 px-3.5 py-1.5 rounded-full border border-teal-700">
                     <div class="w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center text-xs font-bold text-white shadow" id="navAvatar">U</div>
                     <div class="text-xs text-left">
                         <span class="font-bold block text-white" id="navUserName">User</span>
-                        <span class="text-indigo-300 text-[10px] uppercase font-mono" id="navUserRole">PATIENT</span>
+                        <span class="text-teal-300 text-[10px] uppercase font-mono" id="navUserRole">PATIENT</span>
                     </div>
-                    <button onclick="handleLogout()" class="text-xs text-indigo-400 hover:text-rose-400 ml-2 transition" title="Sign Out">
+                    <button onclick="handleLogout()" class="text-xs text-teal-400 hover:text-rose-400 ml-2 transition" title="Sign Out">
                         <i class="fa-solid fa-right-from-bracket"></i>
                     </button>
                 </div>
 
-                <div id="guestAuthButtons" class="flex items-center space-x-2">
-                    <button onclick="openLoginModal('patient')" class="px-3.5 py-1.5 bg-indigo-900 hover:bg-indigo-800 text-white rounded-lg text-xs font-semibold transition border border-indigo-700">
-                        <i class="fa-solid fa-arrow-right-to-bracket mr-1"></i> Sign In
+                <div id="guestAuthButtons" class="flex items-center space-x-2.5">
+                    <button onclick="openLoginModal('patient')" class="px-4 py-2 bg-transparent hover:bg-white/10 text-white rounded-full text-xs font-semibold transition border border-teal-500/50">
+                        <i class="fa-solid fa-arrow-right-to-bracket mr-1 text-teal-300"></i> Sign In
                     </button>
-                    <button onclick="openRegisterModal('patient')" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition shadow-sm">
-                        Create Account
+                    <button onclick="navigateTo('patient')" class="btn-pill-white px-4 py-2 text-xs">
+                        <span>Schedule a Screening</span>
                     </button>
                 </div>
             </div>
@@ -134,107 +152,440 @@
     <!-- Notification Toast Popup (Highest Z-Index, Never Blurred) -->
     <div id="toastContainer" class="fixed bottom-5 right-5 z-[99999] space-y-2 pointer-events-none"></div>
 
-    <!-- Main Container -->
-    <main class="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6">
+    <!-- Main Application Container -->
+    <main class="flex-1 w-full mx-auto">
 
         <!-- =============================================================== -->
-        <!-- 0. PUBLIC LANDING PAGE (DEFAULT FOR ALL VISITORS) -->
+        <!-- 0. PUBLIC LANDING PAGE (DIGITAL DIAGNOSTICS STYLE) -->
         <!-- =============================================================== -->
-        <section id="pageHome" class="space-y-10 py-4">
-            <div class="bg-gradient-to-br from-indigo-950 via-indigo-900 to-slate-900 text-white rounded-3xl p-8 md:p-12 shadow-xl border border-indigo-800 relative overflow-hidden">
-                <div class="max-w-3xl space-y-4 relative z-10">
-                    <div class="inline-flex items-center space-x-2 bg-indigo-800/80 border border-indigo-700 px-3.5 py-1 rounded-full text-xs font-semibold text-indigo-200">
-                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                        <span>Smart India Hackathon 2026 • Medical AI Innovation</span>
+        <section id="pageHome" class="w-full">
+            
+            <!-- 0A. HERO SECTION WITH CLINICAL BACKGROUND & CURVED WAVE DIVIDER -->
+            <div class="digital-hero-section">
+                <div class="digital-hero-overlay"></div>
+
+                <div class="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32 relative z-10">
+                    <div class="max-w-2xl space-y-6">
+                        <!-- Clinical Innovation Tag -->
+                        <div class="inline-flex items-center space-x-2 bg-teal-900/80 border border-teal-500/40 px-4 py-1.5 rounded-full text-xs font-semibold text-teal-200 backdrop-blur-md">
+                            <span class="w-2 h-2 rounded-full bg-teal-300 animate-pulse"></span>
+                            <span>Autonomous Healthcare AI • SIH 2026</span>
+                        </div>
+
+                        <!-- Headline (Matching Reference Text Hierarchy) -->
+                        <h1 class="text-3xl sm:text-5xl lg:text-6xl font-extrabold text-white tracking-tight leading-[1.12] font-heading">
+                            Transforming Global Healthcare With Artificial Intelligence
+                        </h1>
+
+                        <!-- Subtitle -->
+                        <p class="text-teal-100/90 text-sm sm:text-base md:text-lg leading-relaxed font-normal max-w-xl">
+                            Pioneering the Way for Autonomous Medical Care & Diabetic Retinopathy Tele-Screening with Explainable AI.
+                        </p>
+
+                        <!-- CTA Buttons -->
+                        <div class="pt-4 flex flex-wrap items-center gap-3 sm:gap-4">
+                            <!-- Play Mission Video Pill Button (As in Reference) -->
+                            <button onclick="openMissionVideoModal()" class="btn-pill-white px-6 sm:px-8 py-3.5 text-xs sm:text-sm">
+                                <i class="fa-solid fa-circle-play text-teal-700 text-base mr-2.5"></i>
+                                <span>Play Our Mission Video</span>
+                            </button>
+
+                            <!-- Primary Action Button -->
+                            <button onclick="navigateTo('patient')" class="btn-pill-outline-white px-6 sm:px-7 py-3.5 text-xs sm:text-sm">
+                                <span>Launch Screening Station</span>
+                                <i class="fa-solid fa-arrow-right text-xs ml-2 text-teal-300"></i>
+                            </button>
+                        </div>
                     </div>
-                    <h1 class="text-3xl md:text-5xl font-extrabold tracking-tight leading-tight">
-                        Preventing Diabetic Blindness Across Rural India with Explainable AI
-                    </h1>
-                    <p class="text-indigo-200 text-sm md:text-base leading-relaxed">
-                        India has over 77 million diabetic adults and only 1 ophthalmologist per 100,000 rural citizens. 
-                        Netra Setu provides an automated tele-screening platform with image quality assessment, YOLO11 ICDR grading, 
-                        sub-pixel lesion mapping, and district-level Simulink telemedicine optimization.
-                    </p>
-                    <div class="pt-4 flex flex-wrap items-center gap-3">
-                        <button onclick="openRegisterModal('patient')" class="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl shadow-lg transition flex items-center space-x-2 text-sm">
-                            <i class="fa-solid fa-user-plus"></i>
-                            <span>Register as Patient</span>
-                        </button>
-                        <button onclick="openLoginModal('patient')" class="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl border border-white/20 transition flex items-center space-x-2 text-sm">
-                            <i class="fa-solid fa-arrow-right-to-bracket"></i>
-                            <span>Sign In</span>
-                        </button>
-                    </div>
+                </div>
+
+                <!-- Organic Curved Wave Divider (Transitioning to White Body) -->
+                <div class="hero-curved-divider">
+                    <svg viewBox="0 0 1440 120" preserveAspectRatio="none" fill="#F8FAFC">
+                        <path d="M0,60 C320,105 680,100 1020,45 C1200,15 1340,12 1440,30 L1440,120 L0,120 Z"></path>
+                    </svg>
                 </div>
             </div>
 
-            <!-- 3 Portal Gateways -->
-            <div>
-                <div class="text-center max-w-xl mx-auto space-y-2 mb-8">
-                    <h2 class="text-2xl font-bold text-slate-800">Access Portals</h2>
-                    <p class="text-xs text-slate-500">Sign in to your role-specific clinical station or screening dashboard.</p>
-                </div>
+            <!-- 0B. MAIN PAGE BODY CONTENT -->
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20 space-y-24">
 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 hover:border-indigo-500 hover:shadow-md transition flex flex-col justify-between space-y-4">
-                        <div class="space-y-3">
-                            <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center text-xl font-bold">
-                                <i class="fa-solid fa-user"></i>
+                <!-- -----------------------------------------------------------
+                     SECTION: FEATURED PRODUCTS (DIGITAL DIAGNOSTICS STYLE)
+                     ----------------------------------------------------------- -->
+                <section id="featuredProducts" class="space-y-8">
+                    <div class="text-center max-w-2xl mx-auto space-y-2">
+                        <p class="text-xs uppercase tracking-widest font-bold text-teal-600 font-mono">Digital Diagnostics</p>
+                        <h2 class="text-3xl sm:text-4xl md:text-5xl font-extrabold text-[#012832] tracking-tight font-heading">Featured Products</h2>
+                        <p class="text-slate-500 text-sm sm:text-base">Autonomous point-of-care AI platforms and tele-screening workflows engineered for national scale.</p>
+                    </div>
+
+                    <!-- Product 1: LUMINETICSCORE® / NETRA•CORE™ Product Card (Mirroring Reference Card) -->
+                    <div class="product-card-container p-6 sm:p-10 md:p-12">
+                        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+                            
+                            <!-- Left: Product Information & Specs -->
+                            <div class="lg:col-span-6 space-y-6">
+                                <!-- Product Logo Motif -->
+                                <div class="flex items-center space-x-3.5">
+                                    <div class="iris-logo-ring shadow-sm">
+                                        <div class="iris-logo-inner">
+                                            <div class="iris-logo-dot"></div>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-baseline">
+                                        <span class="text-2xl sm:text-3xl font-extrabold text-[#012832] tracking-tight font-heading">LUMINETICS<span class="text-teal-600">CORE</span></span>
+                                        <span class="text-sm text-teal-700 font-semibold ml-1">®</span>
+                                    </div>
+                                </div>
+
+                                <div class="inline-flex items-center space-x-2 bg-teal-50 text-teal-700 px-3 py-1 rounded-full text-xs font-bold border border-teal-200">
+                                    <i class="fa-solid fa-certificate"></i>
+                                    <span>Autonomous Diabetic Retinopathy Diagnostic AI System</span>
+                                </div>
+
+                                <p class="text-slate-600 text-sm sm:text-base leading-relaxed">
+                                    The clinical-grade autonomous AI system designed to detect referable diabetic retinopathy (including diabetic macular edema) at the point of care without requiring eye dilation or specialist interpretation.
+                                </p>
+
+                                <!-- Medical Efficacy Points -->
+                                <div class="space-y-3 pt-2">
+                                    <div class="flex items-start space-x-3">
+                                        <div class="w-5 h-5 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                                            <i class="fa-solid fa-check"></i>
+                                        </div>
+                                        <div>
+                                            <h4 class="text-xs sm:text-sm font-bold text-slate-800">Sub-Pixel Lesion Detection</h4>
+                                            <p class="text-xs text-slate-500">Autonomous localization of microaneurysms, hemorrhages, and hard exudates.</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex items-start space-x-3">
+                                        <div class="w-5 h-5 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                                            <i class="fa-solid fa-check"></i>
+                                        </div>
+                                        <div>
+                                            <h4 class="text-xs sm:text-sm font-bold text-slate-800">ICDR 0–4 Severity Grading in &lt;15 Seconds</h4>
+                                            <p class="text-xs text-slate-500">Instant triage decision: Mild, Moderate, Severe NPDR, or Proliferative DR.</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex items-start space-x-3">
+                                        <div class="w-5 h-5 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                                            <i class="fa-solid fa-check"></i>
+                                        </div>
+                                        <div>
+                                            <h4 class="text-xs sm:text-sm font-bold text-slate-800">Automated Image Quality Assessment (IQA)</h4>
+                                            <p class="text-xs text-slate-500">Real-time focus blur, illumination entropy, and circular FOV validation.</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Action Buttons -->
+                                <div class="pt-4 flex flex-wrap gap-3">
+                                    <button onclick="navigateTo('patient')" class="btn-pill-teal px-6 py-3 text-xs sm:text-sm">
+                                        <i class="fa-solid fa-camera mr-2"></i>
+                                        <span>Start Patient Screening</span>
+                                    </button>
+                                    <button onclick="openMissionVideoModal()" class="btn-pill-white px-5 py-3 text-xs sm:text-sm text-slate-700 border border-slate-300">
+                                        <i class="fa-solid fa-play text-teal-600 mr-2"></i>
+                                        <span>Watch How It Works</span>
+                                    </button>
+                                </div>
                             </div>
-                            <h3 class="text-lg font-bold text-slate-800">Patient Tele-Screening</h3>
-                            <p class="text-xs text-slate-500 leading-relaxed">
-                                Upload retinal fundus scans, receive automated image quality checks, view 4-channel lesion maps, and consult with assigned ophthalmologists.
-                            </p>
-                        </div>
-                        <div class="flex gap-2 pt-2">
-                            <button onclick="openLoginModal('patient')" class="flex-1 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold rounded-xl text-xs transition border border-blue-200 text-center">
-                                Patient Login
-                            </button>
-                            <button onclick="openRegisterModal('patient')" class="py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs transition text-center">
-                                Register
-                            </button>
+
+                            <!-- Right: High-Res Medical Diagnostic Device Preview (As in Reference) -->
+                            <div class="lg:col-span-6">
+                                <div class="product-display-frame relative overflow-hidden group">
+                                    <img src="assets/images/netracore_product.jpg" alt="LumineticsCore Retinal Analysis Display" class="w-full h-auto rounded-xl shadow-md object-cover transform group-hover:scale-[1.02] transition duration-500">
+                                    <div class="absolute bottom-3 left-3 right-3 bg-slate-900/85 backdrop-blur-md px-3.5 py-2 rounded-xl text-white flex items-center justify-between text-xs border border-white/10">
+                                        <div class="flex items-center space-x-2">
+                                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                                            <span class="font-mono font-semibold text-[11px]">AI Retinal Analysis Active</span>
+                                        </div>
+                                        <span class="text-teal-300 font-mono text-[10px]">Moderate NPDR Detected • Grad-CAM</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 hover:border-emerald-500 hover:shadow-md transition flex flex-col justify-between space-y-4">
-                        <div class="space-y-3">
-                            <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center text-xl font-bold">
-                                <i class="fa-solid fa-user-doctor"></i>
+                    <!-- Products 2 & 3: NETRA WORKSTATION & SIMULINK TELEMEDICINE -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+                        <!-- Product 2: Clinician Workstation -->
+                        <div class="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm hover:border-teal-500 hover:shadow-md transition flex flex-col justify-between space-y-6">
+                            <div class="space-y-4">
+                                <div class="w-12 h-12 bg-teal-50 text-teal-700 rounded-2xl flex items-center justify-center text-xl font-bold border border-teal-100">
+                                    <i class="fa-solid fa-user-doctor"></i>
+                                </div>
+                                <div>
+                                    <span class="text-xs font-bold uppercase tracking-wider text-teal-600 font-mono">Specialist Suite</span>
+                                    <h3 class="text-xl font-bold text-slate-800 font-heading">NETRA•WORKSTATION™</h3>
+                                </div>
+                                <p class="text-xs sm:text-sm text-slate-500 leading-relaxed">
+                                    Designed for vitreo-retina ophthalmologists. Rapidly inspect 4 diagnostic channels (Original, Vascular Tree, Bounded Lesions, Grad-CAM Saliency) and submit clinical sign-offs in &lt;15 seconds per patient.
+                                </p>
                             </div>
-                            <h3 class="text-lg font-bold text-slate-800">Doctor Workstation</h3>
-                            <p class="text-xs text-slate-500 leading-relaxed">
-                                Review assigned tele-ophthalmology patient queues, validate sub-pixel microaneurysms and exudates, and submit clinical sign-offs in &lt;15 seconds.
-                            </p>
+                            <div>
+                                <button onclick="navigateTo('doctor')" class="w-full py-3 bg-teal-50 hover:bg-teal-100 text-teal-800 font-bold rounded-2xl text-xs transition border border-teal-200 text-center flex items-center justify-center space-x-2">
+                                    <span>Access Doctor Workstation</span>
+                                    <i class="fa-solid fa-arrow-right text-xs"></i>
+                                </button>
+                            </div>
                         </div>
-                        <div class="flex gap-2 pt-2">
-                            <button onclick="openLoginModal('doctor')" class="flex-1 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-xl text-xs transition border border-emerald-200 text-center">
-                                Doctor Login
-                            </button>
-                            <button onclick="openRegisterModal('doctor')" class="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition text-center">
-                                Join as Doctor
-                            </button>
+
+                        <!-- Product 3: Simulink Telemedicine Simulator -->
+                        <div class="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm hover:border-teal-500 hover:shadow-md transition flex flex-col justify-between space-y-6">
+                            <div class="space-y-4">
+                                <div class="w-12 h-12 bg-teal-50 text-teal-700 rounded-2xl flex items-center justify-center text-xl font-bold border border-teal-100">
+                                    <i class="fa-solid fa-network-wired"></i>
+                                </div>
+                                <div>
+                                    <span class="text-xs font-bold uppercase tracking-wider text-teal-600 font-mono">District Infrastructure</span>
+                                    <h3 class="text-xl font-bold text-slate-800 font-heading">NETRA•SIMULINK™</h3>
+                                </div>
+                                <p class="text-xs sm:text-sm text-slate-500 leading-relaxed">
+                                    Dynamic MATLAB/Simulink queuing model simulating district-wide tele-screening workflows across 25 rural PHCs. Computes doctor hours saved, uplink bandwidth bottlenecks, and referral throughput in real-time.
+                                </p>
+                            </div>
+                            <div>
+                                <button onclick="navigateTo('admin'); switchAdminTab('simulink')" class="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-2xl text-xs transition border border-slate-200 text-center flex items-center justify-center space-x-2">
+                                    <span>Launch District Simulator</span>
+                                    <i class="fa-solid fa-arrow-right text-xs"></i>
+                                </button>
+                            </div>
                         </div>
+                    </div>
+                </section>
+
+                <!-- -----------------------------------------------------------
+                     SECTION: CLINICAL EVIDENCE & 5-STAGE AI PIPELINE
+                     ----------------------------------------------------------- -->
+                <section id="clinicalPipeline" class="space-y-8 pt-8">
+                    <div class="text-center max-w-2xl mx-auto space-y-2">
+                        <p class="text-xs uppercase tracking-widest font-bold text-teal-600 font-mono">Diagnostic Architecture</p>
+                        <h2 class="text-3xl sm:text-4xl font-extrabold text-[#012832] tracking-tight font-heading">5-Stage Autonomous Screening Pipeline</h2>
+                        <p class="text-slate-500 text-xs sm:text-sm">End-to-end mathematical rigor from optical image capture to clinical PDF referral.</p>
                     </div>
 
-                    <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 hover:border-purple-500 hover:shadow-md transition flex flex-col justify-between space-y-4">
-                        <div class="space-y-3">
-                            <div class="w-12 h-12 bg-purple-100 text-purple-600 rounded-2xl flex items-center justify-center text-xl font-bold">
-                                <i class="fa-solid fa-shield-halved"></i>
-                            </div>
-                            <h3 class="text-lg font-bold text-slate-800">District Master Admin</h3>
-                            <p class="text-xs text-slate-500 leading-relaxed">
-                                District-wide telemetry, user management, and interactive Simulink 100,000+ patient queuing simulation across 25 rural PHCs.
-                            </p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
+                            <span class="w-7 h-7 rounded-lg bg-teal-100 text-teal-800 flex items-center justify-center text-xs font-bold">1</span>
+                            <h4 class="text-sm font-bold text-slate-800">IQA Quality Filter</h4>
+                            <p class="text-xs text-slate-500 leading-relaxed">Laplacian focus blur variance, Shannon illumination entropy & circular FOV assessment.</p>
                         </div>
-                        <div class="pt-2">
-                            <button onclick="openLoginModal('admin')" class="w-full py-2.5 bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold rounded-xl text-xs transition border border-purple-200 text-center">
-                                Admin Sign In
-                            </button>
+
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
+                            <span class="w-7 h-7 rounded-lg bg-teal-100 text-teal-800 flex items-center justify-center text-xs font-bold">2</span>
+                            <h4 class="text-sm font-bold text-slate-800">CLAHE Normalization</h4>
+                            <p class="text-xs text-slate-500 leading-relaxed">Ben Graham circular crop removes outer margins; adaptive histogram equalization reveals vessels.</p>
+                        </div>
+
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
+                            <span class="w-7 h-7 rounded-lg bg-teal-100 text-teal-800 flex items-center justify-center text-xs font-bold">3</span>
+                            <h4 class="text-sm font-bold text-slate-800">Biomarker Localization</h4>
+                            <p class="text-xs text-slate-500 leading-relaxed">Sub-pixel bounding boxes for 🟥 Microaneurysms, 🟨 Exudates, and ⬜ Cotton Wool spots.</p>
+                        </div>
+
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
+                            <span class="w-7 h-7 rounded-lg bg-teal-100 text-teal-800 flex items-center justify-center text-xs font-bold">4</span>
+                            <h4 class="text-sm font-bold text-slate-800">ICDR 0–4 Staging</h4>
+                            <p class="text-xs text-slate-500 leading-relaxed">Deep learning classification with Grad-CAM saliency heatmaps highlighting critical pathology.</p>
+                        </div>
+
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
+                            <span class="w-7 h-7 rounded-lg bg-teal-100 text-teal-800 flex items-center justify-center text-xs font-bold">5</span>
+                            <h4 class="text-sm font-bold text-slate-800">Clinical PDF Report</h4>
+                            <p class="text-xs text-slate-500 leading-relaxed">Automated PDF generated via ReportLab with dual AI verdict and official doctor sign-off box.</p>
                         </div>
                     </div>
-                </div>
+                </section>
+
+                <!-- -----------------------------------------------------------
+                     SECTION: ROLE-BASED ACCESS PORTALS
+                     ----------------------------------------------------------- -->
+                <section id="portalGateways" class="space-y-8 pt-8">
+                    <div class="text-center max-w-xl mx-auto space-y-2">
+                        <p class="text-xs uppercase tracking-widest font-bold text-teal-600 font-mono">Tele-Ophthalmology Network</p>
+                        <h2 class="text-3xl sm:text-4xl font-extrabold text-[#012832] tracking-tight font-heading">Role-Based Access Portals</h2>
+                        <p class="text-slate-500 text-xs sm:text-sm">Sign in to your role-specific clinical station, patient dashboard, or district command.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <!-- Patient Portal -->
+                        <div class="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-200 hover:border-teal-500 hover:shadow-md transition flex flex-col justify-between space-y-5">
+                            <div class="space-y-3">
+                                <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-xl font-bold border border-blue-100">
+                                    <i class="fa-solid fa-user"></i>
+                                </div>
+                                <h3 class="text-lg font-bold text-slate-800 font-heading">Patient Tele-Screening</h3>
+                                <p class="text-xs text-slate-500 leading-relaxed">
+                                    Upload retinal scans, view 4-channel lesion maps with Grad-CAM explainability, download official clinical reports, and chat with assigned eye specialists.
+                                </p>
+                            </div>
+                            <div class="flex gap-2 pt-2">
+                                <button onclick="openLoginModal('patient')" class="flex-1 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold rounded-xl text-xs transition border border-blue-200 text-center">
+                                    Patient Login
+                                </button>
+                                <button onclick="openRegisterModal('patient')" class="py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs transition text-center shadow-xs">
+                                    Register
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Doctor Workstation -->
+                        <div class="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-200 hover:border-emerald-500 hover:shadow-md transition flex flex-col justify-between space-y-5">
+                            <div class="space-y-3">
+                                <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center text-xl font-bold border border-emerald-100">
+                                    <i class="fa-solid fa-user-doctor"></i>
+                                </div>
+                                <h3 class="text-lg font-bold text-slate-800 font-heading">Doctor Clinical Workstation</h3>
+                                <p class="text-xs text-slate-500 leading-relaxed">
+                                    Review assigned patient queues, inspect high-resolution quad-channel scans, evaluate lesion counts, and submit clinical sign-offs in under 15 seconds.
+                                </p>
+                            </div>
+                            <div class="flex gap-2 pt-2">
+                                <button onclick="openLoginModal('doctor')" class="flex-1 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-xl text-xs transition border border-emerald-200 text-center">
+                                    Doctor Login
+                                </button>
+                                <button onclick="openRegisterModal('doctor')" class="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition text-center shadow-xs">
+                                    Join Staff
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Admin Command -->
+                        <div class="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-200 hover:border-purple-500 hover:shadow-md transition flex flex-col justify-between space-y-5">
+                            <div class="space-y-3">
+                                <div class="w-12 h-12 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center text-xl font-bold border border-purple-100">
+                                    <i class="fa-solid fa-shield-halved"></i>
+                                </div>
+                                <h3 class="text-lg font-bold text-slate-800 font-heading">District Master Admin</h3>
+                                <p class="text-xs text-slate-500 leading-relaxed">
+                                    Real-time district health telemetry, physician roster management, security audit stream, and Simulink 100,000+ patient queuing simulation.
+                                </p>
+                            </div>
+                            <div class="pt-2">
+                                <button onclick="openLoginModal('admin')" class="w-full py-2.5 bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold rounded-xl text-xs transition border border-purple-200 text-center">
+                                    Admin Sign In
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- -----------------------------------------------------------
+                     SECTION: NATIONAL HEALTHCARE IMPACT
+                     ----------------------------------------------------------- -->
+                <section id="telemedicineNetwork" class="bg-gradient-to-br from-[#012832] to-[#033E4D] rounded-3xl p-8 sm:p-12 text-white shadow-xl relative overflow-hidden">
+                    <div class="max-w-4xl space-y-6 relative z-10">
+                        <span class="inline-flex items-center space-x-2 bg-teal-800/60 border border-teal-600/40 px-3.5 py-1 rounded-full text-xs font-semibold text-teal-200">
+                            <i class="fa-solid fa-earth-asia"></i>
+                            <span>Smart India Hackathon 2026 Problem Statement</span>
+                        </span>
+                        <h2 class="text-2xl sm:text-4xl font-extrabold tracking-tight leading-tight font-heading">
+                            Bridging the Eye Care Deficit Across Rural India
+                        </h2>
+                        <p class="text-teal-100/90 text-xs sm:text-sm leading-relaxed max-w-3xl">
+                            India has over 77 million diabetic patients and only 1 ophthalmologist per 100,000 rural citizens. 
+                            Netra Diagnostics enables Primary Health Centres (PHCs) to autonomously screen, triage, and refer patients before irreversible vision loss occurs.
+                        </p>
+
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-teal-800/80">
+                            <div>
+                                <p class="text-2xl sm:text-3xl font-extrabold text-teal-300 font-heading">77M+</p>
+                                <p class="text-[11px] text-teal-100/70 font-mono">Diabetic Population</p>
+                            </div>
+                            <div>
+                                <p class="text-2xl sm:text-3xl font-extrabold text-teal-300 font-heading">1 : 100k</p>
+                                <p class="text-[11px] text-teal-100/70 font-mono">Rural Specialist Ratio</p>
+                            </div>
+                            <div>
+                                <p class="text-2xl sm:text-3xl font-extrabold text-teal-300 font-heading">99.4%</p>
+                                <p class="text-[11px] text-teal-100/70 font-mono">AI Triage Accuracy</p>
+                            </div>
+                            <div>
+                                <p class="text-2xl sm:text-3xl font-extrabold text-teal-300 font-heading">&lt; 15 sec</p>
+                                <p class="text-[11px] text-teal-100/70 font-mono">Automated Decision</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
             </div>
         </section>
+
+        <!-- =============================================================== -->
+        <!-- INTERACTIVE MISSION VIDEO & AI PIPELINE SIMULATION MODAL -->
+        <!-- =============================================================== -->
+        <div id="modalMissionVideo" class="hidden fixed inset-0 bg-black/80 backdrop-blur-md z-[9999] flex items-center justify-center p-4">
+            <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-2xl w-full p-6 sm:p-8 text-white space-y-6 shadow-2xl relative">
+                
+                <!-- Modal Header -->
+                <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+                    <div class="flex items-center space-x-3">
+                        <div class="iris-logo-ring"><div class="iris-logo-inner"><div class="iris-logo-dot"></div></div></div>
+                        <div>
+                            <h3 class="text-base sm:text-lg font-bold font-heading">Netra Autonomous AI Screening Simulation</h3>
+                            <p class="text-xs text-teal-400 font-mono">Digital Diagnostics • Point-of-Care Workflow</p>
+                        </div>
+                    </div>
+                    <button onclick="closeMissionVideoModal()" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <!-- Simulation Visual Frame -->
+                <div class="bg-slate-950 rounded-2xl p-6 border border-slate-800 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-teal-400 animate-ping"></span>
+                            <span class="text-xs font-mono text-teal-300 font-bold uppercase tracking-wider">Pipeline Stream Live</span>
+                        </div>
+                        <span id="simStepBadge" class="px-3 py-1 rounded-full text-xs font-mono font-bold bg-slate-800 text-teal-400 border border-slate-700">
+                            Optics Calibrated
+                        </span>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                        <div id="simProgressBar" class="bg-gradient-to-r from-teal-500 to-teal-300 h-full w-[20%] transition-all duration-700"></div>
+                    </div>
+
+                    <!-- Step Content Display -->
+                    <div class="space-y-2 py-3">
+                        <h4 id="simStepTitle" class="text-base sm:text-lg font-bold text-white font-heading">
+                            1. Autonomous Fundus Capture
+                        </h4>
+                        <p id="simStepDesc" class="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                            The autonomous camera detects pupil alignment and captures high-resolution 45° macular and disc fundus fields.
+                        </p>
+                    </div>
+
+                    <!-- Step Indicators -->
+                    <div class="flex items-center justify-between pt-2 border-t border-slate-800/80">
+                        <div class="flex items-center space-x-2">
+                            <div id="simDot_0" class="w-3 h-3 rounded-full bg-teal-400"></div>
+                            <div id="simDot_1" class="w-3 h-3 rounded-full bg-slate-700"></div>
+                            <div id="simDot_2" class="w-3 h-3 rounded-full bg-slate-700"></div>
+                            <div id="simDot_3" class="w-3 h-3 rounded-full bg-slate-700"></div>
+                            <div id="simDot_4" class="w-3 h-3 rounded-full bg-slate-700"></div>
+                        </div>
+                        <span class="text-[11px] text-slate-500 font-mono">Autonomous AI Execution • &lt;15s Total</span>
+                    </div>
+                </div>
+
+                <!-- Modal Actions -->
+                <div class="flex items-center justify-between pt-2">
+                    <button onclick="closeMissionVideoModal()" class="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white transition">
+                        Close Demonstration
+                    </button>
+                    <button onclick="closeMissionVideoModal(); navigateTo('patient');" class="btn-pill-teal px-6 py-2.5 text-xs font-bold shadow-md">
+                        <i class="fa-solid fa-bolt mr-1.5"></i> Try With Live Retinal Scan
+                    </button>
+                </div>
+            </div>
+        </div>
+
 
         <!-- =============================================================== -->
         <!-- 1. LOGIN PAGE -->
@@ -731,7 +1082,7 @@
         <!-- =============================================================== -->
         <!-- 6. PATIENT SCREENING DASHBOARD (WITH SAVED DETAILS & HISTORY) -->
         <!-- =============================================================== -->
-        <section id="pagePatient" class="hidden space-y-6">
+        <section id="pagePatient" class="hidden max-w-7xl mx-auto p-4 md:p-6 space-y-6">
             <!-- Patient Header Hero & Profile Card -->
             <div class="bg-white p-5 md:p-6 rounded-3xl shadow-xs border border-slate-200/90 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5">
                 <!-- Patient Profile Info -->
@@ -786,6 +1137,10 @@
                 <button onclick="switchPatientTab('doctors')" id="tabPatientDoctors" class="flex-1 min-w-[160px] py-2.5 px-4 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold transition flex items-center justify-center space-x-2">
                     <i class="fa-solid fa-star text-amber-500"></i>
                     <span>Specialists & Reviews</span>
+                </button>
+                <button onclick="switchPatientTab('aichat')" id="tabPatientAIChat" class="flex-1 min-w-[160px] py-2.5 px-4 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold transition flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-robot text-purple-500"></i>
+                    <span>AI Assistant</span>
                 </button>
             </div>
 
@@ -926,11 +1281,20 @@
                                         </div>
                                         <span class="text-[11px] font-semibold text-slate-600" id="labelVessels">2. Vessels Tree</span>
                                     </div>
-                                    <div class="bg-slate-50 p-2 rounded-2xl border border-slate-200 text-center">
-                                        <div class="aspect-square rounded-xl overflow-hidden bg-black mb-1.5">
-                                            <img id="viewImgLesions" src="" class="w-full h-full object-cover">
+                                    <div class="bg-slate-50 p-2 rounded-2xl border-2 border-indigo-300 text-center cursor-pointer group relative" id="yoloLesionCard" onclick="openYoloLightbox()" title="Click to explore lesion annotations">
+                                        <div class="aspect-square rounded-xl overflow-hidden bg-black mb-1.5 relative">
+                                            <img id="viewImgLesions" src="" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105">
+                                            <!-- Hover overlay hint -->
+                                            <div class="absolute inset-0 bg-indigo-900/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center justify-center gap-1 rounded-xl">
+                                                <i class="fa-solid fa-magnifying-glass-plus text-white text-2xl drop-shadow"></i>
+                                                <span class="text-white text-[10px] font-bold tracking-wide">EXPLORE LESIONS</span>
+                                            </div>
+                                            <!-- Corner badge -->
+                                            <div class="absolute top-1.5 right-1.5 bg-indigo-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shadow">
+                                                <i class="fa-solid fa-play text-[7px]"></i> TOUR
+                                            </div>
                                         </div>
-                                        <span class="text-[11px] font-semibold text-slate-600">3. YOLO 🟥 🟨 ⬜ Lesions</span>
+                                        <span class="text-[11px] font-semibold text-indigo-700">3. YOLO 🟥 🟨 ⬜ Lesions</span>
                                     </div>
                                     <div class="bg-slate-50 p-2 rounded-2xl border border-slate-200 text-center">
                                         <div class="aspect-square rounded-xl overflow-hidden bg-black mb-1.5">
@@ -1109,12 +1473,91 @@
                     </div>
                 </div>
             </div>
+
+            <!-- TAB E: AI HEALTH ASSISTANT CHATBOT -->
+            <div id="patientTabAIChatContent" class="hidden rounded-3xl overflow-hidden border border-slate-200 shadow-sm" style="background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);">
+                <!-- Header -->
+                <div class="p-5 border-b border-white/10 flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="relative w-11 h-11 rounded-2xl flex items-center justify-center shadow-lg" style="background: linear-gradient(135deg, #7c3aed, #4f46e5);">
+                            <i class="fa-solid fa-robot text-white text-lg"></i>
+                            <span class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-400 border-2 border-slate-900 ai-pulse-dot"></span>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-white text-sm">Netra AI Health Assistant</h3>
+                            <p class="text-xs text-purple-300">Powered by Gemini &nbsp;&bull;&nbsp; DR Education &amp; Guidance</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-1 rounded-full font-semibold">Online 24/7</span>
+                        <button onclick="clearAIChatHistory()" title="Clear chat" class="text-slate-400 hover:text-white transition text-xs px-2.5 py-1.5 rounded-lg hover:bg-white/10">
+                            <i class="fa-solid fa-broom"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Quick Suggestion Chips -->
+                <div id="aiQuickChips" class="flex items-center space-x-2 overflow-x-auto px-5 py-3 border-b border-white/10">
+                    <span class="text-[10px] text-slate-400 font-semibold whitespace-nowrap">Quick asks:</span>
+                    <button onclick="aiChipClick('Explain my latest DR screening result in simple words')" class="whitespace-nowrap text-[10px] px-3 py-1.5 rounded-full bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 border border-purple-500/30 transition font-semibold">📊 Explain my DR result</button>
+                    <button onclick="aiChipClick('What are the warning symptoms of diabetic retinopathy I should watch for?')" class="whitespace-nowrap text-[10px] px-3 py-1.5 rounded-full bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 border border-indigo-500/30 transition font-semibold">👁️ Symptom warning signs</button>
+                    <button onclick="aiChipClick('Do I need to see a specialist in-person or is tele-screening enough for me?')" class="whitespace-nowrap text-[10px] px-3 py-1.5 rounded-full bg-teal-600/30 hover:bg-teal-600/50 text-teal-200 border border-teal-500/30 transition font-semibold">🏥 Do I need a referral?</button>
+                    <button onclick="aiChipClick('How do I prepare for my next fundus camera retinal scan?')" class="whitespace-nowrap text-[10px] px-3 py-1.5 rounded-full bg-cyan-600/30 hover:bg-cyan-600/50 text-cyan-200 border border-cyan-500/30 transition font-semibold">📷 How to prepare for scan</button>
+                    <button onclick="aiChipClick('What lifestyle changes help slow down diabetic retinopathy?')" class="whitespace-nowrap text-[10px] px-3 py-1.5 rounded-full bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-200 border border-emerald-500/30 transition font-semibold">🥗 Lifestyle tips</button>
+                </div>
+
+                <!-- Message Stream -->
+                <div id="aiChatMessagesStream" class="h-80 overflow-y-auto p-5 space-y-4" style="scrollbar-width: thin; scrollbar-color: rgba(139,92,246,0.3) transparent;">
+                    <!-- Welcome message injected by JS -->
+                </div>
+
+                <!-- Typing Indicator -->
+                <div id="aiTypingIndicator" class="hidden px-5 pb-3">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-7 h-7 rounded-xl flex items-center justify-center" style="background: linear-gradient(135deg, #7c3aed, #4f46e5);">
+                            <i class="fa-solid fa-robot text-white text-xs"></i>
+                        </div>
+                        <div class="flex space-x-1 px-3 py-2.5 rounded-2xl rounded-bl-none" style="background: rgba(124,58,237,0.15); border: 1px solid rgba(124,58,237,0.2);">
+                            <div class="w-1.5 h-1.5 bg-purple-400 rounded-full ai-typing-dot" style="animation-delay:0s"></div>
+                            <div class="w-1.5 h-1.5 bg-purple-400 rounded-full ai-typing-dot" style="animation-delay:0.18s"></div>
+                            <div class="w-1.5 h-1.5 bg-purple-400 rounded-full ai-typing-dot" style="animation-delay:0.36s"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Input Area -->
+                <div class="p-4 border-t border-white/10">
+                    <form onsubmit="handleAIChatSubmit(event)" class="flex items-center space-x-2">
+                        <input
+                            type="text"
+                            id="aiChatInput"
+                            placeholder="Ask about your DR results, symptoms, or eye health..."
+                            autocomplete="off"
+                            class="flex-1 px-4 py-3 text-xs text-white placeholder-slate-400 rounded-xl outline-none transition focus:ring-2"
+                            style="background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12); focus:ring-color: rgba(124,58,237,0.5);"
+                        >
+                        <button type="submit" id="aiSendBtn" class="w-10 h-10 rounded-xl flex items-center justify-center transition shadow-lg flex-shrink-0" style="background: linear-gradient(135deg, #7c3aed, #4f46e5);">
+                            <i class="fa-solid fa-paper-plane text-white text-xs"></i>
+                        </button>
+                    </form>
+                    <p class="text-[10px] text-slate-500 mt-2 text-center">&#9888;&#65039; AI guidance only &mdash; not a substitute for your doctor&apos;s clinical advice.</p>
+                </div>
+            </div>
+
+            <!-- Floating AI Help Bubble (inside patient dashboard) -->
+            <div id="patientAIHelpBubble" class="fixed bottom-6 right-6 z-50 hidden">
+                <button onclick="switchPatientTab('aichat'); document.getElementById('pagePatient').scrollIntoView({behavior:'smooth'}); document.getElementById('patientAIHelpBubble').classList.add('hidden');" class="group relative w-14 h-14 rounded-2xl flex items-center justify-center shadow-2xl transition-all hover:scale-110" style="background: linear-gradient(135deg, #7c3aed, #4f46e5);" title="Open AI Health Assistant">
+                    <i class="fa-solid fa-robot text-white text-xl"></i>
+                    <span class="absolute -top-1 -right-1 w-4 h-4 bg-emerald-400 rounded-full ai-pulse-dot"></span>
+                    <span class="absolute right-16 bg-slate-900 text-white text-[11px] font-semibold px-3 py-1.5 rounded-xl shadow-xl opacity-0 group-hover:opacity-100 transition-all whitespace-nowrap pointer-events-none" style="border: 1px solid rgba(124,58,237,0.4);">AI Health Assistant</span>
+                </button>
+            </div>
         </section>
 
         <!-- =============================================================== -->
         <!-- 7. DOCTOR CLINICAL WORKSTATION -->
         <!-- =============================================================== -->
-        <section id="pageDoctor" class="hidden space-y-6">
+        <section id="pageDoctor" class="hidden max-w-7xl mx-auto p-4 md:p-6 space-y-6">
             <!-- Doctor Header Hero & Profile Card -->
             <div class="bg-white p-5 md:p-6 rounded-3xl shadow-xs border border-slate-200/90 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5">
                 <!-- Doctor Profile Info -->
@@ -1636,7 +2079,7 @@
         <!-- =============================================================== -->
         <!-- 8. MASTER ADMIN PORTAL (DISTRICT HEALTH COMMAND CENTER) -->
         <!-- =============================================================== -->
-        <section id="pageAdmin" class="hidden space-y-6">
+        <section id="pageAdmin" class="hidden max-w-7xl mx-auto p-4 md:p-6 space-y-6">
             <!-- Back to Landing Page and Log Out Row -->
             <div class="flex items-center justify-between">
                 <button onclick="navigateTo('home')" class="text-xs text-slate-500 hover:text-purple-600 font-semibold flex items-center space-x-1.5 transition">
@@ -2247,6 +2690,61 @@
             </div>
         </div>
     </footer>
+
+    <!-- =====================================================================
+         YOLO LESION EXPLORER LIGHTBOX
+         Animated zoom-tour through each annotated lesion, then pan/zoom mode
+    ====================================================================== -->
+    <div id="yoloLightbox" class="fixed inset-0 z-[9999] hidden flex-col bg-black/95 backdrop-blur-sm" style="display:none;">
+        <!-- Top bar -->
+        <div class="flex items-center justify-between px-4 py-2.5 bg-slate-900/90 border-b border-slate-700 select-none">
+            <div class="flex items-center gap-3">
+                <div class="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center">
+                    <i class="fa-solid fa-eye text-white text-xs"></i>
+                </div>
+                <div>
+                    <div class="text-white text-sm font-bold">YOLO Lesion Explorer</div>
+                    <div class="text-slate-400 text-[10px]" id="yoloTourStatus">Auto-touring annotated regions…</div>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <!-- Legend -->
+                <div class="hidden md:flex items-center gap-3 mr-4">
+                    <span class="flex items-center gap-1 text-[10px] text-slate-300"><span class="w-2.5 h-2.5 rounded-sm bg-red-500 inline-block"></span>Microaneurysms</span>
+                    <span class="flex items-center gap-1 text-[10px] text-slate-300"><span class="w-2.5 h-2.5 rounded-sm bg-yellow-400 inline-block"></span>Hard Exudates</span>
+                    <span class="flex items-center gap-1 text-[10px] text-slate-300"><span class="w-2.5 h-2.5 rounded-sm bg-white inline-block"></span>Cotton Wool</span>
+                    <span class="flex items-center gap-1 text-[10px] text-slate-300"><span class="w-2.5 h-2.5 rounded-full bg-green-400 inline-block"></span>Optic Disc</span>
+                </div>
+                <!-- Controls -->
+                <button id="yoloReplayBtn" onclick="startYoloTour()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
+                    <i class="fa-solid fa-rotate-right text-[10px]"></i> Replay Tour
+                </button>
+                <button onclick="resetYoloView()" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
+                    <i class="fa-solid fa-compress text-[10px]"></i> Reset
+                </button>
+                <button onclick="closeYoloLightbox()" class="w-8 h-8 bg-slate-700 hover:bg-red-600 text-white rounded-lg flex items-center justify-center transition text-sm">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Canvas area -->
+        <div class="flex-1 relative overflow-hidden flex items-center justify-center" id="yoloCanvasWrap">
+            <canvas id="yoloCanvas" class="max-w-full max-h-full" style="cursor:grab;touch-action:none;"></canvas>
+            <!-- Tour progress dots -->
+            <div id="yoloProgressDots" class="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5"></div>
+            <!-- Zoom hint (shown briefly after tour) -->
+            <div id="yoloZoomHint" class="absolute bottom-14 left-1/2 -translate-x-1/2 bg-black/70 text-white text-xs px-3 py-1.5 rounded-full opacity-0 pointer-events-none transition-opacity duration-500 flex items-center gap-2">
+                <i class="fa-solid fa-hand-pointer text-indigo-400"></i> Scroll to zoom • Drag to pan
+            </div>
+        </div>
+
+        <!-- Bottom info bar -->
+        <div class="px-4 py-2 bg-slate-900/90 border-t border-slate-700 flex items-center justify-between text-[10px] text-slate-400">
+            <span id="yoloAnnotationCount">Loading…</span>
+            <span id="yoloZoomLevel">Zoom: 100%</span>
+        </div>
+    </div>
 
     <!-- App JS -->
     <script src="js/app.js?v=20260902_V7000"></script>
