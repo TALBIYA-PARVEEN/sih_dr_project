@@ -160,7 +160,7 @@ function updateNavbarForPage(pageId) {
     const isPublicPage = (pageId === "home" || pageId === "models" || pageId === "login" || pageId === "register");
 
     if (isPublicPage || !currentUser || !authToken) {
-        publicNav.classList.remove("hidden");
+        if (publicNav) publicNav.classList.add("hidden");
         authNav.classList.add("hidden");
         userBar.classList.add("hidden");
         guestBtns.classList.remove("hidden");
