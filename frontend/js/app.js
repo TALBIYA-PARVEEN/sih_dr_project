@@ -134,7 +134,8 @@ function openLoginModal(role) {
     if (sub) {
         if (role === "doctor") sub.innerText = "Sign in to Ophthalmologist Clinical Workstation";
         else if (role === "admin") sub.innerText = "Sign in to District Master Admin Command Center";
-        else sub.innerText = "Sign in to Patient Screening Dashboard";
+        else if (role === "patient") sub.innerText = "Sign in to Patient Screening Dashboard";
+        else sub.innerText = "Enter your username or email to access your dashboard";
     }
 }
 
