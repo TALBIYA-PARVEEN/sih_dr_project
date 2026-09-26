@@ -49,6 +49,14 @@ def get_ai_response(user_message: str, conversation_history: list, patient_conte
     Returns:
         {"reply": str, "disclaimer": str, "error": str|None}
     """
+    try:
+        from dotenv import load_dotenv
+        env_file = os.path.join(os.path.dirname(__file__), "..", ".env")
+        if os.path.exists(env_file):
+            load_dotenv(env_file, override=True)
+    except Exception:
+        pass
+
     api_key = os.environ.get("GEMINI_API_KEY", "")
 
     if not api_key or api_key == "YOUR_GEMINI_API_KEY_HERE":
@@ -76,8 +84,9 @@ def get_ai_response(user_message: str, conversation_history: list, patient_conte
             if parts:
                 context_prefix = f"[Patient Context - {', '.join(parts)}]\n\n"
 
+        model_name = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash")
         model = genai.GenerativeModel(
-            model_name="gemini-3.6-flash",
+            model_name=model_name,
             system_instruction=NETRA_SYSTEM_PROMPT,
             generation_config={
                 "temperature": 0.4,
@@ -112,6 +121,18 @@ def get_ai_response(user_message: str, conversation_history: list, patient_conte
         }
     except Exception as e:
         err_str = str(e)
+        if "leaked" in err_str.lower():
+            return {
+                "reply": None,
+                "disclaimer": None,
+                "error": "Your Google Gemini API key was reported as leaked and revoked by Google. Please generate a new free key at https://aistudio.google.com/app/apikey, paste it in backend/.env, and restart the backend server."
+            }
+        if "not found" in err_str.lower() or "permissiondenied" in err_str.lower() or "403" in err_str:
+            return {
+                "reply": None,
+                "disclaimer": None,
+                "error": "Gemini API rejected the request (key revoked or reported as leaked). Please generate a fresh free key at https://aistudio.google.com/app/apikey and paste it into backend/.env."
+            }
         if "API_KEY" in err_str.upper() or "api key" in err_str.lower() or "invalid" in err_str.lower():
             return {
                 "reply": None,

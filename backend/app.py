@@ -31,6 +31,9 @@ def serialize_doc(doc):
     if not doc: return None
     doc_copy = dict(doc)
     if "_id" in doc_copy: doc_copy["_id"] = str(doc_copy["_id"])
+    for k in list(doc_copy.keys()):
+        if k.startswith("b64_"):
+            doc_copy.pop(k, None)
     return doc_copy
 
 def assign_least_loaded_doctor():
@@ -2377,20 +2380,46 @@ def create_app():
 
     @app.route("/api/files/<session_id>/<file_type>", methods=["GET"])
     def serve_file(session_id, file_type):
-        session = mongo.screenings.find_one({"id": session_id})
+        # 1. Primary: Fast local disk check (instant <5ms response, zero cloud network latency)
+        local_candidates = [
+            os.path.join(app.config["PROCESSED_FOLDER"], f"{session_id}_{file_type}.png"),
+            os.path.join(app.config["PROCESSED_FOLDER"], f"{session_id}_prep.png") if file_type in ["processed", "original"] else None,
+            os.path.join(app.config["PROCESSED_FOLDER"], f"{session_id}_orig.png") if file_type in ["processed", "original"] else None,
+        ]
+        if file_type == "original" and os.path.exists(app.config["UPLOAD_FOLDER"]):
+            try:
+                for fn in os.listdir(app.config["UPLOAD_FOLDER"]):
+                    if fn.startswith(f"{session_id}_"):
+                        local_candidates.insert(0, os.path.join(app.config["UPLOAD_FOLDER"], fn))
+                        break
+            except Exception:
+                pass
+
+        for c in local_candidates:
+            if c and os.path.exists(c):
+                ext = os.path.splitext(c)[1].lower()
+                mimetype = "image/jpeg" if ext in [".jpg", ".jpeg"] else "image/png"
+                return send_file(c, mimetype=mimetype)
+
+        # 2. Secondary: If not found on disk, query MongoDB Atlas with projection for just this file
+        b64_key = f"b64_{file_type}"
+        session = mongo.screenings.find_one({"id": session_id}, {
+            "id": 1,
+            b64_key: 1,
+            "image_path": 1,
+            "processed_image_path": 1,
+            "gradcam_image_path": 1,
+            "lesions_image_path": 1,
+            "vessels_image_path": 1,
+            "original_filename": 1,
+            "biomarkers": 1
+        })
+        if not session:
+            session = mongo.screenings.find_one({"id": session_id})
         if not session:
             return jsonify({"error": "Session not found."}), 404
 
-        # 1. Primary: Check if actual patient image bytes are stored in MongoDB Atlas
-        b64_key = f"b64_{file_type}"
-        if session.get(b64_key):
-            try:
-                img_bytes = base64.b64decode(session[b64_key])
-                return send_file(io.BytesIO(img_bytes), mimetype="image/png")
-            except Exception as e:
-                print(f"Error decoding b64 image: {e}")
-
-        # 2. Check local disk paths if available
+        # Check recorded paths if stored
         path_map = {
             "original": session.get("image_path"),
             "processed": session.get("processed_image_path"),
@@ -2400,18 +2429,17 @@ def create_app():
         }
         target = path_map.get(file_type)
         if target and os.path.exists(target):
-            return send_file(target, mimetype="image/png")
+            ext = os.path.splitext(target)[1].lower()
+            mimetype = "image/jpeg" if ext in [".jpg", ".jpeg"] else "image/png"
+            return send_file(target, mimetype=mimetype)
 
-        # 3. Check standard processed / upload folder names
-        candidates = [
-            os.path.join(app.config["PROCESSED_FOLDER"], f"{session_id}_{file_type}.png"),
-            os.path.join(app.config["PROCESSED_FOLDER"], f"{session_id}_prep.png") if file_type in ["processed", "original"] else None,
-            os.path.join(app.config["PROCESSED_FOLDER"], f"{session_id}_orig.png") if file_type in ["processed", "original"] else None,
-            os.path.join(app.config["UPLOAD_FOLDER"], f"{session_id}_{session.get('original_filename', 'image.png')}")
-        ]
-        for c in candidates:
-            if c and os.path.exists(c):
-                return send_file(c, mimetype="image/png")
+        # 3. Check if stored in MongoDB Atlas as Base64 (Cloud Ephemeral Instances)
+        if session.get(b64_key):
+            try:
+                img_bytes = base64.b64decode(session[b64_key])
+                return send_file(io.BytesIO(img_bytes), mimetype="image/png")
+            except Exception as e:
+                print(f"Error decoding b64 image: {e}")
 
         # 4. Patient-Specific Diagnostic Reconstruction (Personalized to this patient's unique anatomy and biomarkers)
         try:
