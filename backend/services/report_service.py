@@ -1,8 +1,27 @@
 import os
+from datetime import datetime, timezone, timedelta
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+
+def format_to_ist(dt_val):
+    if not dt_val or dt_val == "Pending":
+        return str(dt_val or "N/A")
+    try:
+        dt_str = str(dt_val).strip()
+        if dt_str.endswith("Z"):
+            dt = datetime.fromisoformat(dt_str[:-1]).replace(tzinfo=timezone.utc)
+        elif "+" in dt_str:
+            dt = datetime.fromisoformat(dt_str)
+        else:
+            dt = datetime.fromisoformat(dt_str).replace(tzinfo=timezone.utc)
+        
+        ist_tz = timezone(timedelta(hours=5, minutes=30))
+        ist_dt = dt.astimezone(ist_tz)
+        return ist_dt.strftime("%Y-%m-%d %H:%M:%S IST")
+    except Exception:
+        return str(dt_val)[:19].replace("T", " ")
 
 class ReportService:
     def __init__(self, reports_folder):
@@ -51,7 +70,7 @@ class ReportService:
             ],
             [
                 Paragraph("<b>Diabetes History:</b>", body_style), Paragraph(str(session_data.get("diabetes_info", "Type 2 Diabetes (5 yrs duration)")), body_style),
-                Paragraph("<b>Screening Date & Time:</b>", body_style), Paragraph(str(session_data.get("created_at", "2026-08-31"))[:19].replace("T", " "), body_style)
+                Paragraph("<b>Screening Date & Time:</b>", body_style), Paragraph(format_to_ist(session_data.get("created_at")), body_style)
             ],
         ]
         t_patient = Table(patient_info, colWidths=[110, 160, 110, 160])
@@ -123,7 +142,7 @@ class ReportService:
             ],
             [
                 Paragraph(f"<b>Clinical Status:</b> <b>{rev.get('status', 'Pending Review')}</b>", body_style),
-                Paragraph(f"<b>Validation Timestamp:</b> {str(rev.get('reviewed_at', 'Pending'))[:19].replace('T', ' ')}", body_style)
+                Paragraph(f"<b>Validation Timestamp:</b> {format_to_ist(rev.get('reviewed_at')) if rev.get('reviewed_at') else 'Pending'}", body_style)
             ],
             [
                 Paragraph(f"<b>Doctor Prescriptions & Directives:</b><br/>{rev.get('notes') or 'Verified presence of focal macular hard exudates. Routine follow-up scheduled.'}", body_style),

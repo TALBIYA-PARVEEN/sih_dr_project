@@ -261,7 +261,7 @@ def create_app():
             },
             "otp_code": otp_code,
             "otp_expiry": (datetime.utcnow() + timedelta(minutes=15)).isoformat(),
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat() + "Z"
         }
         # Store in temp_registrations ONLY - DO NOT touch mongo.users until OTP is verified
         if hasattr(mongo, "temp_registrations"):
@@ -301,14 +301,14 @@ def create_app():
             p_update = {}
             for k in ["full_name", "age", "gender", "phone", "diabetes_type", "diabetes_duration_years", "address_district"]:
                 if k in data: p_update[k] = data[k]
-            p_update["updated_at"] = datetime.utcnow().isoformat()
+            p_update["updated_at"] = datetime.utcnow().isoformat() + "Z"
             mongo.patients.update_one({"user_id": user_id}, {"$set": p_update})
 
         elif user.get("role") == "doctor":
             d_update = {}
             for k in ["full_name", "specialization", "license_number", "hospital_name", "phone", "consultation_hours"]:
                 if k in data: d_update[k] = data[k]
-            d_update["updated_at"] = datetime.utcnow().isoformat()
+            d_update["updated_at"] = datetime.utcnow().isoformat() + "Z"
             mongo.doctors.update_one({"user_id": user_id}, {"$set": d_update})
 
         updated_user = mongo.users.find_one({"id": user_id})
@@ -882,7 +882,7 @@ def create_app():
         # Update patient profile
         mongo.patients.update_many(
             {"$or": [{"user_id": patient_id}, {"id": patient_id}]},
-            {"$set": {"assigned_doctor_id": target_doc_id, "updated_at": datetime.utcnow().isoformat()}}
+            {"$set": {"assigned_doctor_id": target_doc_id, "updated_at": datetime.utcnow().isoformat() + "Z"}}
         )
         mongo.users.update_many(
             {"$or": [{"id": patient_id}, {"username": patient_id}]},
@@ -920,7 +920,7 @@ def create_app():
             "recipient_name": doc_name,
             "content": f"🚨 Second Opinion Clinical Request: Patient has transferred their care to your consultation queue for an independent evaluation. Reason: {reason}.",
             "is_read": False,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat() + "Z"
         })
 
         return jsonify({
@@ -961,7 +961,7 @@ def create_app():
             "rating": rating,
             "comment": comment or "Thorough and professional examination. Very clear guidance.",
             "screening_id": screening_id,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat() + "Z"
         }
         mongo.doctor_reviews.insert_one(review_doc)
 
@@ -1119,7 +1119,7 @@ def create_app():
             "image_path": original_path,
             "quality_assessment": iqa_result,
             "is_gradable": iqa_result["is_gradable"],
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.utcnow().isoformat() + "Z",
             "review_status": "Pending Review",
             "clinician_review": {"status": "Pending Review", "notes": None, "reviewed_by": None, "reviewed_at": None},
             "images": {
@@ -1223,7 +1223,7 @@ def create_app():
             "doctor_notes": "Pending clinical validation by ophthalmologist.",
             "pdf_report_url": f"/api/report/{session_id}/pdf",
             "signed_at": None,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat() + "Z"
         }
         mongo.reports.insert_one(report_doc)
 
@@ -1239,7 +1239,7 @@ def create_app():
                 "screening_id": session_id,
                 "content": f"New Patient Scan Assigned: {patient_name} ({pred_res['severity_name']}). Pending your review.",
                 "is_read": False,
-                "created_at": datetime.utcnow().isoformat()
+                "created_at": datetime.utcnow().isoformat() + "Z"
             })
 
         # 8. Generate PDF Report File on Disk
@@ -1422,7 +1422,7 @@ def create_app():
             "lesions_image_path": lesions_path,
             "quality_assessment": iqa_result,
             "is_gradable": iqa_result["is_gradable"],
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.utcnow().isoformat() + "Z",
             "review_status": "Pending Review",
             "clinician_review": {
                 "status": "Pending Review",
@@ -1478,7 +1478,7 @@ def create_app():
             "reviewed_by": None,
             "pdf_report_url": f"/api/report/{session_id}/pdf",
             "signed_at": None,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat() + "Z"
         }
         mongo.reports.insert_one(report_doc)
 
@@ -1515,7 +1515,7 @@ def create_app():
                 "screening_id": session_id,
                 "content": f"Hello {patient_name}, your retinal fundus screening has been completed. Diagnosis: {pred_res['severity_name']}. Clinical Advice: {doctor_notes}",
                 "is_read": False,
-                "created_at": datetime.utcnow().isoformat()
+                "created_at": datetime.utcnow().isoformat() + "Z"
             })
 
         return jsonify({
@@ -1562,7 +1562,7 @@ def create_app():
         query = {"$or": query_or}
 
         reports = mongo.reports.find(query, sort=[("created_at", -1)])
-        screenings = mongo.screenings.find(query, sort=[("created_at", -1)])
+        screenings = mongo.screenings.find(query, {"b64_original": 0, "b64_processed": 0, "b64_lesions": 0, "b64_vessels": 0, "b64_gradcam": 0}, sort=[("created_at", -1)])
 
         # Resolve patient's current assigned doctor fallback
         current_assigned_doc_name = None
@@ -1675,7 +1675,7 @@ def create_app():
             # Default "all" scope: Returns all district screenings so no scan is ever missed
             query = {}
 
-        queue = list(mongo.screenings.find(query, sort=[("created_at", -1)]))
+        queue = list(mongo.screenings.find(query, {"b64_original": 0, "b64_processed": 0, "b64_lesions": 0, "b64_vessels": 0, "b64_gradcam": 0}, sort=[("created_at", -1)]))
         screenings = []
         for s in queue:
             s_doc = serialize_doc(s)
@@ -1714,7 +1714,7 @@ def create_app():
                 "status": status,
                 "notes": notes,
                 "reviewed_by": doctor_name,
-                "reviewed_at": datetime.utcnow().isoformat()
+                "reviewed_at": datetime.utcnow().isoformat() + "Z"
             }
         }
         mongo.screenings.update_one({"id": session_id}, {"$set": update_dict})
@@ -1726,7 +1726,7 @@ def create_app():
                 "clinical_status": status,
                 "doctor_notes": notes,
                 "reviewed_by": doctor_name,
-                "signed_at": datetime.utcnow().isoformat()
+                "signed_at": datetime.utcnow().isoformat() + "Z"
             }}
         )
 
@@ -1748,7 +1748,7 @@ def create_app():
                 "screening_id": session_id,
                 "content": f"Clinical Evaluation Completed: {status}. Prescriptions & Directives: {notes or 'Your retinal screening has been evaluated and officially signed off.'}",
                 "is_read": False,
-                "created_at": datetime.utcnow().isoformat()
+                "created_at": datetime.utcnow().isoformat() + "Z"
             })
 
         updated_session = mongo.screenings.find_one({"id": session_id})
@@ -2078,7 +2078,7 @@ def create_app():
             return jsonify({"error": "Doctor profile not found."}), 404
         
         user_id = doc.get("user_id")
-        mongo.doctors.update_one({"_id": doc["_id"]}, {"$set": {"approval_status": "approved", "active_status": True, "updated_at": datetime.utcnow().isoformat()}})
+        mongo.doctors.update_one({"_id": doc["_id"]}, {"$set": {"approval_status": "approved", "active_status": True, "updated_at": datetime.utcnow().isoformat() + "Z"}})
         if user_id:
             mongo.users.update_one({"id": user_id}, {"$set": {"status": "active", "is_email_verified": True}})
 
@@ -2125,7 +2125,7 @@ def create_app():
             return jsonify({"error": "Doctor profile not found."}), 404
         
         user_id = doc.get("user_id")
-        mongo.doctors.update_one({"_id": doc["_id"]}, {"$set": {"approval_status": "blacklisted", "active_status": False, "updated_at": datetime.utcnow().isoformat()}})
+        mongo.doctors.update_one({"_id": doc["_id"]}, {"$set": {"approval_status": "blacklisted", "active_status": False, "updated_at": datetime.utcnow().isoformat() + "Z"}})
         if user_id:
             mongo.users.update_one({"id": user_id}, {"$set": {"status": "blacklisted"}})
 
@@ -2158,7 +2158,7 @@ def create_app():
             return jsonify({"error": "Patient profile not found."}), 404
 
         user_id = pat.get("user_id")
-        mongo.patients.update_one({"_id": pat["_id"]}, {"$set": {"status": "blacklisted", "active_status": False, "updated_at": datetime.utcnow().isoformat()}})
+        mongo.patients.update_one({"_id": pat["_id"]}, {"$set": {"status": "blacklisted", "active_status": False, "updated_at": datetime.utcnow().isoformat() + "Z"}})
         if user_id:
             mongo.users.update_one({"id": user_id}, {"$set": {"status": "blacklisted"}})
 
@@ -2175,7 +2175,7 @@ def create_app():
             return jsonify({"error": "Patient profile not found."}), 404
 
         user_id = pat.get("user_id")
-        mongo.patients.update_one({"_id": pat["_id"]}, {"$set": {"status": "active", "active_status": True, "updated_at": datetime.utcnow().isoformat()}})
+        mongo.patients.update_one({"_id": pat["_id"]}, {"$set": {"status": "active", "active_status": True, "updated_at": datetime.utcnow().isoformat() + "Z"}})
         if user_id:
             mongo.users.update_one({"id": user_id}, {"$set": {"status": "active"}})
 
@@ -2210,7 +2210,7 @@ def create_app():
         if not doc:
             return jsonify({"error": "Doctor profile not found."}), 404
         new_status = not doc.get("active_status", True)
-        mongo.doctors.update_one({"_id": doc["_id"]}, {"$set": {"active_status": new_status, "updated_at": datetime.utcnow().isoformat()}})
+        mongo.doctors.update_one({"_id": doc["_id"]}, {"$set": {"active_status": new_status, "updated_at": datetime.utcnow().isoformat() + "Z"}})
         return jsonify({
             "status": "success",
             "message": f"Doctor status updated to {'Active' if new_status else 'Inactive'}.",
@@ -2538,11 +2538,10 @@ def create_app():
 
         actual_id = session.get("screening_id") or session.get("id")
         pdf_path = os.path.join(app.config["REPORTS_FOLDER"], f"DR_Report_{actual_id}.pdf")
-        if not os.path.exists(pdf_path):
-            try:
-                report_service.generate_pdf_report(session, f"DR_Report_{actual_id}.pdf")
-            except Exception as e:
-                print(f"Error generating PDF on demand: {e}")
+        try:
+            report_service.generate_pdf_report(session, f"DR_Report_{actual_id}.pdf")
+        except Exception as e:
+            print(f"Error generating PDF on demand: {e}")
 
         if not os.path.exists(pdf_path):
             return jsonify({"error": "Failed to generate report PDF."}), 500

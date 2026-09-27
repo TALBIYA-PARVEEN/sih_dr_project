@@ -66,7 +66,11 @@ class MongoManager:
             self.doctors.create_index("user_id", unique=True)
             self.admins.create_index("user_id", unique=True)
             self.screenings.create_index("patient_id")
+            self.screenings.create_index("patient_user_id")
+            self.screenings.create_index([("created_at", -1)])
+            self.screenings.create_index("id")
             self.reports.create_index("screening_id")
+            self.reports.create_index([("created_at", -1)])
             self.doctor_reviews.create_index("doctor_id")
             self.doctor_reviews.create_index("patient_id")
             self.doctor_reviews.create_index("screening_id")
@@ -86,7 +90,7 @@ class MongoManager:
                 "full_name": app.config.get("ADMIN_NAME", "Master District Admin"),
                 "role": "admin",
                 "is_email_verified": True,
-                "created_at": datetime.utcnow().isoformat()
+                "created_at": datetime.utcnow().isoformat() + "Z"
             }
             self.users.update_one({"username": "admin"}, {"$set": admin_user_doc}, upsert=True)
 
@@ -97,7 +101,7 @@ class MongoManager:
                 "email": admin_email,
                 "district_jurisdiction": "National District Level",
                 "telemetry_access_level": "SuperAdmin",
-                "created_at": datetime.utcnow().isoformat()
+                "created_at": datetime.utcnow().isoformat() + "Z"
             }
             self.admins.update_one({"user_id": admin_user_id}, {"$set": admin_profile_doc}, upsert=True)
             print(f"[MONGODB] Master Admin Verified: {admin_email}")

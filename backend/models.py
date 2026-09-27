@@ -19,7 +19,7 @@ class UserModel:
             "is_email_verified": is_email_verified,
             "otp_code": otp_code,
             "otp_expiry": None,
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.utcnow().isoformat() + "Z",
             "last_login": None
         }
 
@@ -41,8 +41,8 @@ class PatientModel:
             "status": "active",  # "active" | "blacklisted"
             "active_status": True,
             "total_screenings": 0,
-            "created_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat() + "Z",
+            "updated_at": datetime.utcnow().isoformat() + "Z"
         }
 
 class DoctorModel:
@@ -64,8 +64,8 @@ class DoctorModel:
             "review_count": 0,
             "approval_status": "pending_approval",  # "pending_approval" | "approved" | "blacklisted"
             "active_status": False,  # False until Master Admin approves
-            "created_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat() + "Z",
+            "updated_at": datetime.utcnow().isoformat() + "Z"
         }
 
 class DoctorReviewModel:
@@ -80,7 +80,7 @@ class DoctorReviewModel:
             "rating": max(1, min(5, int(rating))),
             "comment": comment.strip(),
             "screening_id": screening_id,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat() + "Z"
         }
 
 class AdminModel:
@@ -94,7 +94,7 @@ class AdminModel:
             "email": email.strip().lower(),
             "district_jurisdiction": district_jurisdiction,
             "telemetry_access_level": "SuperAdmin",
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat() + "Z"
         }
 
 class ScreeningModel:
@@ -119,7 +119,7 @@ class ScreeningModel:
             "is_gradable": quality_assessment.get("is_gradable", False),
             "ai_prediction": ai_prediction or {},
             "biomarkers": biomarkers or {},
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat() + "Z"
         }
 
 class ReportModel:
@@ -160,7 +160,7 @@ class ReportModel:
             "doctor_notes": "Pending clinical validation by ophthalmologist.",
             "pdf_report_url": pdf_report_url,
             "signed_at": None,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat() + "Z"
         }
 
 class MessageModel:
@@ -177,5 +177,5 @@ class MessageModel:
             "screening_id": screening_id,
             "content": content.strip(),
             "is_read": False,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat() + "Z"
         }
