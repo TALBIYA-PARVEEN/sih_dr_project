@@ -25,11 +25,15 @@ from services.model_service import ModelService
 from services.gradcam_service import GradCAMService
 from services.report_service import ReportService
 from services.simulink_service import SimulinkTelemedicineSimulator
+from services.ai_chat_service import get_ai_response
 
 def serialize_doc(doc):
     if not doc: return None
     doc_copy = dict(doc)
     if "_id" in doc_copy: doc_copy["_id"] = str(doc_copy["_id"])
+    for k in list(doc_copy.keys()):
+        if k.startswith("b64_"):
+            doc_copy.pop(k, None)
     return doc_copy
 
 def assign_least_loaded_doctor():
@@ -257,7 +261,7 @@ def create_app():
             },
             "otp_code": otp_code,
             "otp_expiry": (datetime.utcnow() + timedelta(minutes=15)).isoformat(),
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat() + "Z"
         }
         # Store in temp_registrations ONLY - DO NOT touch mongo.users until OTP is verified
         if hasattr(mongo, "temp_registrations"):
@@ -297,14 +301,14 @@ def create_app():
             p_update = {}
             for k in ["full_name", "age", "gender", "phone", "diabetes_type", "diabetes_duration_years", "address_district"]:
                 if k in data: p_update[k] = data[k]
-            p_update["updated_at"] = datetime.utcnow().isoformat()
+            p_update["updated_at"] = datetime.utcnow().isoformat() + "Z"
             mongo.patients.update_one({"user_id": user_id}, {"$set": p_update})
 
         elif user.get("role") == "doctor":
             d_update = {}
             for k in ["full_name", "specialization", "license_number", "hospital_name", "phone", "consultation_hours"]:
                 if k in data: d_update[k] = data[k]
-            d_update["updated_at"] = datetime.utcnow().isoformat()
+            d_update["updated_at"] = datetime.utcnow().isoformat() + "Z"
             mongo.doctors.update_one({"user_id": user_id}, {"$set": d_update})
 
         updated_user = mongo.users.find_one({"id": user_id})
@@ -878,7 +882,7 @@ def create_app():
         # Update patient profile
         mongo.patients.update_many(
             {"$or": [{"user_id": patient_id}, {"id": patient_id}]},
-            {"$set": {"assigned_doctor_id": target_doc_id, "updated_at": datetime.utcnow().isoformat()}}
+            {"$set": {"assigned_doctor_id": target_doc_id, "updated_at": datetime.utcnow().isoformat() + "Z"}}
         )
         mongo.users.update_many(
             {"$or": [{"id": patient_id}, {"username": patient_id}]},
@@ -916,7 +920,7 @@ def create_app():
             "recipient_name": doc_name,
             "content": f"🚨 Second Opinion Clinical Request: Patient has transferred their care to your consultation queue for an independent evaluation. Reason: {reason}.",
             "is_read": False,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat() + "Z"
         })
 
         return jsonify({
@@ -957,7 +961,7 @@ def create_app():
             "rating": rating,
             "comment": comment or "Thorough and professional examination. Very clear guidance.",
             "screening_id": screening_id,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat() + "Z"
         }
         mongo.doctor_reviews.insert_one(review_doc)
 
@@ -1115,7 +1119,7 @@ def create_app():
             "image_path": original_path,
             "quality_assessment": iqa_result,
             "is_gradable": iqa_result["is_gradable"],
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.utcnow().isoformat() + "Z",
             "review_status": "Pending Review",
             "clinician_review": {"status": "Pending Review", "notes": None, "reviewed_by": None, "reviewed_at": None},
             "images": {
@@ -1219,7 +1223,7 @@ def create_app():
             "doctor_notes": "Pending clinical validation by ophthalmologist.",
             "pdf_report_url": f"/api/report/{session_id}/pdf",
             "signed_at": None,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat() + "Z"
         }
         mongo.reports.insert_one(report_doc)
 
@@ -1235,7 +1239,7 @@ def create_app():
                 "screening_id": session_id,
                 "content": f"New Patient Scan Assigned: {patient_name} ({pred_res['severity_name']}). Pending your review.",
                 "is_read": False,
-                "created_at": datetime.utcnow().isoformat()
+                "created_at": datetime.utcnow().isoformat() + "Z"
             })
 
         # 8. Generate PDF Report File on Disk
@@ -1418,7 +1422,7 @@ def create_app():
             "lesions_image_path": lesions_path,
             "quality_assessment": iqa_result,
             "is_gradable": iqa_result["is_gradable"],
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.utcnow().isoformat() + "Z",
             "review_status": "Pending Review",
             "clinician_review": {
                 "status": "Pending Review",
@@ -1474,7 +1478,7 @@ def create_app():
             "reviewed_by": None,
             "pdf_report_url": f"/api/report/{session_id}/pdf",
             "signed_at": None,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat() + "Z"
         }
         mongo.reports.insert_one(report_doc)
 
@@ -1511,7 +1515,7 @@ def create_app():
                 "screening_id": session_id,
                 "content": f"Hello {patient_name}, your retinal fundus screening has been completed. Diagnosis: {pred_res['severity_name']}. Clinical Advice: {doctor_notes}",
                 "is_read": False,
-                "created_at": datetime.utcnow().isoformat()
+                "created_at": datetime.utcnow().isoformat() + "Z"
             })
 
         return jsonify({
@@ -1558,7 +1562,7 @@ def create_app():
         query = {"$or": query_or}
 
         reports = mongo.reports.find(query, sort=[("created_at", -1)])
-        screenings = mongo.screenings.find(query, sort=[("created_at", -1)])
+        screenings = mongo.screenings.find(query, {"b64_original": 0, "b64_processed": 0, "b64_lesions": 0, "b64_vessels": 0, "b64_gradcam": 0}, sort=[("created_at", -1)])
 
         # Resolve patient's current assigned doctor fallback
         current_assigned_doc_name = None
@@ -1671,7 +1675,7 @@ def create_app():
             # Default "all" scope: Returns all district screenings so no scan is ever missed
             query = {}
 
-        queue = list(mongo.screenings.find(query, sort=[("created_at", -1)]))
+        queue = list(mongo.screenings.find(query, {"b64_original": 0, "b64_processed": 0, "b64_lesions": 0, "b64_vessels": 0, "b64_gradcam": 0}, sort=[("created_at", -1)]))
         screenings = []
         for s in queue:
             s_doc = serialize_doc(s)
@@ -1710,7 +1714,7 @@ def create_app():
                 "status": status,
                 "notes": notes,
                 "reviewed_by": doctor_name,
-                "reviewed_at": datetime.utcnow().isoformat()
+                "reviewed_at": datetime.utcnow().isoformat() + "Z"
             }
         }
         mongo.screenings.update_one({"id": session_id}, {"$set": update_dict})
@@ -1722,7 +1726,7 @@ def create_app():
                 "clinical_status": status,
                 "doctor_notes": notes,
                 "reviewed_by": doctor_name,
-                "signed_at": datetime.utcnow().isoformat()
+                "signed_at": datetime.utcnow().isoformat() + "Z"
             }}
         )
 
@@ -1744,7 +1748,7 @@ def create_app():
                 "screening_id": session_id,
                 "content": f"Clinical Evaluation Completed: {status}. Prescriptions & Directives: {notes or 'Your retinal screening has been evaluated and officially signed off.'}",
                 "is_read": False,
-                "created_at": datetime.utcnow().isoformat()
+                "created_at": datetime.utcnow().isoformat() + "Z"
             })
 
         updated_session = mongo.screenings.find_one({"id": session_id})
@@ -1754,6 +1758,65 @@ def create_app():
             print(f"PDF update note: {e}")
 
         return jsonify({"status": "success", "message": "Clinical evaluation & sign-off recorded.", "data": serialize_doc(updated_session)})
+
+    # --------------------------------------------------------------------------
+    # 5b. AI Health Assistant Chatbot (Gemini)
+    # --------------------------------------------------------------------------
+    @app.route("/api/chat/ai", methods=["POST"])
+    def ai_chat():
+        """
+        POST /api/chat/ai
+        Body: {
+            message: str,
+            history: [{role: "user"|"model", parts: [{text: str}]}],   # optional
+            patient_id: str    # optional — used to inject last-screening context
+        }
+        """
+        data = request.get_json() or {}
+        user_message = (data.get("message") or "").strip()
+        history = data.get("history") or []
+        patient_id = data.get("patient_id")
+
+        if not user_message:
+            return jsonify({"error": "message is required"}), 400
+
+        # Optionally inject patient's last screening result as context
+        patient_context = None
+        if patient_id:
+            try:
+                last_screening = mongo.screenings.find_one(
+                    {"patient_user_id": patient_id},
+                    sort=[("created_at", -1)]
+                )
+                if last_screening:
+                    patient_context = {
+                        "severity_name": last_screening.get("final_severity_name") or last_screening.get("severity_name"),
+                        "icdr_grade": last_screening.get("icdr_grade") or (last_screening.get("prediction") or {}).get("icdr_grade"),
+                    }
+                # Also pull diabetes_type and age from patient profile
+                patient_profile = mongo.patients.find_one({"user_id": patient_id})
+                if patient_profile:
+                    if not patient_context:
+                        patient_context = {}
+                    patient_context["diabetes_type"] = patient_profile.get("diabetes_type", "Type 2")
+                    patient_context["age"] = patient_profile.get("age")
+            except Exception as ctx_err:
+                print(f"[AI-CHAT] Context fetch error (non-fatal): {ctx_err}")
+
+        result = get_ai_response(
+            user_message=user_message,
+            conversation_history=history,
+            patient_context=patient_context
+        )
+
+        if result["error"]:
+            return jsonify({"status": "error", "error": result["error"]}), 503
+
+        return jsonify({
+            "status": "success",
+            "reply": result["reply"],
+            "disclaimer": result["disclaimer"]
+        })
 
     # --------------------------------------------------------------------------
     # 6. Messaging / Tele-Consultation
@@ -2015,7 +2078,7 @@ def create_app():
             return jsonify({"error": "Doctor profile not found."}), 404
         
         user_id = doc.get("user_id")
-        mongo.doctors.update_one({"_id": doc["_id"]}, {"$set": {"approval_status": "approved", "active_status": True, "updated_at": datetime.utcnow().isoformat()}})
+        mongo.doctors.update_one({"_id": doc["_id"]}, {"$set": {"approval_status": "approved", "active_status": True, "updated_at": datetime.utcnow().isoformat() + "Z"}})
         if user_id:
             mongo.users.update_one({"id": user_id}, {"$set": {"status": "active", "is_email_verified": True}})
 
@@ -2062,7 +2125,7 @@ def create_app():
             return jsonify({"error": "Doctor profile not found."}), 404
         
         user_id = doc.get("user_id")
-        mongo.doctors.update_one({"_id": doc["_id"]}, {"$set": {"approval_status": "blacklisted", "active_status": False, "updated_at": datetime.utcnow().isoformat()}})
+        mongo.doctors.update_one({"_id": doc["_id"]}, {"$set": {"approval_status": "blacklisted", "active_status": False, "updated_at": datetime.utcnow().isoformat() + "Z"}})
         if user_id:
             mongo.users.update_one({"id": user_id}, {"$set": {"status": "blacklisted"}})
 
@@ -2095,7 +2158,7 @@ def create_app():
             return jsonify({"error": "Patient profile not found."}), 404
 
         user_id = pat.get("user_id")
-        mongo.patients.update_one({"_id": pat["_id"]}, {"$set": {"status": "blacklisted", "active_status": False, "updated_at": datetime.utcnow().isoformat()}})
+        mongo.patients.update_one({"_id": pat["_id"]}, {"$set": {"status": "blacklisted", "active_status": False, "updated_at": datetime.utcnow().isoformat() + "Z"}})
         if user_id:
             mongo.users.update_one({"id": user_id}, {"$set": {"status": "blacklisted"}})
 
@@ -2112,7 +2175,7 @@ def create_app():
             return jsonify({"error": "Patient profile not found."}), 404
 
         user_id = pat.get("user_id")
-        mongo.patients.update_one({"_id": pat["_id"]}, {"$set": {"status": "active", "active_status": True, "updated_at": datetime.utcnow().isoformat()}})
+        mongo.patients.update_one({"_id": pat["_id"]}, {"$set": {"status": "active", "active_status": True, "updated_at": datetime.utcnow().isoformat() + "Z"}})
         if user_id:
             mongo.users.update_one({"id": user_id}, {"$set": {"status": "active"}})
 
@@ -2147,7 +2210,7 @@ def create_app():
         if not doc:
             return jsonify({"error": "Doctor profile not found."}), 404
         new_status = not doc.get("active_status", True)
-        mongo.doctors.update_one({"_id": doc["_id"]}, {"$set": {"active_status": new_status, "updated_at": datetime.utcnow().isoformat()}})
+        mongo.doctors.update_one({"_id": doc["_id"]}, {"$set": {"active_status": new_status, "updated_at": datetime.utcnow().isoformat() + "Z"}})
         return jsonify({
             "status": "success",
             "message": f"Doctor status updated to {'Active' if new_status else 'Inactive'}.",
@@ -2317,20 +2380,46 @@ def create_app():
 
     @app.route("/api/files/<session_id>/<file_type>", methods=["GET"])
     def serve_file(session_id, file_type):
-        session = mongo.screenings.find_one({"id": session_id})
+        # 1. Primary: Fast local disk check (instant <5ms response, zero cloud network latency)
+        local_candidates = [
+            os.path.join(app.config["PROCESSED_FOLDER"], f"{session_id}_{file_type}.png"),
+            os.path.join(app.config["PROCESSED_FOLDER"], f"{session_id}_prep.png") if file_type in ["processed", "original"] else None,
+            os.path.join(app.config["PROCESSED_FOLDER"], f"{session_id}_orig.png") if file_type in ["processed", "original"] else None,
+        ]
+        if file_type == "original" and os.path.exists(app.config["UPLOAD_FOLDER"]):
+            try:
+                for fn in os.listdir(app.config["UPLOAD_FOLDER"]):
+                    if fn.startswith(f"{session_id}_"):
+                        local_candidates.insert(0, os.path.join(app.config["UPLOAD_FOLDER"], fn))
+                        break
+            except Exception:
+                pass
+
+        for c in local_candidates:
+            if c and os.path.exists(c):
+                ext = os.path.splitext(c)[1].lower()
+                mimetype = "image/jpeg" if ext in [".jpg", ".jpeg"] else "image/png"
+                return send_file(c, mimetype=mimetype)
+
+        # 2. Secondary: If not found on disk, query MongoDB Atlas with projection for just this file
+        b64_key = f"b64_{file_type}"
+        session = mongo.screenings.find_one({"id": session_id}, {
+            "id": 1,
+            b64_key: 1,
+            "image_path": 1,
+            "processed_image_path": 1,
+            "gradcam_image_path": 1,
+            "lesions_image_path": 1,
+            "vessels_image_path": 1,
+            "original_filename": 1,
+            "biomarkers": 1
+        })
+        if not session:
+            session = mongo.screenings.find_one({"id": session_id})
         if not session:
             return jsonify({"error": "Session not found."}), 404
 
-        # 1. Primary: Check if actual patient image bytes are stored in MongoDB Atlas
-        b64_key = f"b64_{file_type}"
-        if session.get(b64_key):
-            try:
-                img_bytes = base64.b64decode(session[b64_key])
-                return send_file(io.BytesIO(img_bytes), mimetype="image/png")
-            except Exception as e:
-                print(f"Error decoding b64 image: {e}")
-
-        # 2. Check local disk paths if available
+        # Check recorded paths if stored
         path_map = {
             "original": session.get("image_path"),
             "processed": session.get("processed_image_path"),
@@ -2340,18 +2429,17 @@ def create_app():
         }
         target = path_map.get(file_type)
         if target and os.path.exists(target):
-            return send_file(target, mimetype="image/png")
+            ext = os.path.splitext(target)[1].lower()
+            mimetype = "image/jpeg" if ext in [".jpg", ".jpeg"] else "image/png"
+            return send_file(target, mimetype=mimetype)
 
-        # 3. Check standard processed / upload folder names
-        candidates = [
-            os.path.join(app.config["PROCESSED_FOLDER"], f"{session_id}_{file_type}.png"),
-            os.path.join(app.config["PROCESSED_FOLDER"], f"{session_id}_prep.png") if file_type in ["processed", "original"] else None,
-            os.path.join(app.config["PROCESSED_FOLDER"], f"{session_id}_orig.png") if file_type in ["processed", "original"] else None,
-            os.path.join(app.config["UPLOAD_FOLDER"], f"{session_id}_{session.get('original_filename', 'image.png')}")
-        ]
-        for c in candidates:
-            if c and os.path.exists(c):
-                return send_file(c, mimetype="image/png")
+        # 3. Check if stored in MongoDB Atlas as Base64 (Cloud Ephemeral Instances)
+        if session.get(b64_key):
+            try:
+                img_bytes = base64.b64decode(session[b64_key])
+                return send_file(io.BytesIO(img_bytes), mimetype="image/png")
+            except Exception as e:
+                print(f"Error decoding b64 image: {e}")
 
         # 4. Patient-Specific Diagnostic Reconstruction (Personalized to this patient's unique anatomy and biomarkers)
         try:
@@ -2450,11 +2538,10 @@ def create_app():
 
         actual_id = session.get("screening_id") or session.get("id")
         pdf_path = os.path.join(app.config["REPORTS_FOLDER"], f"DR_Report_{actual_id}.pdf")
-        if not os.path.exists(pdf_path):
-            try:
-                report_service.generate_pdf_report(session, f"DR_Report_{actual_id}.pdf")
-            except Exception as e:
-                print(f"Error generating PDF on demand: {e}")
+        try:
+            report_service.generate_pdf_report(session, f"DR_Report_{actual_id}.pdf")
+        except Exception as e:
+            print(f"Error generating PDF on demand: {e}")
 
         if not os.path.exists(pdf_path):
             return jsonify({"error": "Failed to generate report PDF."}), 500
@@ -2480,5 +2567,5 @@ def create_app():
 app = create_app()
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT", 5001))
     app.run(host="0.0.0.0", port=port, debug=False)
