@@ -1,7 +1,214 @@
-/* Custom styles for NetraAI Tele-Ophthalmology */
+/* ==============================================================================
+   NETRA DIAGNOSTICS • DIGITAL HEALTHCARE DESIGN SYSTEM (SIH 2026)
+   Inspired by Digital Diagnostics / LumineticsCore clinical platform
+   ============================================================================== */
 
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+    --brand-teal-primary: #00A896;
+    --brand-teal-dark: #025968;
+    --brand-teal-deep: #02353F;
+    --brand-teal-accent: #02C39A;
+    --brand-navy-hero: #012832;
+    --brand-slate-light: #F8FAFC;
+    --brand-border-subtle: #E2E8F0;
+    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    --font-heading: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+}
+
+body {
+    font-family: var(--font-sans);
+    color: #1E293B;
+    background-color: #F8FAFC;
+    scroll-behavior: smooth;
+}
+
+h1, h2, h3, h4, .font-heading {
+    font-family: var(--font-heading);
+}
+
+/* --------------------------------------------------------------------------
+   Hero Section & Curved Wave Divider (Digital Diagnostics Style)
+   -------------------------------------------------------------------------- */
+.digital-hero-section {
+    position: relative;
+    background-image: url('../assets/images/hero_medical.jpg');
+    background-size: cover;
+    background-position: 75% 25%;
+    min-height: 600px;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+}
+
+@media (min-width: 1024px) {
+    .digital-hero-section {
+        min-height: 640px;
+    }
+}
+
+.digital-hero-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, 
+        rgba(1, 38, 48, 0.96) 0%, 
+        rgba(2, 48, 60, 0.90) 38%, 
+        rgba(2, 54, 68, 0.65) 65%, 
+        rgba(2, 54, 68, 0.20) 100%);
+    z-index: 1;
+}
+
+.hero-curved-divider {
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    right: 0;
+    width: 100%;
+    overflow: hidden;
+    line-height: 0;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.hero-curved-divider svg {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 55px;
+}
+
+@media (min-width: 768px) {
+    .hero-curved-divider svg {
+        height: 85px;
+    }
+}
+
+@media (min-width: 1280px) {
+    .hero-curved-divider svg {
+        height: 105px;
+    }
+}
+
+/* --------------------------------------------------------------------------
+   Pill Buttons & Navigation
+   -------------------------------------------------------------------------- */
+.btn-pill-white {
+    background-color: #FFFFFF;
+    color: #0F172A;
+    font-weight: 600;
+    border-radius: 9999px;
+    box-shadow: 0 4px 14px 0 rgba(0, 0, 0, 0.12);
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+.btn-pill-white:hover {
+    background-color: #F8FAFC;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.16);
+    color: #007A6E;
+}
+
+.btn-pill-teal {
+    background: linear-gradient(135deg, #00A896 0%, #028090 100%);
+    color: #FFFFFF;
+    font-weight: 600;
+    border-radius: 9999px;
+    box-shadow: 0 4px 14px 0 rgba(0, 168, 150, 0.35);
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    display: inline-flex;
+    align-items: center;
+}
+
+.btn-pill-teal:hover {
+    background: linear-gradient(135deg, #02C39A 0%, #00A896 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px 0 rgba(0, 168, 150, 0.45);
+}
+
+.btn-pill-outline-white {
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(8px);
+    color: #FFFFFF;
+    font-weight: 500;
+    border-radius: 9999px;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    transition: all 0.25s ease;
+    display: inline-flex;
+    align-items: center;
+}
+
+.btn-pill-outline-white:hover {
+    background: rgba(255, 255, 255, 0.18);
+    border-color: rgba(255, 255, 255, 0.6);
+    transform: translateY(-2px);
+}
+
+/* --------------------------------------------------------------------------
+   Product Showcase Card (LumineticsCore Style)
+   -------------------------------------------------------------------------- */
+.product-card-container {
+    background-color: #F3F6F9;
+    border: 1px solid #E2E8F0;
+    border-radius: 28px;
+    box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06);
+    transition: all 0.3s ease;
+}
+
+.product-card-container:hover {
+    border-color: #CBD5E1;
+    box-shadow: 0 12px 30px -4px rgba(15, 23, 42, 0.10);
+}
+
+.product-display-frame {
+    background: linear-gradient(145deg, #0E4856 0%, #08323C 100%);
+    border-radius: 20px;
+    padding: 16px;
+    box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.1), 0 8px 24px rgba(0, 0, 0, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* --------------------------------------------------------------------------
+   Aperture / Iris Logo Badge
+   -------------------------------------------------------------------------- */
+.iris-logo-ring {
+    position: relative;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: conic-gradient(from 180deg, #02C39A 0%, #00A896 45%, #028090 75%, #00A896 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.iris-logo-inner {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background-color: #012832;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.iris-logo-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: #02C39A;
+}
+
+/* --------------------------------------------------------------------------
+   Existing App Styles & Compatibility
+   -------------------------------------------------------------------------- */
 .role-btn.active {
-    background-color: #4f46e5 !important;
+    background-color: #00A896 !important;
     color: #ffffff !important;
     box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
 }
@@ -33,3 +240,42 @@
 .aspect-square img:hover {
     transform: scale(1.04);
 }
+
+/* ==========================================================================
+   AI HEALTH ASSISTANT — Chatbot Animations
+   ========================================================================== */
+
+/* Pulsing online indicator dot */
+@keyframes ai-pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50%       { transform: scale(1.4); opacity: 0.6; }
+}
+.ai-pulse-dot {
+    animation: ai-pulse 2s ease-in-out infinite;
+}
+
+/* Typing bounce indicator */
+@keyframes ai-bounce {
+    0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+    40%            { transform: translateY(-6px); opacity: 1; }
+}
+.ai-typing-dot {
+    animation: ai-bounce 1.2s ease-in-out infinite;
+}
+
+/* AI message bubble rendered text — preserve line breaks & format bold */
+.ai-msg-text strong, .ai-msg-text b { font-weight: 700; }
+.ai-msg-text br { display: block; margin: 2px 0; }
+
+/* Input focus ring for dark AI chat input */
+#aiChatInput:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.5);
+    border-color: rgba(124, 58, 237, 0.6) !important;
+}
+
+/* AI chat message stream scrollbar */
+#aiChatMessagesStream::-webkit-scrollbar { width: 4px; }
+#aiChatMessagesStream::-webkit-scrollbar-track { background: transparent; }
+#aiChatMessagesStream::-webkit-scrollbar-thumb { background: rgba(139,92,246,0.3); border-radius: 4px; }
+#aiChatMessagesStream::-webkit-scrollbar-thumb:hover { background: rgba(139,92,246,0.5); }
