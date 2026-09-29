@@ -3,7 +3,8 @@ name: Deploy UI Redesign to GitHub Pages
 on:
   push:
     branches:
-      - ui-redesign
+      - main
+      
 
 permissions:
   contents: read
